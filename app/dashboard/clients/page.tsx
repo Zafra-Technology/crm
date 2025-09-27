@@ -2,172 +2,180 @@
 
 import { useState, useEffect } from 'react';
 import { getCurrentUser } from '@/lib/auth';
-import { designersApi } from '@/lib/api/designers';
+import { clientsApi } from '@/lib/api/clients';
 import { User } from '@/types';
-import { Designer } from '@/types/designer';
+import { Client } from '@/types/client';
+import ConfirmModal from '@/components/modals/ConfirmModal';
 import { 
   PlusIcon, 
   UserIcon, 
   MailIcon, 
   PhoneIcon, 
-  BriefcaseIcon,
+  BuildingIcon,
   EditIcon,
   TrashIcon,
   SearchIcon
 } from 'lucide-react';
 
-export default function DesignersPage() {
+export default function ClientsPage() {
   const [user, setUser] = useState<User | null>(null);
-  const [designers, setDesigners] = useState<Designer[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingDesigner, setEditingDesigner] = useState<Designer | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phoneNumber: '',
-    role: '',
+    company: '',
   });
 
   useEffect(() => {
     const currentUser = getCurrentUser();
     setUser(currentUser);
-    loadDesignersAndProjects();
+    loadClientsAndProjects();
   }, []);
 
-  const loadDesignersAndProjects = async () => {
+  const loadClientsAndProjects = async () => {
     try {
       setLoading(true);
-      // Load both designers and projects
-      const [designersData, projectsData] = await Promise.all([
-        designersApi.getAll(),
+      // Load both clients and projects
+      const [clientsData, projectsData] = await Promise.all([
+        clientsApi.getAll(),
         fetch('/api/projects').then(res => res.json()).then(data => data.projects)
       ]);
       
-      // Calculate actual project counts for each designer
-      const designersWithCounts = designersData.map(designer => ({
-        ...designer,
+      // Calculate actual project counts for each client
+      const clientsWithCounts = clientsData.map(client => ({
+        ...client,
         projectsCount: projectsData.filter((project: any) => 
-          project.designerIds && project.designerIds.includes(designer.id)
+          project.clientId === client.id
         ).length
       }));
       
-      setDesigners(designersWithCounts);
+      setClients(clientsWithCounts);
       setProjects(projectsData);
     } catch (error) {
-      console.error('Error loading designers and projects:', error);
+      console.error('Error loading clients and projects:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddDesigner = async (e: React.FormEvent) => {
+  const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
-      const newDesigner = await designersApi.create(formData);
-      if (newDesigner) {
-        // Add with project count of 0 for new designers
-        const designerWithCount = { ...newDesigner, projectsCount: 0 };
-        setDesigners([...designers, designerWithCount]);
-        setFormData({ name: '', email: '', phoneNumber: '', role: '' });
+      const newClient = await clientsApi.create(formData);
+      if (newClient) {
+        // Add with project count of 0 for new clients
+        const clientWithCount = { ...newClient, projectsCount: 0 };
+        setClients([...clients, clientWithCount]);
+        setFormData({ name: '', email: '', phoneNumber: '', company: '' });
         setShowAddForm(false);
       }
     } catch (error) {
-      console.error('Error adding designer:', error);
-      alert('Failed to add designer. Please try again.');
+      console.error('Error adding client:', error);
+      alert('Failed to add client. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditDesigner = (designer: Designer) => {
-    setEditingDesigner(designer);
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
     setFormData({
-      name: designer.name,
-      email: designer.email,
-      phoneNumber: designer.phoneNumber,
-      role: designer.role,
+      name: client.name,
+      email: client.email,
+      phoneNumber: client.phoneNumber,
+      company: client.company,
     });
     setShowAddForm(true);
   };
 
-  const handleUpdateDesigner = async (e: React.FormEvent) => {
+  const handleUpdateClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingDesigner) {
+    if (editingClient) {
       try {
         setLoading(true);
-        const updatedDesigner = await designersApi.update(editingDesigner.id, formData);
-        if (updatedDesigner) {
+        const updatedClient = await clientsApi.update(editingClient.id, formData);
+        if (updatedClient) {
           // Preserve the project count when updating
-          const designerWithCount = { 
-            ...updatedDesigner, 
-            projectsCount: editingDesigner.projectsCount 
+          const clientWithCount = { 
+            ...updatedClient, 
+            projectsCount: editingClient.projectsCount 
           };
-          setDesigners(designers.map(d => 
-            d.id === editingDesigner.id ? designerWithCount : d
+          setClients(clients.map(c => 
+            c.id === editingClient.id ? clientWithCount : c
           ));
-          setEditingDesigner(null);
-          setFormData({ name: '', email: '', phoneNumber: '', role: '' });
+          setEditingClient(null);
+          setFormData({ name: '', email: '', phoneNumber: '', company: '' });
           setShowAddForm(false);
         }
       } catch (error) {
-        console.error('Error updating designer:', error);
-        alert('Failed to update designer. Please try again.');
+        console.error('Error updating client:', error);
+        alert('Failed to update client. Please try again.');
       } finally {
         setLoading(false);
       }
     }
   };
 
-  const handleDeleteDesigner = async (id: string) => {
-    if (confirm('Are you sure you want to delete this designer?')) {
-      try {
-        setLoading(true);
-        const success = await designersApi.delete(id);
-        if (success) {
-          setDesigners(designers.filter(d => d.id !== id));
-        } else {
-          alert('Failed to delete designer. Please try again.');
-        }
-      } catch (error) {
-        console.error('Error deleting designer:', error);
-        alert('Failed to delete designer. Please try again.');
-      } finally {
-        setLoading(false);
+  const handleDeleteClient = async () => {
+    if (!selectedClient) return;
+    
+    try {
+      setLoading(true);
+      const success = await clientsApi.delete(selectedClient.id);
+      if (success) {
+        setClients(clients.filter(c => c.id !== selectedClient.id));
+        setShowDeleteModal(false);
+        setSelectedClient(null);
       }
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      alert('Failed to delete client. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleDesignerStatus = async (id: string) => {
-    const designer = designers.find(d => d.id === id);
-    if (designer) {
+  const toggleClientStatus = async (id: string) => {
+    const client = clients.find(c => c.id === id);
+    if (client) {
       try {
         setLoading(true);
-        const updatedDesigner = await designersApi.toggleStatus(id, designer.status);
-        if (updatedDesigner) {
-          setDesigners(designers.map(d => 
-            d.id === id ? updatedDesigner : d
+        const updatedClient = await clientsApi.toggleStatus(id, client.status);
+        if (updatedClient) {
+          setClients(clients.map(c => 
+            c.id === id ? { ...updatedClient, projectsCount: client.projectsCount } : c
           ));
         }
       } catch (error) {
-        console.error('Error toggling designer status:', error);
-        alert('Failed to update designer status. Please try again.');
+        console.error('Error toggling client status:', error);
+        alert('Failed to update client status. Please try again.');
       } finally {
         setLoading(false);
       }
     }
+  };
+
+  const openDeleteModal = (client: Client) => {
+    setSelectedClient(client);
+    setShowDeleteModal(true);
   };
 
   // Use live search with debouncing
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   
-  const filteredDesigners = designers.filter(designer =>
-    designer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    designer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    designer.role.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.company.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSearch = (value: string) => {
@@ -182,20 +190,20 @@ export default function DesignersPage() {
     const timeout = setTimeout(async () => {
       if (value.trim()) {
         try {
-          const searchResults = await designersApi.search(value);
+          const searchResults = await clientsApi.search(value);
           // Calculate project counts for search results
-          const searchWithCounts = searchResults.map(designer => ({
-            ...designer,
+          const searchWithCounts = searchResults.map(client => ({
+            ...client,
             projectsCount: projects.filter((project: any) => 
-              project.designerIds && project.designerIds.includes(designer.id)
+              project.clientId === client.id
             ).length
           }));
-          setDesigners(searchWithCounts);
+          setClients(searchWithCounts);
         } catch (error) {
-          console.error('Error searching designers:', error);
+          console.error('Error searching clients:', error);
         }
       } else {
-        loadDesignersAndProjects();
+        loadClientsAndProjects();
       }
     }, 300);
     
@@ -210,8 +218,8 @@ export default function DesignersPage() {
     );
   }
 
-  // Only allow project managers to manage designers
-  const canManageDesigners = user.role === 'project_manager';
+  // Only allow project managers to manage clients
+  const canManageClients = user.role === 'project_manager';
 
   return (
     <div className="space-y-6">
@@ -219,20 +227,20 @@ export default function DesignersPage() {
       <div className="sticky top-0 bg-gray-50 z-20 pb-4 mb-2 -mx-6 px-6">
         <div className="flex items-center justify-between bg-gray-50 pt-2">
           <div>
-            <h1 className="text-2xl font-bold text-black">Designers</h1>
-            <p className="text-gray-600 mt-1">Manage your design team members</p>
+            <h1 className="text-2xl font-bold text-black">Clients</h1>
+            <p className="text-gray-600 mt-1">Manage your client relationships</p>
           </div>
-          {canManageDesigners && (
+          {canManageClients && (
             <button
               onClick={() => {
-                setEditingDesigner(null);
-                setFormData({ name: '', email: '', phoneNumber: '', role: '' });
+                setEditingClient(null);
+                setFormData({ name: '', email: '', phoneNumber: '', company: '' });
                 setShowAddForm(true);
               }}
               className="btn-primary flex items-center space-x-2 shadow-md"
             >
               <PlusIcon size={20} />
-              <span>Add Designer</span>
+              <span>Add Client</span>
             </button>
           )}
         </div>
@@ -244,7 +252,7 @@ export default function DesignersPage() {
           <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Search designers by name, email, or role..."
+            placeholder="Search clients by name, email, or company..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
@@ -255,61 +263,61 @@ export default function DesignersPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card text-center">
-          <div className="text-2xl font-bold text-black">{designers.length}</div>
-          <div className="text-sm text-gray-600">Total Designers</div>
+          <div className="text-2xl font-bold text-black">{clients.length}</div>
+          <div className="text-sm text-gray-600">Total Clients</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-green-600">
-            {designers.filter(d => d.status === 'active').length}
+            {clients.filter(c => c.status === 'active').length}
           </div>
           <div className="text-sm text-gray-600">Active</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-gray-600">
-            {designers.filter(d => d.status === 'inactive').length}
+            {clients.filter(c => c.status === 'inactive').length}
           </div>
           <div className="text-sm text-gray-600">Inactive</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-blue-600">
-            {designers.reduce((sum, d) => sum + (d.projectsCount || 0), 0)}
+            {clients.reduce((sum, c) => sum + (c.projectsCount || 0), 0)}
           </div>
-          <div className="text-sm text-gray-600">Total Assignments</div>
+          <div className="text-sm text-gray-600">Total Projects</div>
         </div>
       </div>
 
-      {/* Designers List */}
+      {/* Clients List */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">Team Members</h2>
+        <h2 className="text-lg font-semibold text-black">Client Directory</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDesigners.map((designer) => (
-            <div key={designer.id} className="card h-full flex flex-col">
+          {filteredClients.map((client) => (
+            <div key={client.id} className="card h-full flex flex-col">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                    <UserIcon size={24} className="text-gray-600" />
+                    <BuildingIcon size={24} className="text-gray-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-black">{designer.name}</h3>
+                    <h3 className="font-semibold text-black">{client.name}</h3>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      designer.status === 'active' 
+                      client.status === 'active' 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {designer.status}
+                      {client.status}
                     </span>
                   </div>
                 </div>
-                {canManageDesigners && (
+                {canManageClients && (
                   <div className="flex space-x-1">
                     <button
-                      onClick={() => handleEditDesigner(designer)}
+                      onClick={() => handleEditClient(client)}
                       className="p-1 text-gray-400 hover:text-gray-600"
                     >
                       <EditIcon size={16} />
                     </button>
                     <button
-                      onClick={() => handleDeleteDesigner(designer.id)}
+                      onClick={() => openDeleteModal(client)}
                       className="p-1 text-gray-400 hover:text-red-600"
                     >
                       <TrashIcon size={16} />
@@ -321,28 +329,28 @@ export default function DesignersPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center space-x-2 text-gray-600">
                   <MailIcon size={14} />
-                  <span>{designer.email}</span>
+                  <span>{client.email}</span>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-600">
                   <PhoneIcon size={14} />
-                  <span>{designer.phoneNumber}</span>
+                  <span>{client.phoneNumber}</span>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-600">
-                  <BriefcaseIcon size={14} />
-                  <span>{designer.role}</span>
+                  <BuildingIcon size={14} />
+                  <span>{client.company}</span>
                 </div>
               </div>
 
               <div className="mt-auto pt-4 border-t border-gray-200 flex items-center justify-between text-sm">
                 <div className="text-gray-500">
-                  {designer.projectsCount} project{designer.projectsCount !== 1 ? 's' : ''}
+                  {client.projectsCount} project{client.projectsCount !== 1 ? 's' : ''}
                 </div>
-                {canManageDesigners && (
+                {canManageClients && (
                   <button
-                    onClick={() => toggleDesignerStatus(designer.id)}
+                    onClick={() => toggleClientStatus(client.id)}
                     className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
                   >
-                    {designer.status === 'active' ? 'Deactivate' : 'Activate'}
+                    {client.status === 'active' ? 'Deactivate' : 'Activate'}
                   </button>
                 )}
               </div>
@@ -350,31 +358,31 @@ export default function DesignersPage() {
           ))}
         </div>
 
-        {filteredDesigners.length === 0 && (
+        {filteredClients.length === 0 && (
           <div className="card text-center py-12">
-            <UserIcon size={48} className="mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">No designers found</h3>
+            <BuildingIcon size={48} className="mx-auto mb-4 text-gray-300" />
+            <h3 className="text-lg font-medium text-gray-600 mb-2">No clients found</h3>
             <p className="text-gray-500">
-              {searchTerm ? 'Try adjusting your search terms.' : 'Add your first designer to get started.'}
+              {searchTerm ? 'Try adjusting your search terms.' : 'Add your first client to get started.'}
             </p>
           </div>
         )}
       </div>
 
-      {/* Add/Edit Designer Modal */}
+      {/* Add/Edit Client Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
           <div className="bg-white rounded-lg max-w-2xl w-full my-8 max-h-[90vh] overflow-hidden flex flex-col">
             {/* Sticky Modal Header */}
             <div className="sticky top-0 bg-white rounded-t-lg px-6 pt-6 pb-4 border-b border-gray-200 z-10">
               <h3 className="text-lg font-semibold text-black">
-                {editingDesigner ? 'Edit Designer' : 'Add New Designer'}
+                {editingClient ? 'Edit Client' : 'Add New Client'}
               </h3>
             </div>
             
             {/* Scrollable Modal Content */}
             <div className="flex-1 overflow-y-auto px-6 pb-6">
-            <form onSubmit={editingDesigner ? handleUpdateDesigner : handleAddDesigner} className="space-y-6">
+            <form onSubmit={editingClient ? handleUpdateClient : handleAddClient} className="space-y-6">
               {/* Two Column Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -418,15 +426,15 @@ export default function DesignersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role *
+                    Company *
                   </label>
                   <input
                     type="text"
                     required
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                    placeholder="e.g., Senior UI/UX Designer"
+                    placeholder="Enter company name"
                   />
                 </div>
               </div>
@@ -435,19 +443,20 @@ export default function DesignersPage() {
                   type="button"
                   onClick={() => {
                     setShowAddForm(false);
-                    setEditingDesigner(null);
-                    setFormData({ name: '', email: '', phoneNumber: '', role: '' });
+                    setEditingClient(null);
+                    setFormData({ name: '', email: '', phoneNumber: '', company: '' });
                   }}
-                  className="btn-secondary flex-1"
+                  disabled={loading}
+                  className="btn-secondary flex-1 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-primary flex-1 disabled:opacity-50"
                 >
-                  {loading ? 'Processing...' : (editingDesigner ? 'Update Designer' : 'Add Designer')}
+                  {loading ? 'Processing...' : (editingClient ? 'Update Client' : 'Add Client')}
                 </button>
               </div>
             </form>
@@ -455,6 +464,21 @@ export default function DesignersPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedClient(null);
+        }}
+        onConfirm={handleDeleteClient}
+        title="Delete Client"
+        message={`Are you sure you want to delete "${selectedClient?.name}"? This action cannot be undone.`}
+        confirmText="Delete Client"
+        type="danger"
+        loading={loading}
+      />
     </div>
   );
 }

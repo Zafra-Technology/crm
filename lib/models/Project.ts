@@ -81,6 +81,7 @@ export class ProjectModel {
       const db = await getDatabase();
       const result = await db.collection(this.collection).insertOne({
         ...projectData,
+        attachments: projectData.attachments || [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });

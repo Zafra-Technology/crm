@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, requirements, timeline, clientId, managerId, designerIds } = body;
+    const { name, description, requirements, timeline, clientId, managerId, designerIds, attachments } = body;
     
     // Validate required fields
     if (!name || !description || !requirements || !timeline || !clientId || !managerId) {
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       clientId,
       managerId,
       designerIds: designerIds || [],
+      attachments: attachments || [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

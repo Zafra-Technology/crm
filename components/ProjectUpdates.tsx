@@ -9,22 +9,54 @@ interface ProjectUpdatesProps {
   updates: ProjectUpdate[];
   currentUser: User;
   canEdit: boolean;
+  onUpdateAdded?: () => void;
 }
 
-export default function ProjectUpdates({ projectId, updates, currentUser, canEdit }: ProjectUpdatesProps) {
+export default function ProjectUpdates({ projectId, updates, currentUser, canEdit, onUpdateAdded }: ProjectUpdatesProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [newUpdate, setNewUpdate] = useState({
     type: 'design' as ProjectUpdate['type'],
     title: '',
     description: '',
   });
 
-  const handleAddUpdate = (e: React.FormEvent) => {
+  const handleAddUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would make an API call
-    console.log('Adding update:', newUpdate);
-    setShowAddForm(false);
-    setNewUpdate({ type: 'design', title: '', description: '' });
+    try {
+      setLoading(true);
+      
+      const updateData = {
+        projectId,
+        userId: currentUser.id,
+        type: newUpdate.type,
+        title: newUpdate.title,
+        description: newUpdate.description,
+      };
+
+      const response = await fetch('/api/project-updates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        setShowAddForm(false);
+        setNewUpdate({ type: 'design', title: '', description: '' });
+        if (onUpdateAdded) {
+          onUpdateAdded(); // Refresh the project data
+        }
+      } else {
+        throw new Error('Failed to add update');
+      }
+    } catch (error) {
+      console.error('Error adding update:', error);
+      alert('Failed to add update. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getUpdateIcon = (type: ProjectUpdate['type']) => {
@@ -114,8 +146,8 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
 
       {/* Add Update Form */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
+          <div className="bg-white rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-black mb-4">Add Project Update</h3>
             <form onSubmit={handleAddUpdate} className="space-y-4">
               <div>
@@ -161,15 +193,17 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
-                  className="btn-secondary flex-1"
+                  disabled={loading}
+                  className="btn-secondary flex-1 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary flex-1"
+                  disabled={loading}
+                  className="btn-primary flex-1 disabled:opacity-50"
                 >
-                  Add Update
+                  {loading ? 'Adding...' : 'Add Update'}
                 </button>
               </div>
             </form>

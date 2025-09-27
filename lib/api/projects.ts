@@ -64,6 +64,7 @@ export const projectsApi = {
     clientId: string;
     managerId: string;
     designerIds?: string[];
+    attachments?: any[];
   }): Promise<Project | null> => {
     try {
       const response = await fetch(API_BASE, {

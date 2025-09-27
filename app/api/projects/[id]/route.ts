@@ -33,7 +33,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
-    const { name, description, requirements, timeline, status, designerIds } = body;
+    const { name, description, requirements, timeline, status, designerIds, attachments } = body;
     
     const updateData: any = {};
     if (name) updateData.name = name;
@@ -42,6 +42,7 @@ export async function PUT(
     if (timeline) updateData.timeline = timeline;
     if (status) updateData.status = status;
     if (designerIds !== undefined) updateData.designerIds = designerIds;
+    if (attachments !== undefined) updateData.attachments = attachments;
     
     const project = await ProjectModel.update(params.id, updateData);
     

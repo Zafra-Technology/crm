@@ -48,13 +48,13 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   };
 
   return (
-    <div className="card h-96 flex flex-col">
-      <h3 className="text-lg font-semibold text-black mb-4 pb-3 border-b border-gray-200">
+    <div className="card h-full flex flex-col">
+      <h3 className="text-lg font-semibold text-black mb-4 pb-3 border-b border-gray-200 flex-shrink-0">
         Project Chat
       </h3>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+      <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-0">
         {chatMessages.map((message) => (
           <div
             key={message.id}
@@ -90,7 +90,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       </div>
 
       {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="flex space-x-2">
+      <form onSubmit={handleSendMessage} className="flex space-x-2 flex-shrink-0">
         <input
           type="text"
           value={newMessage}

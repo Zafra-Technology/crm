@@ -8,6 +8,16 @@ export interface User {
   avatar?: string;
 }
 
+export interface ProjectAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  url: string;
+  uploadedAt: string;
+  uploadedBy: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -18,6 +28,7 @@ export interface Project {
   clientId: string;
   managerId: string;
   designerIds: string[];
+  attachments?: ProjectAttachment[];
   createdAt: string;
   updatedAt: string;
 }

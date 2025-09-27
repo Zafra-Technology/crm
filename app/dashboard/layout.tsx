@@ -39,12 +39,20 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar userRole={user.role} />
-      <div className="flex-1 flex flex-col md:ml-0">
-        <Header user={user} />
-        <main className="flex-1 p-6 md:pl-6 pl-4">
-          {children}
+    <div className="h-full bg-gray-50 flex overflow-hidden">
+      <div className="flex-shrink-0 h-full">
+        <Sidebar userRole={user.role} />
+      </div>
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden border-l-0">
+        <div className="flex-shrink-0 relative z-30">
+          <Header user={user} />
+        </div>
+        <main className="flex-1 overflow-y-auto min-h-0 bg-gray-50 relative">
+          <div className="p-6">
+            <div className="max-w-full">
+              {children}
+            </div>
+          </div>
         </main>
       </div>
     </div>

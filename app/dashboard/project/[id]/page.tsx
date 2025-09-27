@@ -3,11 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
-import { mockProjects, mockUpdates, mockChatMessages } from '@/lib/data/mockData';
+import { projectsApi } from '@/lib/api/projects';
+import { clientsApi } from '@/lib/api/clients';
+import { designersApi } from '@/lib/api/designers';
+import { projectUpdatesApi } from '@/lib/api/project-updates';
+import { mockChatMessages } from '@/lib/data/mockData';
 import { User, Project, ProjectUpdate, ChatMessage } from '@/types';
+import { Client } from '@/types/client';
+import { Designer } from '@/types/designer';
 import ProjectChat from '@/components/chat/ProjectChat';
 import ProjectUpdates from '@/components/ProjectUpdates';
-import { CalendarIcon, UsersIcon, EditIcon } from 'lucide-react';
+import ProjectAttachments from '@/components/ProjectAttachments';
+import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon } from 'lucide-react';
 
 export default function ProjectDetailsPage() {
   const params = useParams();
@@ -15,9 +22,13 @@ export default function ProjectDetailsPage() {
   
   const [user, setUser] = useState<User | null>(null);
   const [project, setProject] = useState<Project | null>(null);
+  const [client, setClient] = useState<Client | null>(null);
+  const [designers, setDesigners] = useState<Designer[]>([]);
+  const [projectManager, setProjectManager] = useState<any>(null);
   const [updates, setUpdates] = useState<ProjectUpdate[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
@@ -29,39 +40,135 @@ export default function ProjectDetailsPage() {
   useEffect(() => {
     const currentUser = getCurrentUser();
     setUser(currentUser);
-
-    const foundProject = mockProjects.find(p => p.id === projectId);
-    if (foundProject) {
-      setProject(foundProject);
-      setEditForm({
-        name: foundProject.name,
-        description: foundProject.description,
-        requirements: foundProject.requirements,
-        timeline: foundProject.timeline,
-        status: foundProject.status
-      });
-    }
-
-    const projectUpdates = mockUpdates.filter(u => u.projectId === projectId);
-    setUpdates(projectUpdates);
-
-    const projectMessages = mockChatMessages.filter(m => m.projectId === projectId);
-    setChatMessages(projectMessages);
+    loadProjectData();
   }, [projectId]);
 
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (project) {
-      const updatedProject = { ...project, ...editForm };
-      setProject(updatedProject);
-      setIsEditing(false);
+  const loadProjectData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load project details
+      const foundProject = await projectsApi.getById(projectId);
+      if (foundProject) {
+        setProject(foundProject);
+        setEditForm({
+          name: foundProject.name,
+          description: foundProject.description,
+          requirements: foundProject.requirements,
+          timeline: foundProject.timeline,
+          status: foundProject.status
+        });
+        
+        console.log('Project attachments:', foundProject.attachments); // Debug log
+
+        // Load client details
+        if (foundProject.clientId) {
+          const clientData = await clientsApi.getById(foundProject.clientId);
+          setClient(clientData);
+        }
+
+        // Load assigned designers
+        if (foundProject.designerIds && foundProject.designerIds.length > 0) {
+          const allDesigners = await designersApi.getAll();
+          const assignedDesigners = allDesigners.filter(d => 
+            foundProject.designerIds.includes(d.id)
+          );
+          setDesigners(assignedDesigners);
+        }
+
+        // Mock project manager data (in real app, would fetch from users API)
+        setProjectManager({
+          id: foundProject.managerId,
+          name: 'Sarah Manager',
+          email: 'sarah@company.com'
+        });
+      }
+
+      // Load project updates and messages
+      const projectUpdates = await projectUpdatesApi.getByProjectId(projectId);
+      setUpdates(projectUpdates);
+
+      const projectMessages = mockChatMessages.filter(m => m.projectId === projectId);
+      setChatMessages(projectMessages);
+
+    } catch (error) {
+      console.error('Error loading project data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!user || !project) {
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (project) {
+      try {
+        const updatedProject = await projectsApi.update(project.id, editForm);
+        if (updatedProject) {
+          setProject(updatedProject);
+          setIsEditing(false);
+        }
+      } catch (error) {
+        console.error('Error updating project:', error);
+        alert('Failed to update project. Please try again.');
+      }
+    }
+  };
+
+  const handleAddAttachment = async (files: File[]) => {
+    if (!project) return;
+    
+    try {
+      // Simulate file upload
+      const newAttachments = files.map(file => ({
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        url: URL.createObjectURL(file),
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: user?.id || ''
+      }));
+
+      const updatedAttachments = [...(project.attachments || []), ...newAttachments];
+      const updatedProject = await projectsApi.update(project.id, { attachments: updatedAttachments });
+      
+      if (updatedProject) {
+        setProject(updatedProject);
+      }
+    } catch (error) {
+      console.error('Error adding attachments:', error);
+      alert('Failed to add attachments. Please try again.');
+    }
+  };
+
+  const handleRemoveAttachment = async (attachmentId: string) => {
+    if (!project) return;
+    
+    try {
+      const updatedAttachments = (project.attachments || []).filter(a => a.id !== attachmentId);
+      const updatedProject = await projectsApi.update(project.id, { attachments: updatedAttachments });
+      
+      if (updatedProject) {
+        setProject(updatedProject);
+      }
+    } catch (error) {
+      console.error('Error removing attachment:', error);
+      alert('Failed to remove attachment. Please try again.');
+    }
+  };
+
+  if (!user || loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-600">Project not found</div>
       </div>
     );
   }
@@ -88,8 +195,8 @@ export default function ProjectDetailsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black">Project Details</h1>
-          <p className="text-gray-600 mt-1">Manage project information and collaboration</p>
+          <h1 className="text-2xl font-bold text-black">{project.name}</h1>
+          <p className="text-gray-600 mt-1">Project management and team collaboration</p>
         </div>
         {canEdit && (
           <button
@@ -103,65 +210,131 @@ export default function ProjectDetailsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Project Info */}
-        <div className="lg:col-span-1 space-y-6">
+        {/* Left Column - Project Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* 1. Project Overview */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-black">Project Information</h3>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[project.status]}`}>
+              <h3 className="text-lg font-semibold text-black">Project Overview</h3>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[project.status]}`}>
                 {statusLabels[project.status]}
               </span>
             </div>
             
             <div className="space-y-4">
               <div>
-                <h4 className="font-medium text-black mb-1">{project.name}</h4>
-                <p className="text-sm text-gray-600">{project.description}</p>
+                <p className="text-gray-600 leading-relaxed">{project.description}</p>
               </div>
               
-              <div>
-                <h4 className="font-medium text-black mb-1">Requirements</h4>
-                <p className="text-sm text-gray-600">{project.requirements}</p>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center space-x-1 text-gray-500">
-                  <CalendarIcon size={14} />
-                  <span>{project.timeline}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+                <div>
+                  <h4 className="font-medium text-black mb-2">Timeline</h4>
+                  <div className="flex items-center space-x-2 text-gray-600">
+                    <CalendarIcon size={16} />
+                    <span>{project.timeline}</span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1 text-gray-500">
-                  <UsersIcon size={14} />
-                  <span>{project.designerIds.length} designer{project.designerIds.length > 1 ? 's' : ''}</span>
+                <div>
+                  <h4 className="font-medium text-black mb-2">Team Size</h4>
+                  <div className="flex items-center space-x-2 text-gray-600">
+                    <UsersIcon size={16} />
+                    <span>{(project.designerIds?.length || 0) + 2} members</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Middle Column - Updates */}
-        <div className="lg:col-span-1">
+          {/* 2. Project Requirements */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-black mb-4">Project Requirements</h3>
+            <div className="prose prose-sm max-w-none">
+              <p className="text-gray-600 leading-relaxed">{project.requirements}</p>
+            </div>
+          </div>
+
+          {/* 3. Project Attachments */}
+          <ProjectAttachments
+            attachments={project.attachments || []}
+            canEdit={canEdit}
+            onAddAttachment={handleAddAttachment}
+            onRemoveAttachment={handleRemoveAttachment}
+          />
+
+          {/* 4. Project Updates */}
           <ProjectUpdates 
             projectId={projectId}
             updates={updates}
             currentUser={user}
             canEdit={canAddUpdates}
+            onUpdateAdded={loadProjectData}
           />
+
+          {/* 5. Team Members */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-black mb-4">Team Members</h3>
+            <div className="space-y-3">
+              {/* Client */}
+              {client && (
+                <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <BuildingIcon size={20} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium text-black">{client.name}</div>
+                    <div className="text-sm text-gray-600">{client.company} • Client</div>
+                  </div>
+                  <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Client</div>
+                </div>
+              )}
+
+              {/* Project Manager */}
+              {projectManager && (
+                <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <UserIcon size={20} className="text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium text-black">{projectManager.name}</div>
+                    <div className="text-sm text-gray-600">Project Manager</div>
+                  </div>
+                  <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">Manager</div>
+                </div>
+              )}
+
+              {/* Designers */}
+              {designers.map((designer) => (
+                <div key={designer.id} className="flex items-center space-x-3 p-3 bg-purple-50 rounded-lg">
+                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                    <UserIcon size={20} className="text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium text-black">{designer.name}</div>
+                    <div className="text-sm text-gray-600">{designer.role}</div>
+                  </div>
+                  <div className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded">Designer</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Right Column - Chat */}
+        {/* Right Column - Team Chat */}
         <div className="lg:col-span-1">
-          <ProjectChat 
-            projectId={projectId}
-            currentUser={user}
-            messages={chatMessages}
-          />
+          <div className="h-[calc(100vh-12rem)] sticky top-0">
+            <ProjectChat 
+              projectId={projectId}
+              currentUser={user}
+              messages={chatMessages}
+            />
+          </div>
         </div>
       </div>
 
       {/* Edit Modal */}
       {isEditing && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
+          <div className="bg-white rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-black mb-4">Edit Project</h3>
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>

@@ -9,6 +9,7 @@ import {
   UserIcon, 
   SettingsIcon,
   UsersIcon,
+  BuildingIcon,
   MenuIcon,
   XIcon 
 } from 'lucide-react';
@@ -27,6 +28,12 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Projects', 
       href: '/dashboard',
       active: pathname === '/dashboard'
+    },
+    { 
+      icon: BuildingIcon, 
+      label: 'Clients', 
+      href: '/dashboard/clients',
+      active: pathname === '/dashboard/clients'
     },
     { 
       icon: UsersIcon, 
@@ -66,18 +73,18 @@ export default function Sidebar({ userRole }: SidebarProps) {
 
       {/* Sidebar - Always visible on desktop (md and up) */}
       <div className={`
-        fixed md:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 
+        fixed md:relative inset-y-0 left-0 z-40 w-64 h-screen bg-white border-r border-gray-200 
         transition-transform duration-300 ease-in-out
         ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-hidden">
           {/* Logo */}
-          <div className="flex items-center justify-center h-16 border-b border-gray-200">
+          <div className="flex items-center justify-center border-b border-gray-200 bg-white sidebar-header-height relative z-30">
             <h1 className="text-xl font-bold text-black">ProjectHub</h1>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (

@@ -20,8 +20,8 @@ export default function Header({ user }: HeaderProps) {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
+    <header className="bg-white border-b border-gray-200 px-6 flex-shrink-0 main-header-height relative z-30">
+      <div className="flex items-center justify-between h-full">
         <div className="flex items-center space-x-4">
           <h2 className="text-lg font-semibold text-black">Dashboard</h2>
         </div>
