@@ -91,24 +91,6 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="card">
-        <h3 className="text-lg font-semibold text-black mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <button className="btn-secondary text-left p-4 h-auto hover:shadow-md transition-shadow">
-            <div className="font-medium mb-1">Upload Design</div>
-            <div className="text-sm text-gray-600">Share your latest work</div>
-          </button>
-          <button className="btn-secondary text-left p-4 h-auto hover:shadow-md transition-shadow">
-            <div className="font-medium mb-1">Request Feedback</div>
-            <div className="text-sm text-gray-600">Get client input</div>
-          </button>
-          <button className="btn-secondary text-left p-4 h-auto hover:shadow-md transition-shadow">
-            <div className="font-medium mb-1">Update Status</div>
-            <div className="text-sm text-gray-600">Mark task complete</div>
-          </button>
-        </div>
-      </div>
 
       {/* Recent Activity */}
       <div className="card">

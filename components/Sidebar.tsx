@@ -22,44 +22,54 @@ export default function Sidebar({ userRole }: SidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  const menuItems = [
+  // Define menu items based on user role
+  const allMenuItems = [
     { 
       icon: FolderIcon, 
       label: 'Projects', 
       href: '/dashboard',
-      active: pathname === '/dashboard'
+      active: pathname === '/dashboard',
+      roles: ['client', 'project_manager', 'designer']
     },
     { 
       icon: BuildingIcon, 
       label: 'Clients', 
       href: '/dashboard/clients',
-      active: pathname === '/dashboard/clients'
+      active: pathname === '/dashboard/clients',
+      roles: ['project_manager']
     },
     { 
       icon: UsersIcon, 
       label: 'Designers', 
       href: '/dashboard/designers',
-      active: pathname === '/dashboard/designers'
+      active: pathname === '/dashboard/designers',
+      roles: ['project_manager']
     },
     { 
       icon: MessageSquareIcon, 
       label: 'Messages', 
       href: '/dashboard/messages',
-      active: pathname === '/dashboard/messages'
+      active: pathname === '/dashboard/messages',
+      roles: ['project_manager', 'designer']
     },
     { 
       icon: UserIcon, 
       label: 'Profile', 
       href: '/dashboard/profile',
-      active: pathname === '/dashboard/profile'
+      active: pathname === '/dashboard/profile',
+      roles: ['client', 'project_manager', 'designer']
     },
     { 
       icon: SettingsIcon, 
       label: 'Settings', 
       href: '/dashboard/settings',
-      active: pathname === '/dashboard/settings'
+      active: pathname === '/dashboard/settings',
+      roles: ['client', 'project_manager', 'designer']
     },
   ];
+
+  // Filter menu items based on user role
+  const menuItems = allMenuItems.filter(item => item.roles.includes(userRole));
 
   return (
     <>

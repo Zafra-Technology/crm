@@ -85,15 +85,18 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     try {
       setLoading(true);
       
-      // Simulate file upload and create attachment objects
-      const attachments = formData.attachments.map(file => ({
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: URL.createObjectURL(file), // In real app, upload to cloud storage
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: userId
+      // Convert files to base64 for demo storage
+      const attachments = await Promise.all(formData.attachments.map(async (file) => {
+        const base64 = await convertFileToBase64(file);
+        return {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: base64, // Store as base64 for demo
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: userId
+        };
       }));
 
       const projectData = {
@@ -150,6 +153,15 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
   };
 
   const handleAssignDesigners = async (designerIds: string[]) => {

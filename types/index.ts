@@ -41,6 +41,9 @@ export interface ProjectUpdate {
   title: string;
   description?: string;
   fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
   createdAt: string;
 }
 
@@ -49,6 +52,13 @@ export interface ChatMessage {
   projectId: string;
   userId: string;
   userName: string;
+  userRole: 'client' | 'project_manager' | 'designer';
   message: string;
   timestamp: string;
+  // File attachment fields
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  messageType?: 'text' | 'file' | 'image';
 }

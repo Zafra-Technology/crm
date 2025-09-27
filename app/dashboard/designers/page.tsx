@@ -31,6 +31,25 @@ export default function DesignersPage() {
     role: '',
   });
 
+  // Generate colorful avatar background
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 
+      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
+      'bg-orange-500', 'bg-cyan-500', 'bg-rose-500', 'bg-violet-500'
+    ];
+    const hash = name.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // Get initials from name
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
   useEffect(() => {
     const currentUser = getCurrentUser();
     setUser(currentUser);
@@ -238,20 +257,6 @@ export default function DesignersPage() {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="card">
-        <div className="relative">
-          <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search designers by name, email, or role..."
-            value={searchTerm}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-          />
-        </div>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card text-center">
@@ -278,6 +283,20 @@ export default function DesignersPage() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="card">
+        <div className="relative">
+          <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search designers by name, email, or role..."
+            value={searchTerm}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+          />
+        </div>
+      </div>
+
       {/* Designers List */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-black">Team Members</h2>
@@ -286,8 +305,8 @@ export default function DesignersPage() {
             <div key={designer.id} className="card h-full flex flex-col">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                    <UserIcon size={24} className="text-gray-600" />
+                  <div className={`w-12 h-12 ${getAvatarColor(designer.name)} rounded-full flex items-center justify-center`}>
+                    <span className="text-white font-semibold text-sm">{getInitials(designer.name)}</span>
                   </div>
                   <div>
                     <h3 className="font-semibold text-black">{designer.name}</h3>

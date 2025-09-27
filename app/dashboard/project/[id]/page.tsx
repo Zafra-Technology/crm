@@ -88,8 +88,23 @@ export default function ProjectDetailsPage() {
       const projectUpdates = await projectUpdatesApi.getByProjectId(projectId);
       setUpdates(projectUpdates);
 
-      const projectMessages = mockChatMessages.filter(m => m.projectId === projectId);
-      setChatMessages(projectMessages);
+      // Load chat messages from API
+      try {
+        console.log('🔄 Loading chat messages for project:', projectId);
+        const chatResponse = await fetch(`/api/chat/${projectId}`);
+        if (chatResponse.ok) {
+          const projectMessages = await chatResponse.json();
+          console.log('💬 Loaded chat messages:', projectMessages.length);
+          setChatMessages(projectMessages);
+        } else {
+          console.error('Chat API error:', chatResponse.status);
+          setChatMessages([]);
+        }
+      } catch (error) {
+        console.error('Error loading chat messages:', error);
+        // Fallback to empty array if API fails
+        setChatMessages([]);
+      }
 
     } catch (error) {
       console.error('Error loading project data:', error);
@@ -118,15 +133,18 @@ export default function ProjectDetailsPage() {
     if (!project) return;
     
     try {
-      // Simulate file upload
-      const newAttachments = files.map(file => ({
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: URL.createObjectURL(file),
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: user?.id || ''
+      // Convert files to base64 for demo storage
+      const newAttachments = await Promise.all(files.map(async (file) => {
+        const base64 = await convertFileToBase64(file);
+        return {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: base64,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: user?.id || ''
+        };
       }));
 
       const updatedAttachments = [...(project.attachments || []), ...newAttachments];
@@ -157,6 +175,15 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   if (!user || loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -175,6 +202,8 @@ export default function ProjectDetailsPage() {
 
   const canEdit = user.role === 'project_manager';
   const canAddUpdates = user.role === 'designer' || user.role === 'project_manager';
+  const isClient = user.role === 'client';
+  const isDesigner = user.role === 'designer';
 
   const statusColors = {
     planning: 'bg-blue-100 text-blue-800',
@@ -198,7 +227,7 @@ export default function ProjectDetailsPage() {
           <h1 className="text-2xl font-bold text-black">{project.name}</h1>
           <p className="text-gray-600 mt-1">Project management and team collaboration</p>
         </div>
-        {canEdit && (
+        {canEdit && !isClient && !isDesigner && (
           <button
             onClick={() => setIsEditing(true)}
             className="btn-secondary flex items-center space-x-2"
@@ -209,85 +238,90 @@ export default function ProjectDetailsPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column - Project Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* 1. Project Overview */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-black">Project Overview</h3>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[project.status]}`}>
-                {statusLabels[project.status]}
-              </span>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <p className="text-gray-600 leading-relaxed">{project.description}</p>
+        <div className="lg:col-span-1 space-y-6">
+          {/* Project Details */}
+          <div className="card space-y-6">
+            {/* Project Overview */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-black">Project Overview</h3>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[project.status]}`}>
+                  {statusLabels[project.status]}
+                </span>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+              <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-black mb-2">Timeline</h4>
-                  <div className="flex items-center space-x-2 text-gray-600">
-                    <CalendarIcon size={16} />
-                    <span>{project.timeline}</span>
-                  </div>
+                  <p className="text-gray-600 leading-relaxed">{project.description}</p>
                 </div>
-                <div>
-                  <h4 className="font-medium text-black mb-2">Team Size</h4>
-                  <div className="flex items-center space-x-2 text-gray-600">
-                    <UsersIcon size={16} />
-                    <span>{(project.designerIds?.length || 0) + 2} members</span>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                  <div>
+                    <h4 className="font-medium text-black mb-2">Client</h4>
+                    <div className="flex items-center space-x-2 text-gray-600">
+                      <BuildingIcon size={16} />
+                      <div className="flex flex-col">
+                        <span className="font-medium">{client?.name || 'Unknown Client'}</span>
+                        {client?.company && (
+                          <span className="text-sm text-gray-500">{client.company}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-black mb-2">Timeline</h4>
+                    <div className="flex items-center space-x-2 text-gray-600">
+                      <CalendarIcon size={16} />
+                      <span>{project.timeline}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-black mb-2">Team Size</h4>
+                    <div className="flex items-center space-x-2 text-gray-600">
+                      <UsersIcon size={16} />
+                      <span>{(project.designerIds?.length || 0) + 1} members</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* 2. Project Requirements */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-black mb-4">Project Requirements</h3>
-            <div className="prose prose-sm max-w-none">
-              <p className="text-gray-600 leading-relaxed">{project.requirements}</p>
+            {/* Project Requirements */}
+            <div className="pt-6 border-t border-gray-200">
+              <h3 className="text-lg font-semibold text-black mb-4">Project Requirements</h3>
+              <div className="prose prose-sm max-w-none">
+                <p className="text-gray-600 leading-relaxed">{project.requirements}</p>
+              </div>
+            </div>
+
+            {/* Project Attachments */}
+            <div className="pt-6 border-t border-gray-200">
+              <ProjectAttachments
+                attachments={project.attachments || []}
+                canEdit={canEdit && !isClient && !isDesigner}
+                onAddAttachment={handleAddAttachment}
+                onRemoveAttachment={handleRemoveAttachment}
+              />
             </div>
           </div>
 
-          {/* 3. Project Attachments */}
-          <ProjectAttachments
-            attachments={project.attachments || []}
-            canEdit={canEdit}
-            onAddAttachment={handleAddAttachment}
-            onRemoveAttachment={handleRemoveAttachment}
-          />
-
-          {/* 4. Project Updates */}
-          <ProjectUpdates 
-            projectId={projectId}
-            updates={updates}
-            currentUser={user}
-            canEdit={canAddUpdates}
-            onUpdateAdded={loadProjectData}
-          />
+          {/* Project Updates - Hidden for clients, visible for designers */}
+          {!isClient && (
+            <ProjectUpdates 
+              projectId={projectId}
+              updates={updates}
+              currentUser={user}
+              canEdit={canAddUpdates}
+              onUpdateAdded={loadProjectData}
+            />
+          )}
 
           {/* 5. Team Members */}
           <div className="card">
             <h3 className="text-lg font-semibold text-black mb-4">Team Members</h3>
             <div className="space-y-3">
-              {/* Client */}
-              {client && (
-                <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <BuildingIcon size={20} className="text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-black">{client.name}</div>
-                    <div className="text-sm text-gray-600">{client.company} • Client</div>
-                  </div>
-                  <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Client</div>
-                </div>
-              )}
-
               {/* Project Manager */}
               {projectManager && (
                 <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
@@ -321,7 +355,7 @@ export default function ProjectDetailsPage() {
 
         {/* Right Column - Team Chat */}
         <div className="lg:col-span-1">
-          <div className="h-[calc(100vh-12rem)] sticky top-0">
+          <div className="h-[calc(100vh-12rem)] sticky top-6">
             <ProjectChat 
               projectId={projectId}
               currentUser={user}

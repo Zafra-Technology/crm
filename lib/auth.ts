@@ -1,13 +1,8 @@
 import { User, UserRole } from '@/types';
+import { clientsApi } from './api/clients';
 
-// Mock users for demo
+// Mock users for demo (non-clients)
 const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'client@example.com',
-    name: 'John Client',
-    role: 'client',
-  },
   {
     id: '2',
     email: 'manager@example.com',
@@ -22,13 +17,48 @@ const mockUsers: User[] = [
   },
 ];
 
-export const authenticateUser = (email: string, password: string): User | null => {
-  // Simple mock authentication
-  const user = mockUsers.find(u => u.email === email);
-  if (user && password === 'password') {
-    return user;
+export const authenticateUser = async (email: string, password: string): Promise<User | null> => {
+  try {
+    // First, try to authenticate as client using email and phone number
+    const clients = await clientsApi.getAll();
+    const client = clients.find(c => c.email === email);
+    
+    if (client && client.phoneNumber === password) {
+      // Client found and phone number matches
+      return {
+        id: client.id,
+        email: client.email,
+        name: client.name,
+        role: 'client' as UserRole,
+      };
+    }
+    
+    // Then, try to authenticate as designer using email and phone number
+    const { designersApi } = await import('./api/designers');
+    const designers = await designersApi.getAll();
+    const designer = designers.find(d => d.email === email);
+    
+    if (designer && designer.phoneNumber === password) {
+      // Designer found and phone number matches
+      return {
+        id: designer.id,
+        email: designer.email,
+        name: designer.name,
+        role: 'designer' as UserRole,
+      };
+    }
+    
+    // Finally, check mock users (managers only) with regular password
+    const user = mockUsers.find(u => u.email === email);
+    if (user && password === 'password') {
+      return user;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return null;
   }
-  return null;
 };
 
 export const getCurrentUser = (): User | null => {

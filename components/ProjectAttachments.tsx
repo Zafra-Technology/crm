@@ -104,9 +104,9 @@ export default function ProjectAttachments({
       )}
 
       {/* Attachments List */}
-      {attachments && attachments.length > 0 ? (
-        <div className="space-y-3">
-          {attachments.map((attachment) => (
+      <div className="space-y-3">
+        {attachments && attachments.length > 0 ? (
+          attachments.map((attachment) => (
             <div key={attachment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
               <div className="flex items-center space-x-3 flex-1 min-w-0">
                 <div className="flex-shrink-0">
@@ -148,15 +148,15 @@ export default function ProjectAttachments({
                 )}
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8 text-gray-500">
-          <PaperclipIcon size={48} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-sm">No attachments yet</p>
-          <p className="text-xs">Project files will appear here</p>
-        </div>
-      )}
+          ))
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <PaperclipIcon size={48} className="mx-auto mb-4 text-gray-300" />
+            <p className="text-sm">No attachments yet</p>
+            <p className="text-xs">Project files will appear here</p>
+          </div>
+        )}
+      </div>
 
       {/* File Viewer Modal */}
       <FileViewerModal

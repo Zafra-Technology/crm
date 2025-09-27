@@ -18,16 +18,20 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
-    const user = authenticateUser(email, password);
-    if (user) {
-      setCurrentUser(user);
-      router.push('/dashboard');
-    } else {
-      setError('Invalid email or password');
+    try {
+      const user = await authenticateUser(email, password);
+      if (user) {
+        setCurrentUser(user);
+        router.push('/dashboard');
+      } else {
+        setError('Invalid email or password');
+      }
+    } catch (error) {
+      setError('Authentication failed. Please try again.');
     }
   };
 
@@ -93,13 +97,13 @@ export default function LoginPage() {
             <p className="text-center font-medium">Demo Accounts:</p>
             <div className="grid grid-cols-1 gap-2 text-xs">
               <div className="bg-white p-2 rounded border">
-                <strong>Client:</strong> client@example.com / password
+                <strong>Client:</strong> client email / phone number
+              </div>
+              <div className="bg-white p-2 rounded border">
+                <strong>Designer:</strong> designer email / phone number
               </div>
               <div className="bg-white p-2 rounded border">
                 <strong>Manager:</strong> manager@example.com / password
-              </div>
-              <div className="bg-white p-2 rounded border">
-                <strong>Designer:</strong> designer@example.com / password
               </div>
             </div>
           </div>

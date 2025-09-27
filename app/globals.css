@@ -48,7 +48,8 @@
 /* Ensure proper scrolling behavior */
 html, body {
   height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
+  /* Allow vertical scrolling */
 }
 
 #__next {

@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, userId, type, title, description, fileUrl } = body;
+    const { projectId, userId, type, title, description, fileUrl, fileName, fileSize, fileType } = body;
     
     // Validate required fields
     if (!projectId || !userId || !type || !title) {
@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
       title,
       description: description || '',
       fileUrl: fileUrl || undefined,
+      fileName: fileName || undefined,
+      fileSize: fileSize || undefined,
+      fileType: fileType || undefined,
       createdAt: new Date().toISOString()
     };
     

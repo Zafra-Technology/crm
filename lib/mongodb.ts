@@ -5,7 +5,11 @@ if (!process.env.MONGODB_URI) {
 }
 
 const uri = process.env.MONGODB_URI;
-const options = {};
+const options = {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+};
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
@@ -35,4 +39,16 @@ export default clientPromise;
 export async function getDatabase(): Promise<Db> {
   const client = await clientPromise;
   return client.db('zafra');
+}
+
+export async function connectToDatabase(): Promise<{ db: Db }> {
+  try {
+    const client = await clientPromise;
+    const db = client.db('zafra');
+    console.log('✅ MongoDB connected successfully');
+    return { db };
+  } catch (error) {
+    console.error('❌ MongoDB connection failed:', error);
+    throw error;
+  }
 }
