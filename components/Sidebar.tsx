@@ -10,6 +10,7 @@ import {
   SettingsIcon,
   UsersIcon,
   BuildingIcon,
+  CheckSquareIcon,
   MenuIcon,
   XIcon 
 } from 'lucide-react';
@@ -30,6 +31,13 @@ export default function Sidebar({ userRole }: SidebarProps) {
       href: '/dashboard',
       active: pathname === '/dashboard',
       roles: ['client', 'project_manager', 'designer']
+    },
+    { 
+      icon: CheckSquareIcon, 
+      label: 'Tasks', 
+      href: '/dashboard/tasks',
+      active: pathname === '/dashboard/tasks',
+      roles: ['project_manager', 'designer']
     },
     { 
       icon: BuildingIcon, 
