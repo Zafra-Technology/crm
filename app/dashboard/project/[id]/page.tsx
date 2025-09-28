@@ -281,7 +281,7 @@ export default function ProjectDetailsPage() {
                     <h4 className="font-medium text-black mb-2">Team Size</h4>
                     <div className="flex items-center space-x-2 text-gray-600">
                       <UsersIcon size={16} />
-                      <span>{(project.designerIds?.length || 0) + 1} members</span>
+                      <span>{designers.length + 1} members</span>
                     </div>
                   </div>
                 </div>
@@ -300,9 +300,9 @@ export default function ProjectDetailsPage() {
             <div className="pt-6 border-t border-gray-200">
               <ProjectAttachments
                 attachments={project.attachments || []}
-                canEdit={canEdit && !isClient && !isDesigner}
+                canEdit={!isDesigner} // Allow both clients and managers to upload files
                 onAddAttachment={handleAddAttachment}
-                onRemoveAttachment={handleRemoveAttachment}
+                onRemoveAttachment={!isClient ? handleRemoveAttachment : undefined} // Only managers can remove files
               />
             </div>
           </div>

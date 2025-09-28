@@ -47,7 +47,7 @@ export default function ProjectCard({ project, showActions = true }: ProjectCard
         </div>
         <div className="flex items-center space-x-1">
           <UsersIcon size={14} />
-          <span className="whitespace-nowrap">{project.designerIds?.length || 0} designer{(project.designerIds?.length || 0) !== 1 ? 's' : ''}</span>
+          <span className="whitespace-nowrap">{project.designerIds?.length || 0} team</span>
         </div>
       </div>
 
