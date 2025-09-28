@@ -251,8 +251,8 @@ export default function DesignersPage() {
   return (
     <div className="space-y-6">
       {/* Sticky Header */}
-      <div className="sticky top-0 bg-gray-50 z-20 pb-4 mb-2 -mx-6 px-6">
-        <div className="flex items-center justify-between pt-2">
+      <div className="sticky top-0 bg-white z-20 -mx-6 px-6 border-b border-gray-200">
+        <div className="flex items-center justify-between py-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Designers</h1>
             <p className="text-muted-foreground mt-1">Manage your design team members</p>
@@ -389,7 +389,7 @@ export default function DesignersPage() {
                       onClick={() => toggleDesignerStatus(designer.id)}
                       variant="ghost"
                       size="sm"
-                      className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                      className="text-primary  font-medium transition-colors"
                     >
                       {designer.status === 'active' ? 'Deactivate' : 'Activate'}
                     </Button>

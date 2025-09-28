@@ -170,7 +170,7 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
           {(() => {
             const recentReviewTasks = getRecentReviewTasks();
             const recentCompletedTasks = getRecentCompletedTasks();
-            const allActivities = [];
+            const allActivities: any[] = [];
 
             // Add tasks submitted for review (primary activity for designers)
             recentReviewTasks.forEach(task => {

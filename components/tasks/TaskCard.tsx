@@ -80,7 +80,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
 
   const getAssigneeInitials = (assigneeId: string) => {
     const name = getAssigneeName(assigneeId);
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   const getAssigneeColor = (assigneeId: string) => {
@@ -89,7 +89,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
       'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
     ];
     const name = getAssigneeName(assigneeId);
-    const hash = name.split('').reduce((a, b) => {
+    const hash = name.split('').reduce((a: number, b: string) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
@@ -157,7 +157,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
             <Badge variant={getPriorityVariant(task.priority) as any} className="text-xs">
               {task.priority}
             </Badge>
-            {(onTagInMessage || (onDelete && currentUser.role === 'project_manager')) && (
+            {(onTagInMessage || (onDelete && currentUser.role === 'project_manager')) && currentUser.role !== 'designer' && (
               <DropdownMenu open={showActionsMenu} onOpenChange={setShowActionsMenu}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-6 w-6">

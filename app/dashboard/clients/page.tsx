@@ -394,7 +394,7 @@ export default function ClientsPage() {
                     onClick={() => toggleClientStatus(client.id)}
                     variant="ghost"
                     size="sm"
-                    className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                    className="text-primary font-medium transition-colors"
                   >
                     {client.status === 'active' ? 'Deactivate' : 'Activate'}
                   </Button>
@@ -430,7 +430,7 @@ export default function ClientsPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <form onSubmit={editingClient ? handleUpdateClient : handleAddClient} className="space-y-6">
+          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="client-name">Full Name *</Label>
@@ -477,7 +477,7 @@ export default function ClientsPage() {
                 />
               </div>
             </div>
-          </form>
+          </div>
           <DialogFooter>
             <Button
               type="button"
@@ -493,10 +493,10 @@ export default function ClientsPage() {
               Cancel
             </Button>
             <Button
-              type="submit"
+              type="button"
               disabled={loading}
               className="flex-1"
-              onClick={handleAddClient}
+              onClick={editingClient ? handleUpdateClient : handleAddClient}
             >
               {loading ? 'Processing...' : (editingClient ? 'Update Client' : 'Add Client')}
             </Button>

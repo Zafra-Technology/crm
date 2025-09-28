@@ -86,7 +86,7 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
             </p>
             <button
               onClick={handleDownload}
-              className="btn-primary flex items-center space-x-2 mx-auto"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md transition-colors flex items-center space-x-2 mx-auto"
             >
               <DownloadIcon size={16} />
               <span>Download to View</span>
@@ -107,7 +107,7 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
           </p>
           <button
             onClick={handleDownload}
-            className="btn-primary flex items-center space-x-2 mx-auto"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md transition-colors flex items-center space-x-2 mx-auto"
           >
             <DownloadIcon size={16} />
             <span>Download File</span>
@@ -195,7 +195,7 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
               </button>
               <button
                 onClick={onClose}
-                className="btn-primary text-sm"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md transition-colors text-sm"
               >
                 Close
               </button>

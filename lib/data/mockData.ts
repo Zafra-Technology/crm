@@ -78,6 +78,7 @@ export const mockChatMessages: ChatMessage[] = [
     projectId: '1',
     userId: '2',
     userName: 'Sarah Manager',
+    userRole: 'project_manager',
     message: 'Great progress on the wireframes! Can we schedule a review meeting?',
     timestamp: '2024-01-20T10:30:00Z'
   },
@@ -86,6 +87,7 @@ export const mockChatMessages: ChatMessage[] = [
     projectId: '1',
     userId: '3',
     userName: 'Mike Designer',
+    userRole: 'designer',
     message: 'Sure! I have some questions about the mobile navigation.',
     timestamp: '2024-01-20T10:45:00Z'
   },
@@ -94,6 +96,7 @@ export const mockChatMessages: ChatMessage[] = [
     projectId: '1',
     userId: '1',
     userName: 'John Client',
+    userRole: 'client',
     message: 'Looking forward to seeing the progress. The timeline still looks good.',
     timestamp: '2024-01-20T11:00:00Z'
   }

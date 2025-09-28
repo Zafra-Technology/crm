@@ -286,7 +286,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       // Simulate file input change event
       const fakeEvent = {
         target: { files: [file] }
-      } as React.ChangeEvent<HTMLInputElement>;
+      } as unknown as React.ChangeEvent<HTMLInputElement>;
       
       handleFileUpload(fakeEvent);
     }
@@ -377,7 +377,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                   {message.userName.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <div className={`flex-1 max-w-xs ${isOwnMessage ? 'text-right' : ''}`}>
+              <div className={`flex-1 max-w-sm ${isOwnMessage ? 'text-right' : ''}`}>
                 <div className={`flex items-center space-x-2 mb-1 ${isOwnMessage ? 'justify-end' : ''}`}>
                   <span className="text-sm font-medium text-gray-900">
                     {message.userName}
@@ -390,9 +390,9 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                   </span>
                 </div>
                 <div
-                  className={`inline-block px-3 py-2 rounded-lg text-sm ${
+                  className={`inline-block px-3 py-2 rounded-lg text-sm break-all ${
                     isOwnMessage
-                      ? 'bg-black text-white'
+                      ? 'bg-gray-600 text-white'
                       : 'bg-gray-100 text-gray-900'
                   }`}
                 >
@@ -424,20 +424,20 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                       <div 
                         className={`flex items-center space-x-2 p-2 rounded border ${
                           isOwnMessage 
-                            ? 'bg-gray-800 border-gray-600' 
+                            ? 'bg-gray-200 border-gray-300' 
                             : 'bg-white border-gray-200'
                         }`}
                       >
                         {getFileIcon(message.fileType)}
                         <div className="flex-1 min-w-0">
                           <p className={`text-xs font-medium truncate ${
-                            isOwnMessage ? 'text-gray-200' : 'text-gray-700'
+                            isOwnMessage ? 'text-gray-700' : 'text-gray-700'
                           }`}>
                             {message.fileName || 'Unknown file'}
                           </p>
                           {message.fileSize && (
                             <p className={`text-xs ${
-                              isOwnMessage ? 'text-gray-400' : 'text-gray-500'
+                              isOwnMessage ? 'text-gray-500' : 'text-gray-500'
                             }`}>
                               {formatFileSize(message.fileSize)}
                             </p>
@@ -456,7 +456,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                             }}
                             className={`p-1 rounded hover:bg-opacity-80 ${
                               isOwnMessage 
-                                ? 'text-gray-300 hover:bg-gray-600' 
+                                ? 'text-gray-600 hover:bg-gray-300' 
                                 : 'text-gray-500 hover:bg-gray-200'
                             }`}
                             title="Download"
@@ -518,7 +518,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         <button
           type="submit"
           disabled={!newMessage.trim() || !currentUser || uploadingFile}
-          className="btn-primary px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
         >
           {uploadingFile ? (
             <>

@@ -90,7 +90,11 @@ export default function Sidebar({ userRole }: SidebarProps) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center justify-center h-16 px-6 border-b bg-background shrink-0">
-        <h1 className="text-xl font-bold text-foreground">ProjectHub</h1>
+        <img
+          src="https://rvrengineering.com/wp-content/uploads/2022/12/RVR.svg"
+          alt="Logo"
+          className="h-12 w-auto"
+        />
       </div>
 
       {/* Navigation */}

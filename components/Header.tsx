@@ -32,7 +32,7 @@ export default function Header({ user }: HeaderProps) {
   };
 
   return (
-    <header className="bg-background border-b px-6 flex-shrink-0 main-header-height relative z-30">
+    <header className="bg-background border-b border-l-0 px-6 flex-shrink-0 main-header-height relative z-30">
       <div className="flex items-center justify-between h-full">
         <div className="flex items-center space-x-4">
           <h2 className="text-lg font-semibold">Dashboard</h2>

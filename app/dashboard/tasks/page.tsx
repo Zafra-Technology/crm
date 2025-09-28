@@ -125,10 +125,11 @@ export default function TasksPage() {
           <div className="flex items-center space-x-6">
             <button
               onClick={() => setSelectedProject(null)}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+              className="text-primary  text-sm font-medium flex items-center gap-1"
             >
               ← Back to Projects
             </button>
+            
             <div>
               <h1 className="text-2xl font-bold text-black">{selectedProject.name}</h1>
             </div>
@@ -164,7 +165,7 @@ export default function TasksPage() {
             {user?.role === 'project_manager' && (
               <button
                 onClick={() => setShowCreateTask(true)}
-                className="btn-primary flex items-center space-x-2"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md transition-colors flex items-center space-x-2"
               >
                 <PlusIcon size={16} />
                 <span>Create Task</span>
@@ -199,7 +200,8 @@ export default function TasksPage() {
             currentUser={user!}
             onTaskUpdated={() => {
               console.log('🔄 Task updated, refreshing view...');
-              setSelectedProject({ ...selectedProject, lastUpdated: Date.now() });
+              // Trigger a re-render by updating the selected project
+              setSelectedProject(prev => prev ? { ...prev } : null);
             }}
           />
         )}
@@ -306,7 +308,7 @@ export default function TasksPage() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="text-sm text-blue-600 font-medium hover:text-blue-800">
+                <div className="text-sm text-primary font-medium">
                   View Tasks →
                 </div>
               </div>

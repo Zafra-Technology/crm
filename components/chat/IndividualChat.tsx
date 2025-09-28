@@ -213,7 +213,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
       <div ref={messagesContainerRef} className="h-[calc(100vh-20rem)] overflow-y-auto p-4 space-y-4">
         {messages.map((message) => {
           const isOwnMessage = message.senderId === currentUser.id;
-          const isTaskTagged = message.messageType === 'task_tag' || message.message.includes('Task:');
+          const isTaskTagged = (message.messageType as string) === 'task_tag' || message.message.includes('Task:');
           
           return (
             <div
