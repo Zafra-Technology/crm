@@ -4,6 +4,25 @@ import { useState } from 'react';
 import { User } from '@/types';
 import { Task } from './KanbanBoard';
 import { CalendarIcon, UserIcon, MessageSquareIcon, PaperclipIcon, ChevronDownIcon, MoreVerticalIcon, TrashIcon, MessageCircleIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface TaskCardProps {
   task: Task;
@@ -20,23 +39,23 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageText, setMessageText] = useState('');
 
-  const getPriorityColor = (priority: string) => {
-    const colors = {
-      low: 'bg-gray-100 text-gray-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      high: 'bg-red-100 text-red-800',
+  const getPriorityVariant = (priority: string) => {
+    const variants = {
+      low: 'secondary',
+      medium: 'outline',
+      high: 'destructive',
     };
-    return colors[priority as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return variants[priority as keyof typeof variants] || 'secondary';
   };
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      todo: 'bg-gray-100 text-gray-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      review: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-green-100 text-green-800',
+  const getStatusVariant = (status: string) => {
+    const variants = {
+      todo: 'secondary',
+      in_progress: 'default',
+      review: 'outline',
+      completed: 'default',
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return variants[status as keyof typeof variants] || 'secondary';
   };
 
   const getStatusLabel = (status: string) => {
@@ -128,52 +147,48 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-shadow">
-      {/* Task Header */}
-      <div className="flex items-start justify-between mb-3">
-        <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 mr-2">
-          {task.title}
-        </h4>
-        <div className="flex items-center gap-2">
-          <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(task.priority)}`}>
-            {task.priority}
-          </span>
-          {canShowActions() && (
-            <div className="relative">
-              <button
-                onClick={() => setShowActionsMenu(!showActionsMenu)}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
-                title="More actions"
-              >
-                <MoreVerticalIcon size={14} className="text-gray-500" />
-              </button>
-              
-              {showActionsMenu && (
-                <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[160px] whitespace-nowrap">
-                  <button
-                    onClick={handleTagInMessage}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors text-gray-700 flex items-center gap-2"
-                  >
-                    <MessageCircleIcon size={12} />
-                    Tag in Message
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-red-50 transition-colors text-red-600 flex items-center gap-2"
-                  >
-                    <TrashIcon size={12} />
-                    Delete Task
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+    <Card className="hover:shadow-sm transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <h4 className="font-medium text-foreground text-sm leading-tight flex-1 mr-2">
+            {task.title}
+          </h4>
+          <div className="flex items-center gap-2">
+            <Badge variant={getPriorityVariant(task.priority) as any} className="text-xs">
+              {task.priority}
+            </Badge>
+            {(onTagInMessage || (onDelete && currentUser.role === 'project_manager')) && (
+              <DropdownMenu open={showActionsMenu} onOpenChange={setShowActionsMenu}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <MoreVerticalIcon size={14} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {onTagInMessage && (
+                    <DropdownMenuItem onClick={handleTagInMessage}>
+                      <MessageCircleIcon size={12} className="mr-2" />
+                      Tag in Message
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && currentUser.role === 'project_manager' && (
+                    <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                      <TrashIcon size={12} className="mr-2" />
+                      Delete Task
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
-      </div>
+      </CardHeader>
+      
+      <CardContent className="pt-0">
 
       {/* Task Description */}
       {task.description && (
-        <p className="text-xs text-gray-600 mb-3 line-clamp-2">
+        <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
           {task.description}
         </p>
       )}
@@ -318,6 +333,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
           </div>
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }

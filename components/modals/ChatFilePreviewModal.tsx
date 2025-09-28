@@ -2,6 +2,13 @@
 
 import { useState } from 'react';
 import { X, Download, ZoomIn, ZoomOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ChatFilePreviewModalProps {
   isOpen: boolean;
@@ -21,8 +28,6 @@ export default function ChatFilePreviewModal({
   fileSize
 }: ChatFilePreviewModalProps) {
   const [zoom, setZoom] = useState(100);
-
-  if (!isOpen) return null;
 
   const isImage = fileType.startsWith('image/');
   const isPDF = fileType.includes('pdf');
@@ -49,13 +54,12 @@ export default function ChatFilePreviewModal({
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 25, 25));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] w-full flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] w-full flex flex-col">
+        <DialogHeader className="flex-row items-center justify-between space-y-0">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-black truncate">{fileName}</h3>
-            <div className="flex items-center space-x-4 text-sm text-gray-500">
+            <DialogTitle className="truncate">{fileName}</DialogTitle>
+            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
               <span>{fileType}</span>
               {fileSize && <span>{formatFileSize(fileSize)}</span>}
             </div>
@@ -65,42 +69,41 @@ export default function ChatFilePreviewModal({
             {/* Zoom controls for images */}
             {isImage && (
               <>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={handleZoomOut}
                   disabled={zoom <= 25}
-                  className="p-2 rounded hover:bg-gray-100 disabled:opacity-50"
+                  className="h-8 w-8"
                 >
                   <ZoomOut size={16} />
-                </button>
-                <span className="text-sm text-gray-600 min-w-[50px] text-center">
+                </Button>
+                <span className="text-sm text-muted-foreground min-w-[50px] text-center">
                   {zoom}%
                 </span>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={handleZoomIn}
                   disabled={zoom >= 200}
-                  className="p-2 rounded hover:bg-gray-100 disabled:opacity-50"
+                  className="h-8 w-8"
                 >
                   <ZoomIn size={16} />
-                </button>
+                </Button>
               </>
             )}
             
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleDownload}
-              className="p-2 rounded hover:bg-gray-100 text-green-600"
+              className="h-8 w-8 text-green-600 hover:text-green-600"
               title="Download"
             >
               <Download size={16} />
-            </button>
-            
-            <button
-              onClick={onClose}
-              className="p-2 rounded hover:bg-gray-100 text-gray-600"
-            >
-              <X size={16} />
-            </button>
+            </Button>
           </div>
-        </div>
+        </DialogHeader>
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-4">
@@ -129,7 +132,7 @@ export default function ChatFilePreviewModal({
 
           {/* Text Preview */}
           {isText && (
-            <div className="bg-gray-50 p-4 rounded border">
+            <div className="bg-accent p-4 rounded border">
               <iframe
                 src={fileUrl}
                 className="w-full h-96 border-0"
@@ -142,23 +145,23 @@ export default function ChatFilePreviewModal({
           {!isImage && !isPDF && !isText && (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📄</div>
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
+              <h4 className="text-lg font-medium text-foreground mb-2">
                 {fileName}
               </h4>
-              <p className="text-gray-600 mb-6">
+              <p className="text-muted-foreground mb-6">
                 Preview not available for this file type
               </p>
-              <button
+              <Button
                 onClick={handleDownload}
-                className="btn-primary flex items-center space-x-2 mx-auto"
+                className="flex items-center space-x-2 mx-auto"
               >
                 <Download size={16} />
                 <span>Download File</span>
-              </button>
+              </Button>
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

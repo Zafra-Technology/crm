@@ -5,6 +5,7 @@ import { Project } from '@/types';
 import ProjectCard from '@/components/ProjectCard';
 import { projectsApi } from '@/lib/api/projects';
 import { PlusIcon } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface ClientDashboardProps {
   projects: Project[];
@@ -33,40 +34,48 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black">My Projects</h1>
-          <p className="text-gray-600 mt-1">Track your project progress and updates</p>
+          <h1 className="text-2xl font-bold text-foreground">My Projects</h1>
+          <p className="text-muted-foreground mt-1">Track your project progress and updates</p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-black">{clientProjects.length}</div>
-          <div className="text-sm text-gray-600">Total Projects</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-yellow-600">
-            {clientProjects.filter(p => p.status === 'in_progress').length}
-          </div>
-          <div className="text-sm text-gray-600">In Progress</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-purple-600">
-            {clientProjects.filter(p => p.status === 'review').length}
-          </div>
-          <div className="text-sm text-gray-600">In Review</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-green-600">
-            {clientProjects.filter(p => p.status === 'completed').length}
-          </div>
-          <div className="text-sm text-gray-600">Completed</div>
-        </div>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-foreground">{clientProjects.length}</div>
+            <div className="text-sm text-muted-foreground">Total Projects</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-yellow-600">
+              {clientProjects.filter(p => p.status === 'in_progress').length}
+            </div>
+            <div className="text-sm text-muted-foreground">In Progress</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-purple-600">
+              {clientProjects.filter(p => p.status === 'review').length}
+            </div>
+            <div className="text-sm text-muted-foreground">In Review</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">
+              {clientProjects.filter(p => p.status === 'completed').length}
+            </div>
+            <div className="text-sm text-muted-foreground">Completed</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Projects Grid */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">Active Projects</h2>
+        <h2 className="text-lg font-semibold text-foreground">Active Projects</h2>
         {clientProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {clientProjects.map((project) => (
@@ -76,13 +85,15 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
             ))}
           </div>
         ) : (
-          <div className="card text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <PlusIcon size={48} className="mx-auto" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-600 mb-2">No projects yet</h3>
-            <p className="text-gray-500">Your projects will appear here once they are created.</p>
-          </div>
+          <Card className="text-center py-12">
+            <CardContent>
+              <div className="text-muted-foreground mb-4">
+                <PlusIcon size={48} className="mx-auto" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">No projects yet</h3>
+              <p className="text-muted-foreground">Your projects will appear here once they are created.</p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

@@ -8,6 +8,8 @@ import { projectUpdatesApi } from '@/lib/api/project-updates';
 import { tasksApi } from '@/lib/api/tasks';
 import { Task } from '@/components/tasks/KanbanBoard';
 import { BrushIcon, ClockIcon, AlertCircleIcon, TrendingUpIcon } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface DesignerDashboardProps {
   projects: Project[];
@@ -89,7 +91,7 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-600">Loading dashboard...</div>
+        <div className="text-muted-foreground">Loading dashboard...</div>
       </div>
     );
   }
@@ -98,46 +100,54 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black">Design Dashboard</h1>
-          <p className="text-gray-600 mt-1">Manage your assigned projects and tasks</p>
+          <h1 className="text-2xl font-bold text-foreground">Design Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Manage your assigned projects and tasks</p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <BrushIcon size={24} className="text-purple-600" />
-          </div>
-          <div className="text-2xl font-bold text-black">{tasks.length}</div>
-          <div className="text-sm text-gray-600">Total Tasks</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <ClockIcon size={24} className="text-yellow-600" />
-          </div>
-          <div className="text-2xl font-bold text-yellow-600">{inProgressTasks.length}</div>
-          <div className="text-sm text-gray-600">In Progress</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <AlertCircleIcon size={24} className="text-orange-600" />
-          </div>
-          <div className="text-2xl font-bold text-orange-600">{reviewTasks.length}</div>
-          <div className="text-sm text-gray-600">In Review</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <TrendingUpIcon size={24} className="text-green-600" />
-          </div>
-          <div className="text-2xl font-bold text-green-600">{completedTasks.length}</div>
-          <div className="text-sm text-gray-600">Completed</div>
-        </div>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <BrushIcon size={24} className="text-purple-600" />
+            </div>
+            <div className="text-2xl font-bold text-foreground">{tasks.length}</div>
+            <div className="text-sm text-muted-foreground">Total Tasks</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <ClockIcon size={24} className="text-yellow-600" />
+            </div>
+            <div className="text-2xl font-bold text-yellow-600">{inProgressTasks.length}</div>
+            <div className="text-sm text-muted-foreground">In Progress</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <AlertCircleIcon size={24} className="text-orange-600" />
+            </div>
+            <div className="text-2xl font-bold text-orange-600">{reviewTasks.length}</div>
+            <div className="text-sm text-muted-foreground">In Review</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <TrendingUpIcon size={24} className="text-green-600" />
+            </div>
+            <div className="text-2xl font-bold text-green-600">{completedTasks.length}</div>
+            <div className="text-sm text-muted-foreground">Completed</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Active Projects */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">Current Projects</h2>
+        <h2 className="text-lg font-semibold text-foreground">Current Projects</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
             <div key={project.id} className="relative group h-full">
