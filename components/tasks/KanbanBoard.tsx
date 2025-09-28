@@ -9,6 +9,7 @@ import TaskCard from './TaskCard';
 import { NotificationService } from '@/lib/services/notificationService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 export interface Task {
   id: string;
@@ -49,6 +50,7 @@ export default function KanbanBoard({ project, currentUser, onTaskCreated }: Kan
   const [designers, setDesigners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { toast } = useToast();
 
   useEffect(() => {
     console.log('🔄 KanbanBoard useEffect triggered for project:', project.id);
@@ -201,7 +203,10 @@ ${message}`;
         message.substring(0, 100) + (message.length > 100 ? '...' : '')
       );
 
-      alert(`Message sent to ${assignee.name} successfully!`);
+      toast({
+        title: "Message sent successfully",
+        description: `Your message has been sent to ${assignee.name}`,
+      });
       
     } catch (error) {
       console.error('Error sending message:', error);

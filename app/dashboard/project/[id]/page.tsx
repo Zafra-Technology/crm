@@ -32,7 +32,7 @@ import {
 export default function ProjectDetailsPage() {
   const params = useParams();
   const projectId = params?.id as string;
-  
+
   const [user, setUser] = useState<User | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [client, setClient] = useState<Client | null>(null);
@@ -59,7 +59,7 @@ export default function ProjectDetailsPage() {
   const loadProjectData = async () => {
     try {
       setLoading(true);
-      
+
       // Load project details
       const foundProject = await projectsApi.getById(projectId);
       if (foundProject) {
@@ -71,7 +71,7 @@ export default function ProjectDetailsPage() {
           timeline: foundProject.timeline,
           status: foundProject.status
         });
-        
+
         console.log('Project attachments:', foundProject.attachments); // Debug log
 
         // Load client details
@@ -83,7 +83,7 @@ export default function ProjectDetailsPage() {
         // Load assigned designers
         if (foundProject.designerIds && foundProject.designerIds.length > 0) {
           const allDesigners = await designersApi.getAll();
-          const assignedDesigners = allDesigners.filter(d => 
+          const assignedDesigners = allDesigners.filter(d =>
             foundProject.designerIds.includes(d.id)
           );
           setDesigners(assignedDesigners);
@@ -92,7 +92,7 @@ export default function ProjectDetailsPage() {
         // Mock project manager data (in real app, would fetch from users API)
         setProjectManager({
           id: foundProject.managerId,
-          name: 'Sarah Manager',
+          name: 'Manager',
           email: 'sarah@company.com'
         });
       }
@@ -144,7 +144,7 @@ export default function ProjectDetailsPage() {
 
   const handleAddAttachment = async (files: File[]) => {
     if (!project) return;
-    
+
     try {
       // Convert files to base64 for demo storage
       const newAttachments = await Promise.all(files.map(async (file) => {
@@ -162,7 +162,7 @@ export default function ProjectDetailsPage() {
 
       const updatedAttachments = [...(project.attachments || []), ...newAttachments];
       const updatedProject = await projectsApi.update(project.id, { attachments: updatedAttachments });
-      
+
       if (updatedProject) {
         setProject(updatedProject);
       }
@@ -174,11 +174,11 @@ export default function ProjectDetailsPage() {
 
   const handleRemoveAttachment = async (attachmentId: string) => {
     if (!project) return;
-    
+
     try {
       const updatedAttachments = (project.attachments || []).filter(a => a.id !== attachmentId);
       const updatedProject = await projectsApi.update(project.id, { attachments: updatedAttachments });
-      
+
       if (updatedProject) {
         setProject(updatedProject);
       }
@@ -265,12 +265,12 @@ export default function ProjectDetailsPage() {
                   {statusLabels[project.status]}
                 </span>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <p className="text-gray-600 leading-relaxed">{project.description}</p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
                   <div>
                     <h4 className="font-medium text-black mb-2">Client</h4>
@@ -321,16 +321,14 @@ export default function ProjectDetailsPage() {
             </div>
           </div>
 
-          {/* Project Updates - Hidden for clients, visible for designers */}
-          {!isClient && (
-            <ProjectUpdates 
-              projectId={projectId}
-              updates={updates}
-              currentUser={user}
-              canEdit={canAddUpdates}
-              onUpdateAdded={loadProjectData}
-            />
-          )}
+          {/* Project Updates - Read-only for clients, editable for managers/designers */}
+          <ProjectUpdates
+            projectId={projectId}
+            updates={updates}
+            currentUser={user}
+            canEdit={canAddUpdates && !isClient}
+            onUpdateAdded={loadProjectData}
+          />
 
           {/* 5. Team Members */}
           <div className="card">
@@ -370,7 +368,7 @@ export default function ProjectDetailsPage() {
         {/* Right Column - Team Chat */}
         <div className="lg:col-span-1">
           <div className="h-[calc(100vh-12rem)] sticky top-6">
-            <ProjectChat 
+            <ProjectChat
               projectId={projectId}
               currentUser={user}
               messages={chatMessages}
@@ -388,7 +386,7 @@ export default function ProjectDetailsPage() {
               Update the project details below.
             </DialogDescription>
           </DialogHeader>
-          
+
           <form id="edit-project-form" onSubmit={handleSaveEdit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="project-name">Project Name</Label>
@@ -401,7 +399,7 @@ export default function ProjectDetailsPage() {
                 placeholder="Enter project name"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="project-description">Description</Label>
               <Textarea
@@ -413,7 +411,7 @@ export default function ProjectDetailsPage() {
                 rows={3}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="project-status">Status</Label>
               <Select
@@ -432,7 +430,7 @@ export default function ProjectDetailsPage() {
               </Select>
             </div>
           </form>
-          
+
           <DialogFooter className="flex space-x-3">
             <Button
               type="button"

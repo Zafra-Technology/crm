@@ -34,7 +34,7 @@ export default function MessagesPage() {
   const mockManagers: Manager[] = [
     {
       id: '2',
-      name: 'Sarah Manager',
+      name: 'Manager',
       email: 'manager@example.com',
       role: 'project_manager',
     }
@@ -55,7 +55,7 @@ export default function MessagesPage() {
         } else if (user?.role === 'designer') {
           // Designer sees managers and other designers
           const designersList = await designersApi.getAll();
-          
+
           setDesigners(designersList.filter(d => d.status === 'active' && d.id !== user.id));
           setManagers(mockManagers);
         }
@@ -83,7 +83,7 @@ export default function MessagesPage() {
 
   const getAvatarColor = (name: string) => {
     const colors = [
-      'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 
+      'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500',
       'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
     ];
     const hash = name.split('').reduce((a, b) => {
@@ -142,9 +142,8 @@ export default function MessagesPage() {
                   <div
                     key={manager.id}
                     onClick={() => setSelectedUser(manager)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 border-2 border-green-200 bg-green-50 ${
-                      selectedUser?.id === manager.id ? 'bg-green-100 border-green-300' : 'hover:bg-green-100'
-                    }`}
+                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 border-2 border-green-200 bg-green-50 ${selectedUser?.id === manager.id ? 'bg-green-100 border-green-300' : 'hover:bg-green-100'
+                      }`}
                   >
                     <div className={`w-10 h-10 ${getAvatarColor(manager.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
                       <span className="text-white font-medium text-sm">
@@ -175,11 +174,10 @@ export default function MessagesPage() {
                   <div
                     key={designer.id}
                     onClick={() => setSelectedUser(designer)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
-                      selectedUser?.id === designer.id 
-                        ? 'bg-blue-100 border border-blue-300' 
+                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${selectedUser?.id === designer.id
+                        ? 'bg-blue-100 border border-blue-300'
                         : 'hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <div className={`w-10 h-10 ${getAvatarColor(designer.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
                       <span className="text-white font-medium text-sm">

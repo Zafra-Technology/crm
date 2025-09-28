@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { User } from '@/types';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { Toaster } from '@/components/ui/toaster';
 
 export default function DashboardLayout({
   children,
@@ -55,6 +56,7 @@ export default function DashboardLayout({
           </div>
         </main>
       </div>
+      <Toaster />
     </div>
   );
 }

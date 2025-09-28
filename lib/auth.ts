@@ -6,7 +6,7 @@ const mockUsers: User[] = [
   {
     id: '2',
     email: 'manager@example.com',
-    name: 'Sarah Manager',
+    name: 'Manager',
     role: 'project_manager',
   },
   {
@@ -22,7 +22,7 @@ export const authenticateUser = async (email: string, password: string): Promise
     // First, try to authenticate as client using email and phone number
     const clients = await clientsApi.getAll();
     const client = clients.find(c => c.email === email);
-    
+
     if (client && client.phoneNumber === password) {
       // Client found and phone number matches
       return {
@@ -32,12 +32,12 @@ export const authenticateUser = async (email: string, password: string): Promise
         role: 'client' as UserRole,
       };
     }
-    
+
     // Then, try to authenticate as designer using email and phone number
     const { designersApi } = await import('./api/designers');
     const designers = await designersApi.getAll();
     const designer = designers.find(d => d.email === email);
-    
+
     if (designer && designer.phoneNumber === password) {
       // Designer found and phone number matches
       return {
@@ -47,13 +47,13 @@ export const authenticateUser = async (email: string, password: string): Promise
         role: 'designer' as UserRole,
       };
     }
-    
+
     // Finally, check mock users (managers only) with regular password
     const user = mockUsers.find(u => u.email === email);
     if (user && password === 'password') {
       return user;
     }
-    
+
     return null;
   } catch (error) {
     console.error('Authentication error:', error);

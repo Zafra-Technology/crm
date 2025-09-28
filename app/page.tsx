@@ -145,12 +145,12 @@ export default function LoginPage() {
             <div className="space-y-3">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <div className="text-xs text-blue-800">
-                  <strong>Client:</strong> client email / phone number
+                  <strong>Client:</strong> client@gmail.com/ password
                 </div>
               </div>
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                 <div className="text-xs text-purple-800">
-                  <strong>Designer:</strong> designer email / phone number
+                  <strong>Designer:</strong> designer@gmail.com / password
                 </div>
               </div>
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">

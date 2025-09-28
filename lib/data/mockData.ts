@@ -77,7 +77,7 @@ export const mockChatMessages: ChatMessage[] = [
     id: '1',
     projectId: '1',
     userId: '2',
-    userName: 'Sarah Manager',
+    userName: 'Manager',
     userRole: 'project_manager',
     message: 'Great progress on the wireframes! Can we schedule a review meeting?',
     timestamp: '2024-01-20T10:30:00Z'
