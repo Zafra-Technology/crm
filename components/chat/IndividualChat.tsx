@@ -213,80 +213,101 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
       <div ref={messagesContainerRef} className="h-[calc(100vh-20rem)] overflow-y-auto p-4 space-y-4">
         {messages.map((message) => {
           const isOwnMessage = message.senderId === currentUser.id;
+          const isTaskTagged = message.messageType === 'task_tag' || message.message.includes('Task:');
           
           return (
             <div
               key={message.id}
               className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                isOwnMessage
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-900'
-              }`}>
-                <div className="text-sm">
-                  {message.message}
-                </div>
-                
-                {/* File attachment */}
-                {message.fileUrl && (
-                  <div className="mt-2">
-                    {/* Image preview */}
-                    {message.messageType === 'image' && message.fileType?.startsWith('image/') && (
-                      <div className="mb-2">
-                        <img
-                          src={message.fileUrl}
-                          alt={message.fileName || 'Shared image'}
-                          className="max-w-full rounded border"
-                        />
-                      </div>
-                    )}
-
-                    {/* File info */}
-                    <div className={`flex items-center space-x-2 p-2 rounded border ${
-                      isOwnMessage ? 'bg-blue-600 border-blue-400' : 'bg-white border-gray-200'
-                    }`}>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-medium truncate ${
-                          isOwnMessage ? 'text-blue-100' : 'text-gray-700'
-                        }`}>
-                          {message.fileName || 'Unknown file'}
-                        </p>
-                        {message.fileSize && (
-                          <p className={`text-xs ${
-                            isOwnMessage ? 'text-blue-200' : 'text-gray-500'
-                          }`}>
-                            {formatFileSize(message.fileSize)}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => {
-                          const link = document.createElement('a');
-                          link.href = message.fileUrl!;
-                          link.download = message.fileName || 'download';
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }}
-                        className={`p-1 rounded ${
-                          isOwnMessage 
-                            ? 'text-blue-200 hover:bg-blue-500' 
-                            : 'text-gray-500 hover:bg-gray-200'
-                        }`}
-                      >
-                        <DownloadIcon size={12} />
-                      </button>
+              {isTaskTagged ? (
+                // Task Tagged Card Design
+                <div className="max-w-xs lg:max-w-md bg-red-50 border-l-4 border-red-500 rounded-lg shadow-sm">
+                  <div className="bg-red-500 text-white px-4 py-2 rounded-t-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">🏷️ Task Tagged</span>
                     </div>
                   </div>
-                )}
-                
-                <div className={`text-xs mt-1 ${
-                  isOwnMessage ? 'text-blue-200' : 'text-gray-500'
-                }`}>
-                  {formatTime(message.timestamp)}
+                  <div className="p-4">
+                    <div className="text-sm text-gray-800 whitespace-pre-line">
+                      {message.message}
+                    </div>
+                    <div className="text-xs text-red-600 mt-2 font-medium">
+                      From: {message.senderName} • {formatTime(message.timestamp)}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                // Regular Message Design
+                <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                  isOwnMessage
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-900'
+                }`}>
+                  <div className="text-sm whitespace-pre-line">
+                    {message.message}
+                  </div>
+                
+                  {/* File attachment */}
+                  {message.fileUrl && (
+                    <div className="mt-2">
+                      {/* Image preview */}
+                      {message.messageType === 'image' && message.fileType?.startsWith('image/') && (
+                        <div className="mb-2">
+                          <img
+                            src={message.fileUrl}
+                            alt={message.fileName || 'Shared image'}
+                            className="max-w-full rounded border"
+                          />
+                        </div>
+                      )}
+
+                      {/* File info */}
+                      <div className={`flex items-center space-x-2 p-2 rounded border ${
+                        isOwnMessage ? 'bg-blue-600 border-blue-400' : 'bg-white border-gray-200'
+                      }`}>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-medium truncate ${
+                            isOwnMessage ? 'text-blue-100' : 'text-gray-700'
+                          }`}>
+                            {message.fileName || 'Unknown file'}
+                          </p>
+                          {message.fileSize && (
+                            <p className={`text-xs ${
+                              isOwnMessage ? 'text-blue-200' : 'text-gray-500'
+                            }`}>
+                              {formatFileSize(message.fileSize)}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = message.fileUrl!;
+                            link.download = message.fileName || 'download';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                          className={`p-1 rounded ${
+                            isOwnMessage 
+                              ? 'text-blue-200 hover:bg-blue-500' 
+                              : 'text-gray-500 hover:bg-gray-200'
+                          }`}
+                        >
+                          <DownloadIcon size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className={`text-xs mt-1 ${
+                    isOwnMessage ? 'text-blue-200' : 'text-gray-500'
+                  }`}>
+                    {formatTime(message.timestamp)}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

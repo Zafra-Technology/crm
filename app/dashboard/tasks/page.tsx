@@ -122,16 +122,15 @@ export default function TasksPage() {
       <div className="space-y-6">
         {/* Project Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             <button
               onClick={() => setSelectedProject(null)}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
             >
               ← Back to Projects
             </button>
             <div>
               <h1 className="text-2xl font-bold text-black">{selectedProject.name}</h1>
-              <p className="text-gray-600 mt-1">Task Management</p>
             </div>
           </div>
           
@@ -291,22 +290,18 @@ export default function TasksPage() {
                       </span>
                     </div>
                   </div>
-                  {taskCount.total > 0 && (
-                    <span className="text-xs text-gray-500">
-                      {completionPercentage}%
-                    </span>
-                  )}
+                  <span className="text-xs text-gray-500">
+                    {completionPercentage}%
+                  </span>
                 </div>
 
                 {/* Progress Bar */}
-                {taskCount.total > 0 && (
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${completionPercentage}%` }}
-                    ></div>
-                  </div>
-                )}
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${completionPercentage}%` }}
+                  ></div>
+                </div>
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-200">

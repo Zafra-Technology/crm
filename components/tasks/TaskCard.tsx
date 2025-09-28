@@ -8,12 +8,17 @@ import { CalendarIcon, UserIcon, MessageSquareIcon, PaperclipIcon, ChevronDownIc
 interface TaskCardProps {
   task: Task;
   onStatusUpdate: (taskId: string, newStatus: Task['status']) => void;
+  onDelete?: (taskId: string) => void;
+  onTagInMessage?: (task: Task, message: string) => void;
   currentUser: User;
   designers: any[];
 }
 
-export default function TaskCard({ task, onStatusUpdate, currentUser, designers }: TaskCardProps) {
+export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessage, currentUser, designers }: TaskCardProps) {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageText, setMessageText] = useState('');
 
   const getPriorityColor = (priority: string) => {
     const colors = {
@@ -92,16 +97,78 @@ export default function TaskCard({ task, onStatusUpdate, currentUser, designers 
     return currentUser.role === 'project_manager' || task.assigneeId === currentUser.id;
   };
 
+  const canShowActions = () => {
+    // Only managers can delete tasks or tag in messages
+    return currentUser.role === 'project_manager';
+  };
+
+  const handleDelete = () => {
+    if (onDelete && window.confirm('Are you sure you want to delete this task?')) {
+      onDelete(task.id);
+    }
+    setShowActionsMenu(false);
+  };
+
+  const handleTagInMessage = () => {
+    setShowActionsMenu(false);
+    setShowMessageModal(true);
+  };
+
+  const handleSendMessage = () => {
+    if (onTagInMessage && messageText.trim()) {
+      onTagInMessage(task, messageText.trim());
+      setMessageText('');
+      setShowMessageModal(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowMessageModal(false);
+    setMessageText('');
+  };
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-shadow">
       {/* Task Header */}
       <div className="flex items-start justify-between mb-3">
-        <h4 className="font-medium text-gray-900 text-sm leading-tight">
+        <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 mr-2">
           {task.title}
         </h4>
-        <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(task.priority)}`}>
-          {task.priority}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(task.priority)}`}>
+            {task.priority}
+          </span>
+          {canShowActions() && (
+            <div className="relative">
+              <button
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                title="More actions"
+              >
+                <MoreVerticalIcon size={14} className="text-gray-500" />
+              </button>
+              
+              {showActionsMenu && (
+                <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[160px] whitespace-nowrap">
+                  <button
+                    onClick={handleTagInMessage}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors text-gray-700 flex items-center gap-2"
+                  >
+                    <MessageCircleIcon size={12} />
+                    Tag in Message
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-red-50 transition-colors text-red-600 flex items-center gap-2"
+                  >
+                    <TrashIcon size={12} />
+                    Delete Task
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Task Description */}
@@ -190,12 +257,66 @@ export default function TaskCard({ task, onStatusUpdate, currentUser, designers 
         </div>
       )}
 
-      {/* Click outside to close menu */}
-      {showStatusMenu && (
+      {/* Click outside to close menus */}
+      {(showStatusMenu || showActionsMenu) && (
         <div
           className="fixed inset-0 z-5"
-          onClick={() => setShowStatusMenu(false)}
+          onClick={() => {
+            setShowStatusMenu(false);
+            setShowActionsMenu(false);
+          }}
         />
+      )}
+
+      {/* Message Modal */}
+      {showMessageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Tag Task in Message
+            </h3>
+            
+            <div className="mb-4">
+              <div className="bg-gray-50 p-3 rounded-md mb-3">
+                <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                <p className="text-xs text-gray-600">
+                  Assigned to: {getAssigneeName(task.assigneeId)}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Priority: {task.priority} • Status: {getStatusLabel(task.status)}
+                </p>
+              </div>
+              
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Message:
+              </label>
+              <textarea
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                placeholder="Enter your message about this task..."
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                rows={4}
+                autoFocus
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleCloseModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendMessage}
+                disabled={!messageText.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-md transition-colors"
+              >
+                Send Message
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

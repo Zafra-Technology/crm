@@ -109,6 +109,64 @@ export default function KanbanBoard({ project, currentUser, onTaskCreated }: Kan
     }
   };
 
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await tasksApi.delete(taskId);
+      
+      // Remove from local state
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+      
+      console.log('Task deleted successfully');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      alert('Failed to delete task. Please try again.');
+    }
+  };
+
+  const handleTagInMessage = async (task: Task, message: string) => {
+    try {
+      // Get the assignee (designer) details
+      const assignee = designers.find(d => d.id === task.assigneeId);
+      
+      if (!assignee) {
+        alert('Designer not found');
+        return;
+      }
+
+      // Create the message with task details
+      const taskDetails = `Task: ${task.title}
+Project: ${project.name}
+Status: ${task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.replace('_', ' ').slice(1)}
+
+${message}`;
+
+      // Send individual message to the designer
+      const response = await fetch('/api/messages/individual', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          senderId: currentUser.id,
+          senderName: currentUser.name,
+          receiverId: task.assigneeId,
+          message: taskDetails,
+          messageType: 'task_tag'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      alert(`Message sent to ${assignee.name} successfully!`);
+      
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    }
+  };
+
   const getTasksByStatus = (status: string) => {
     return tasks.filter(task => task.status === status);
   };
@@ -162,6 +220,8 @@ export default function KanbanBoard({ project, currentUser, onTaskCreated }: Kan
                     key={task.id}
                     task={task}
                     onStatusUpdate={handleStatusUpdate}
+                    onDelete={handleDeleteTask}
+                    onTagInMessage={handleTagInMessage}
                     currentUser={currentUser}
                     designers={designers}
                   />
