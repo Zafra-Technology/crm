@@ -43,6 +43,25 @@ export class ProjectUpdateModel {
     }
   }
 
+  static async getByUserId(userId: string): Promise<ProjectUpdate[]> {
+    try {
+      const db = await getDatabase();
+      const updates = await db.collection(this.collection)
+        .find({ userId })
+        .sort({ createdAt: -1 })
+        .toArray();
+      
+      return updates.map(update => ({
+        ...update,
+        id: update._id.toString(),
+        _id: undefined
+      })) as ProjectUpdate[];
+    } catch (error) {
+      console.error('Error fetching project updates:', error);
+      return [];
+    }
+  }
+
   static async getById(id: string): Promise<ProjectUpdate | null> {
     try {
       const db = await getDatabase();

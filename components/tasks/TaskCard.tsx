@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { User } from '@/types';
 import { Task } from './KanbanBoard';
-import { CalendarIcon, UserIcon, MessageSquareIcon, PaperclipIcon, ChevronDownIcon } from 'lucide-react';
+import { CalendarIcon, UserIcon, MessageSquareIcon, PaperclipIcon, ChevronDownIcon, MoreVerticalIcon, TrashIcon, MessageCircleIcon } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -72,12 +72,20 @@ export default function TaskCard({ task, onStatusUpdate, currentUser, designers 
     return colors[Math.abs(hash) % colors.length];
   };
 
-  const statusOptions = [
-    { value: 'todo', label: 'To Do' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'review', label: 'Review' },
-    { value: 'completed', label: 'Completed' },
-  ];
+  const getAvailableStatusOptions = () => {
+    const baseOptions = [
+      { value: 'todo', label: 'To Do' },
+      { value: 'in_progress', label: 'In Progress' },
+      { value: 'review', label: 'Review' },
+    ];
+
+    // Only managers can set tasks to completed
+    if (currentUser.role === 'project_manager') {
+      baseOptions.push({ value: 'completed', label: 'Completed' });
+    }
+
+    return baseOptions;
+  };
 
   const canUpdateStatus = () => {
     // Managers can update any task, designers can only update their own tasks
@@ -156,7 +164,7 @@ export default function TaskCard({ task, onStatusUpdate, currentUser, designers 
 
           {showStatusMenu && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-              {statusOptions.map((option) => (
+              {getAvailableStatusOptions().map((option) => (
                 <button
                   key={option.value}
                   onClick={() => {

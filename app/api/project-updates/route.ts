@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ProjectUpdateModel } from '@/lib/models/ProjectUpdate';
 
-// GET /api/project-updates - Get all updates or by project
+// GET /api/project-updates - Get all updates or by project or by user
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
+    const userId = searchParams.get('userId');
     
     let updates;
     if (projectId) {
       updates = await ProjectUpdateModel.getByProjectId(projectId);
+    } else if (userId) {
+      updates = await ProjectUpdateModel.getByUserId(userId);
     } else {
       updates = await ProjectUpdateModel.getAll();
     }
