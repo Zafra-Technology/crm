@@ -6,6 +6,23 @@ import { tasksApi } from '@/lib/api/tasks';
 import { designersApi } from '@/lib/api/designers';
 import { CalendarIcon, UserIcon, ArrowUpIcon, ArrowDownIcon, ChevronDownIcon } from 'lucide-react';
 import { Task } from './KanbanBoard';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface TaskTableProps {
   project: Project;
@@ -73,23 +90,23 @@ export default function TaskTable({ project, currentUser, onTaskUpdated }: TaskT
     return designer?.name || 'Unknown Designer';
   };
 
-  const getPriorityColor = (priority: string) => {
-    const colors = {
-      low: 'bg-gray-100 text-gray-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      high: 'bg-red-100 text-red-800',
+  const getPriorityVariant = (priority: string) => {
+    const variants = {
+      low: 'secondary',
+      medium: 'outline',
+      high: 'destructive',
     };
-    return colors[priority as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return variants[priority as keyof typeof variants] || 'secondary';
   };
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      todo: 'bg-gray-100 text-gray-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      review: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-green-100 text-green-800',
+  const getStatusVariant = (status: string) => {
+    const variants = {
+      todo: 'secondary',
+      in_progress: 'default',
+      review: 'outline',
+      completed: 'default',
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return variants[status as keyof typeof variants] || 'secondary';
   };
 
   const getStatusLabel = (status: string) => {
@@ -149,7 +166,7 @@ export default function TaskTable({ project, currentUser, onTaskUpdated }: TaskT
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading tasks...</div>
+        <div className="text-muted-foreground">Loading tasks...</div>
       </div>
     );
   }
@@ -162,73 +179,71 @@ export default function TaskTable({ project, currentUser, onTaskUpdated }: TaskT
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 h-[calc(100vh-12rem)] flex flex-col overflow-hidden">
-      {/* Table Header */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-        <h3 className="text-lg font-semibold text-gray-900">
+    <Card className="h-[calc(100vh-12rem)] flex flex-col overflow-hidden">
+      <CardHeader className="flex-shrink-0">
+        <CardTitle>
           Tasks Overview ({sortedTasks.length} tasks)
-        </h3>
-      </div>
+        </CardTitle>
+      </CardHeader>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full table-fixed border-collapse">
-          <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0">
-            <tr className="divide-x divide-gray-200">
-              <th className="w-16 px-3 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+      <CardContent className="flex-1 overflow-auto p-0">
+        <Table>
+          <TableHeader className="sticky top-0">
+            <TableRow>
+              <TableHead className="w-16">
                 S.No
-              </th>
-              <th 
-                className="w-1/3 px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
+              </TableHead>
+              <TableHead 
+                className="w-1/3 cursor-pointer hover:bg-accent"
                 onClick={() => handleSort('title')}
               >
                 <div className="flex items-center">
                   Task
                   <SortIcon field="title" />
                 </div>
-              </th>
-              <th className="w-1/6 px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+              </TableHead>
+              <TableHead className="w-1/6">
                 Project
-              </th>
-              <th 
-                className="w-1/6 px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
+              </TableHead>
+              <TableHead 
+                className="w-1/6 cursor-pointer hover:bg-accent"
                 onClick={() => handleSort('assigneeName')}
               >
                 <div className="flex items-center">
                   Designer
                   <SortIcon field="assigneeName" />
                 </div>
-              </th>
-              <th 
-                className="w-1/8 px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
+              </TableHead>
+              <TableHead 
+                className="w-1/8 cursor-pointer hover:bg-accent"
                 onClick={() => handleSort('status')}
               >
                 <div className="flex items-center">
                   Status
                   <SortIcon field="status" />
                 </div>
-              </th>
-              <th 
-                className="w-1/8 px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
+              </TableHead>
+              <TableHead 
+                className="w-1/8 cursor-pointer hover:bg-accent"
                 onClick={() => handleSort('priority')}
               >
                 <div className="flex items-center">
                   Priority
                   <SortIcon field="priority" />
                 </div>
-              </th>
-              <th 
-                className="w-1/8 px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              </TableHead>
+              <TableHead 
+                className="w-1/8 cursor-pointer hover:bg-accent"
                 onClick={() => handleSort('dueDate')}
               >
                 <div className="flex items-center">
                   Due Date
                   <SortIcon field="dueDate" />
                 </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200 border-b border-gray-200">
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {sortedTasks.map((task, index) => (
               <TaskRow
                 key={task.id}
@@ -237,24 +252,24 @@ export default function TaskTable({ project, currentUser, onTaskUpdated }: TaskT
                 designerName={getDesignerName(task.assigneeId)}
                 onStatusUpdate={handleStatusUpdate}
                 canUpdate={canUpdateStatus(task)}
-                getPriorityColor={getPriorityColor}
-                getStatusColor={getStatusColor}
+                getPriorityVariant={getPriorityVariant}
+                getStatusVariant={getStatusVariant}
                 getStatusLabel={getStatusLabel}
                 formatDate={formatDate}
                 statusOptions={statusOptions}
                 serialNumber={index + 1}
               />
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
 
         {sortedTasks.length === 0 && (
           <div className="text-center py-12">
-            <div className="text-gray-500">No tasks found for this project</div>
+            <div className="text-muted-foreground">No tasks found for this project</div>
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -264,8 +279,8 @@ interface TaskRowProps {
   designerName: string;
   onStatusUpdate: (taskId: string, status: Task['status']) => void;
   canUpdate: boolean;
-  getPriorityColor: (priority: string) => string;
-  getStatusColor: (status: string) => string;
+  getPriorityVariant: (priority: string) => string;
+  getStatusVariant: (status: string) => string;
   getStatusLabel: (status: string) => string;
   formatDate: (date?: string) => string;
   statusOptions: { value: string; label: string }[];
@@ -278,8 +293,8 @@ function TaskRow({
   designerName,
   onStatusUpdate,
   canUpdate,
-  getPriorityColor,
-  getStatusColor,
+  getPriorityVariant,
+  getStatusVariant,
   getStatusLabel,
   formatDate,
   statusOptions,
@@ -288,89 +303,76 @@ function TaskRow({
   const [showStatusMenu, setShowStatusMenu] = useState(false);
 
   return (
-    <tr className="hover:bg-gray-50 border-b border-gray-100">
-      <td className="px-3 py-4 border-r border-gray-200 text-center">
-        <span className="text-sm font-medium text-gray-600">{serialNumber}</span>
-      </td>
-      <td className="px-4 py-4 border-r border-gray-200">
+    <TableRow className="hover:bg-accent/50">
+      <TableCell className="text-center">
+        <span className="text-sm font-medium text-muted-foreground">{serialNumber}</span>
+      </TableCell>
+      <TableCell>
         <div>
-          <div className="text-sm font-medium text-gray-900 line-clamp-1">{task.title}</div>
+          <div className="text-sm font-medium text-foreground line-clamp-1">{task.title}</div>
           {task.description && (
-            <div className="text-xs text-gray-500 mt-1 line-clamp-2">
+            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
               {task.description}
             </div>
           )}
         </div>
-      </td>
-      <td className="px-4 py-4 border-r border-gray-200">
-        <div className="text-sm text-gray-900 line-clamp-1">{project.name}</div>
-      </td>
-      <td className="px-4 py-4 border-r border-gray-200">
+      </TableCell>
+      <TableCell>
+        <div className="text-sm text-foreground line-clamp-1">{project.name}</div>
+      </TableCell>
+      <TableCell>
         <div className="flex items-center">
           <div className="w-7 h-7 bg-purple-500 rounded-full flex items-center justify-center mr-2">
             <span className="text-white font-medium text-xs">
               {designerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
             </span>
           </div>
-          <div className="text-sm text-gray-900 truncate">{designerName}</div>
+          <div className="text-sm text-foreground truncate">{designerName}</div>
         </div>
-      </td>
-      <td className="px-4 py-4 border-r border-gray-200">
+      </TableCell>
+      <TableCell>
         {canUpdate ? (
-          <div className="relative">
-            <button
-              onClick={() => setShowStatusMenu(!showStatusMenu)}
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.status)} hover:opacity-80 transition-opacity`}
-            >
-              {getStatusLabel(task.status)}
-              <ChevronDownIcon size={12} className="ml-1" />
-            </button>
+          <DropdownMenu open={showStatusMenu} onOpenChange={setShowStatusMenu}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 text-xs"
+              >
+                {getStatusLabel(task.status)}
+                <ChevronDownIcon size={12} className="ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
 
-            {showStatusMenu && (
-              <div className="fixed z-50 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg" 
-                   style={{
-                     top: '100%',
-                     left: '0',
-                     position: 'absolute'
-                   }}>
-                {statusOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => {
-                      onStatusUpdate(task.id, option.value as Task['status']);
-                      setShowStatusMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                      task.status === option.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            <DropdownMenuContent>
+              {statusOptions.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => {
+                    onStatusUpdate(task.id, option.value as Task['status']);
+                    setShowStatusMenu(false);
+                  }}
+                  className={task.status === option.value ? 'bg-accent' : ''}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+          <Badge variant={getStatusVariant(task.status) as any}>
             {getStatusLabel(task.status)}
-          </span>
+          </Badge>
         )}
-
-        {showStatusMenu && (
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowStatusMenu(false)}
-          />
-        )}
-      </td>
-      <td className="px-4 py-4 border-r border-gray-200">
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+      </TableCell>
+      <TableCell>
+        <Badge variant={getPriorityVariant(task.priority) as any}>
           {task.priority}
-        </span>
-      </td>
-      <td className="px-4 py-4">
-        <div className="text-sm text-gray-900">{formatDate(task.dueDate)}</div>
-      </td>
-    </tr>
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <div className="text-sm text-foreground">{formatDate(task.dueDate)}</div>
+      </TableCell>
+    </TableRow>
   );
 }

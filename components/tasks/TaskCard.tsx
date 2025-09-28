@@ -233,42 +233,44 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
         </div>
       </div>
 
-      {/* Status Update */}
-      {canUpdateStatus() && (
-        <div className="relative">
-          <button
-            onClick={() => setShowStatusMenu(!showStatusMenu)}
-            className={`w-full flex items-center justify-between px-2 py-1 rounded text-xs font-medium ${getStatusColor(task.status)} hover:opacity-80 transition-opacity`}
-          >
-            <span>{getStatusLabel(task.status)}</span>
-            <ChevronDownIcon size={12} />
-          </button>
-
-          {showStatusMenu && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-              {getAvailableStatusOptions().map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => {
-                    onStatusUpdate(task.id, option.value as Task['status']);
-                    setShowStatusMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${
-                    task.status === option.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
-                  }`}
+        {/* Status Update */}
+        {(currentUser.role === 'project_manager' || task.assigneeId === currentUser.id) && (
+          <div className="mt-3">
+            <DropdownMenu open={showStatusMenu} onOpenChange={setShowStatusMenu}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-between text-xs"
                 >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                  <span>{getStatusLabel(task.status)}</span>
+                  <ChevronDownIcon size={12} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full">
+                {getAvailableStatusOptions().map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onClick={() => {
+                      onStatusUpdate(task.id, option.value as Task['status']);
+                      setShowStatusMenu(false);
+                    }}
+                    className={task.status === option.value ? 'bg-accent' : ''}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
 
       {/* Read-only status for non-editable tasks */}
-      {!canUpdateStatus() && (
-        <div className={`px-2 py-1 rounded text-xs font-medium text-center ${getStatusColor(task.status)}`}>
-          {getStatusLabel(task.status)}
+      {!(currentUser.role === 'project_manager' || task.assigneeId === currentUser.id) && (
+        <div className="mt-3">
+          <Badge variant={getStatusVariant(task.status) as any} className="w-full justify-center text-xs">
+            {getStatusLabel(task.status)}
+          </Badge>
         </div>
       )}
 
@@ -284,55 +286,54 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
       )}
 
       {/* Message Modal */}
-      {showMessageModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Tag Task in Message
-            </h3>
-            
-            <div className="mb-4">
-              <div className="bg-gray-50 p-3 rounded-md mb-3">
-                <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                <p className="text-xs text-gray-600">
+      <Dialog open={showMessageModal} onOpenChange={setShowMessageModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Tag Task in Message</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="p-3">
+                <p className="text-sm font-medium text-foreground">{task.title}</p>
+                <p className="text-xs text-muted-foreground">
                   Assigned to: {getAssigneeName(task.assigneeId)}
                 </p>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-muted-foreground">
                   Priority: {task.priority} • Status: {getStatusLabel(task.status)}
                 </p>
-              </div>
-              
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Message:
-              </label>
-              <textarea
+              </CardContent>
+            </Card>
+            
+            <div>
+              <Label htmlFor="message">Message:</Label>
+              <Textarea
+                id="message"
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
                 placeholder="Enter your message about this task..."
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                 rows={4}
                 autoFocus
               />
             </div>
-            
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={handleCloseModal}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSendMessage}
-                disabled={!messageText.trim()}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-md transition-colors"
-              >
-                Send Message
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCloseModal}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendMessage}
+              disabled={!messageText.trim()}
+            >
+              Send Message
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </CardContent>
     </Card>
   );

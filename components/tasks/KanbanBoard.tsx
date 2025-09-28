@@ -7,6 +7,8 @@ import { designersApi } from '@/lib/api/designers';
 import { CalendarIcon, UserIcon, MessageSquareIcon, PaperclipIcon } from 'lucide-react';
 import TaskCard from './TaskCard';
 import { NotificationService } from '@/lib/services/notificationService';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export interface Task {
   id: string;
@@ -36,10 +38,10 @@ interface KanbanBoardProps {
 let taskRefreshKey = 0;
 
 const COLUMNS = [
-  { id: 'todo', title: 'To Do', color: 'bg-gray-50 border-gray-200' },
-  { id: 'in_progress', title: 'In Progress', color: 'bg-blue-50 border-blue-200' },
-  { id: 'review', title: 'Review', color: 'bg-yellow-50 border-yellow-200' },
-  { id: 'completed', title: 'Completed', color: 'bg-green-50 border-green-200' },
+  { id: 'todo', title: 'To Do', variant: 'secondary' },
+  { id: 'in_progress', title: 'In Progress', variant: 'default' },
+  { id: 'review', title: 'Review', variant: 'outline' },
+  { id: 'completed', title: 'Completed', variant: 'default' },
 ];
 
 export default function KanbanBoard({ project, currentUser, onTaskCreated }: KanbanBoardProps) {
@@ -232,7 +234,7 @@ ${message}`;
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading tasks...</div>
+        <div className="text-muted-foreground">Loading tasks...</div>
       </div>
     );
   }
@@ -244,17 +246,17 @@ ${message}`;
           const columnTasks = getTasksByStatus(column.id);
           
           return (
-            <div key={column.id} className={`rounded-lg border-2 ${column.color} p-4 flex flex-col`}>
-              {/* Column Header */}
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">{column.title}</h3>
-                <span className="bg-white text-gray-600 text-xs font-medium px-2 py-1 rounded-full">
-                  {columnTasks.length}
-                </span>
-              </div>
+            <Card key={column.id} className="flex flex-col">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">{column.title}</CardTitle>
+                  <Badge variant="secondary" className="text-xs">
+                    {columnTasks.length}
+                  </Badge>
+                </div>
+              </CardHeader>
 
-              {/* Tasks */}
-              <div className="flex-1 overflow-y-auto space-y-3">
+              <CardContent className="flex-1 overflow-y-auto space-y-3 pt-0">
                 {columnTasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -268,12 +270,12 @@ ${message}`;
                 ))}
                 
                 {columnTasks.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-muted-foreground">
                     <div className="text-sm">No tasks</div>
                   </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>

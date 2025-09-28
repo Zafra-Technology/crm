@@ -87,14 +87,14 @@ export default function Sidebar({ userRole }: SidebarProps) {
   const menuItems = allMenuItems.filter(item => item.roles.includes(userRole));
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center justify-center border-b bg-background sidebar-header-height relative z-30">
-        <h1 className="text-xl font-bold">ProjectHub</h1>
+      <div className="flex items-center justify-center h-16 px-6 border-b bg-background shrink-0">
+        <h1 className="text-xl font-bold text-foreground">ProjectHub</h1>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {menuItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -102,25 +102,27 @@ export default function Sidebar({ userRole }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full",
                 item.active
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent"
               )}
               onClick={() => setIsMobileOpen(false)}
             >
-              <Icon size={20} />
-              <span>{item.label}</span>
+              <Icon size={18} className="shrink-0" />
+              <span className="truncate">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
       {/* User role indicator */}
-      <div className="p-4 border-t">
-        <Badge variant="secondary" className="text-xs">
-          {userRole.replace('_', ' ')}
-        </Badge>
+      <div className="p-4 border-t bg-muted/30 shrink-0">
+        <div className="flex items-center justify-center">
+          <Badge variant="secondary" className="text-xs capitalize">
+            {userRole.replace('_', ' ')}
+          </Badge>
+        </div>
       </div>
     </div>
   );
@@ -144,7 +146,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       </Sheet>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-64 h-screen bg-background border-r">
+      <div className="hidden md:flex w-64 h-screen bg-background border-r flex-col">
         <SidebarContent />
       </div>
     </>

@@ -9,6 +9,30 @@ import AssignDesignersModal from '@/components/modals/AssignDesignersModal';
 import { projectsApi } from '@/lib/api/projects';
 import { designersApi } from '@/lib/api/designers';
 import { PlusIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, UsersIcon, XIcon, PaperclipIcon, FileIcon, DownloadIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 interface ProjectManagerDashboardProps {
   projects: Project[];
@@ -215,63 +239,71 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   return (
     <div className="space-y-6">
       {/* Sticky Header */}
-      <div className="sticky top-0 bg-gray-50 z-20 pb-4 mb-2 -mx-6 px-6">
-        <div className="flex items-center justify-between bg-gray-50 pt-2">
+      <div className="sticky top-0 bg-background z-20 pb-4 mb-2 -mx-6 px-6 border-b">
+        <div className="flex items-center justify-between pt-2">
           <div>
-            <h1 className="text-2xl font-bold text-black">Project Management</h1>
-            <p className="text-gray-600 mt-1">Manage and oversee all active projects</p>
+            <h1 className="text-2xl font-bold text-foreground">Project Management</h1>
+            <p className="text-muted-foreground mt-1">Manage and oversee all active projects</p>
           </div>
-          <button
+          <Button
             onClick={() => setShowCreateForm(true)}
-            className="btn-primary flex items-center space-x-2 shadow-md"
+            className="flex items-center space-x-2"
           >
             <PlusIcon size={20} />
             <span>Create Project</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <TrendingUpIcon size={24} className="text-blue-600" />
-          </div>
-          <div className="text-2xl font-bold text-black">{managedProjects.length}</div>
-          <div className="text-sm text-gray-600">Total Projects</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <ClockIcon size={24} className="text-yellow-600" />
-          </div>
-          <div className="text-2xl font-bold text-yellow-600">
-            {managedProjects.filter(p => p.status === 'in_progress').length}
-          </div>
-          <div className="text-sm text-gray-600">In Progress</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <ClockIcon size={24} className="text-purple-600" />
-          </div>
-          <div className="text-2xl font-bold text-purple-600">
-            {managedProjects.filter(p => p.status === 'review').length}
-          </div>
-          <div className="text-sm text-gray-600">In Review</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <CheckCircleIcon size={24} className="text-green-600" />
-          </div>
-          <div className="text-2xl font-bold text-green-600">
-            {managedProjects.filter(p => p.status === 'completed').length}
-          </div>
-          <div className="text-sm text-gray-600">Completed</div>
-        </div>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <TrendingUpIcon size={24} className="text-blue-600" />
+            </div>
+            <div className="text-2xl font-bold text-foreground">{managedProjects.length}</div>
+            <div className="text-sm text-muted-foreground">Total Projects</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <ClockIcon size={24} className="text-yellow-600" />
+            </div>
+            <div className="text-2xl font-bold text-yellow-600">
+              {managedProjects.filter(p => p.status === 'in_progress').length}
+            </div>
+            <div className="text-sm text-muted-foreground">In Progress</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <ClockIcon size={24} className="text-purple-600" />
+            </div>
+            <div className="text-2xl font-bold text-purple-600">
+              {managedProjects.filter(p => p.status === 'review').length}
+            </div>
+            <div className="text-sm text-muted-foreground">In Review</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <CheckCircleIcon size={24} className="text-green-600" />
+            </div>
+            <div className="text-2xl font-bold text-green-600">
+              {managedProjects.filter(p => p.status === 'completed').length}
+            </div>
+            <div className="text-sm text-muted-foreground">Completed</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Active Projects */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">Active Projects</h2>
+        <h2 className="text-lg font-semibold text-foreground">Active Projects</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {managedProjects.map((project) => (
             <div key={project.id} className="relative group">
@@ -279,126 +311,125 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
               
               {/* Action buttons - appear on hover */}
               <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => openAssignModal(project)}
-                  className="p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
                   title="Assign Designers"
+                  className="h-8 w-8 p-0 bg-background shadow-md"
                 >
                   <UsersIcon size={16} className="text-blue-600" />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => openDeleteModal(project)}
-                  className="p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
                   title="Delete Project"
+                  className="h-8 w-8 p-0 bg-background shadow-md text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
-                  <XIcon size={16} className="text-red-600" />
-                </button>
+                  <XIcon size={16} />
+                </Button>
               </div>
             </div>
           ))}
         </div>
 
         {managedProjects.length === 0 && (
-          <div className="card text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <PlusIcon size={48} className="mx-auto" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-600 mb-2">No projects yet</h3>
-            <p className="text-gray-500">Create your first project to get started.</p>
-          </div>
+          <Card className="text-center py-12">
+            <CardContent>
+              <div className="text-muted-foreground mb-4">
+                <PlusIcon size={48} className="mx-auto" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">No projects yet</h3>
+              <p className="text-muted-foreground">Create your first project to get started.</p>
+            </CardContent>
+          </Card>
         )}
       </div>
 
       {/* Create Project Modal */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
-          <div className="bg-white rounded-lg max-w-3xl w-full my-8 max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Sticky Modal Header */}
-            <div className="sticky top-0 bg-white rounded-t-lg px-6 pt-6 pb-4 border-b border-gray-200 z-10">
-              <h3 className="text-lg font-semibold text-black">Create New Project</h3>
-            </div>
+      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Create New Project</DialogTitle>
+            <DialogDescription>
+              Fill in the details below to create a new project for your team.
+            </DialogDescription>
+          </DialogHeader>
             
-            {/* Scrollable Modal Content */}
-            <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="flex-1 overflow-y-auto space-y-6">
             <form onSubmit={handleCreateProject} className="space-y-6">
-              {/* Project Name - Full Width */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project Name *
-                </label>
-                <input
+              {/* Project Name */}
+              <div className="space-y-2">
+                <Label htmlFor="project-name">Project Name *</Label>
+                <Input
+                  id="project-name"
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
                   placeholder="Enter project name"
                 />
               </div>
 
               {/* Two Column Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Timeline *
-                  </label>
-                  <input
+                <div className="space-y-2">
+                  <Label htmlFor="timeline">Timeline *</Label>
+                  <Input
+                    id="timeline"
                     type="text"
                     required
                     value={formData.timeline}
                     onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
                     placeholder="e.g., 6 weeks"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select Client *
-                  </label>
-                  <select
+                <div className="space-y-2">
+                  <Label htmlFor="client">Select Client *</Label>
+                  <Select
                     required
                     value={formData.clientId}
-                    onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                    onValueChange={(value) => setFormData({ ...formData, clientId: value })}
                   >
-                    <option value="">Choose a client...</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name} - {client.company}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a client..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name} - {client.company}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {clients.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-1">No active clients available</p>
+                    <p className="text-sm text-muted-foreground mt-1">No active clients available</p>
                   )}
                 </div>
               </div>
 
-              {/* Description - Full Width */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description *
-                </label>
-                <textarea
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description">Description *</Label>
+                <Textarea
+                  id="description"
                   required
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
                   rows={3}
                   placeholder="Describe the project"
                 />
               </div>
 
-              {/* Requirements - Full Width */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Requirements *
-                </label>
-                <textarea
+              {/* Requirements */}
+              <div className="space-y-2">
+                <Label htmlFor="requirements">Requirements *</Label>
+                <Textarea
+                  id="requirements"
                   required
                   value={formData.requirements}
                   onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
                   rows={2}
                   placeholder="List project requirements"
                 />
@@ -492,28 +523,30 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                 </div>
               </div>
 
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  disabled={loading}
-                  className="btn-secondary flex-1 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary flex-1 disabled:opacity-50"
-                >
-                  {loading ? 'Creating...' : 'Create Project'}
-                </button>
-              </div>
             </form>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCreateForm(false)}
+              disabled={loading}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="flex-1"
+              onClick={handleCreateProject}
+            >
+              {loading ? 'Creating...' : 'Create Project'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Designers Modal */}
       <AssignDesignersModal

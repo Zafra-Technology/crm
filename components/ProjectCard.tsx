@@ -12,10 +12,17 @@ interface ProjectCardProps {
 }
 
 const statusColors = {
-  planning: 'default',
+  planning: 'outline',
   in_progress: 'secondary', 
-  review: 'outline',
+  review: 'destructive',
   completed: 'default',
+} as const;
+
+const statusStyles = {
+  planning: 'bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-300',
+  in_progress: 'bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-300',
+  review: 'bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-300',
+  completed: 'bg-green-100 text-green-800 hover:bg-green-100 border-green-300',
 } as const;
 
 const statusLabels = {
@@ -31,7 +38,7 @@ export default function ProjectCard({ project, showActions = true }: ProjectCard
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <CardTitle className="text-lg line-clamp-2 flex-1 mr-2">{project.name}</CardTitle>
-          <Badge variant={statusColors[project.status]} className="whitespace-nowrap">
+          <Badge variant="outline" className={`whitespace-nowrap ${statusStyles[project.status]}`}>
             {statusLabels[project.status]}
           </Badge>
         </div>
