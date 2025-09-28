@@ -8,9 +8,15 @@ import { UserIcon, MailIcon, BriefcaseIcon, EditIcon } from 'lucide-react';
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
 
   useEffect(() => {
@@ -32,6 +38,34 @@ export default function ProfilePage() {
       setCurrentUser(updatedUser);
       setIsEditing(false);
     }
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate passwords match
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+
+    // Validate password length
+    if (passwordForm.newPassword.length < 6) {
+      alert('Password must be at least 6 characters long');
+      return;
+    }
+
+    // In a real app, you would send this to your backend
+    console.log('Password change request:', {
+      userId: user?.id,
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword
+    });
+
+    // Reset form and close modal
+    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setShowChangePassword(false);
+    alert('Password changed successfully!');
   };
 
   if (!user) {
@@ -61,13 +95,15 @@ export default function ProfilePage() {
             <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium capitalize">
               {user.role.replace('_', ' ')}
             </span>
-            <button
-              onClick={() => setIsEditing(true)}
-              className="btn-secondary w-full mt-4 flex items-center justify-center space-x-2"
-            >
-              <EditIcon size={16} />
-              <span>Edit Profile</span>
-            </button>
+            {user.role !== 'designer' && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="btn-secondary w-full mt-4 flex items-center justify-center space-x-2"
+              >
+                <EditIcon size={16} />
+                <span>Edit Profile</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -100,31 +136,51 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="card">
-            <h3 className="text-lg font-semibold text-black mb-4">Account Settings</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-gray-900">Email Notifications</div>
-                  <div className="text-sm text-gray-600">Receive email updates about projects</div>
+          {user.role === 'designer' ? (
+            <div className="card">
+              <h3 className="text-lg font-semibold text-black mb-4">Security</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-900">Password</div>
+                    <div className="text-sm text-gray-600">Update your account password</div>
+                  </div>
+                  <button
+                    onClick={() => setShowChangePassword(true)}
+                    className="btn-secondary text-sm"
+                  >
+                    Change Password
+                  </button>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
-                </label>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-gray-900">Push Notifications</div>
-                  <div className="text-sm text-gray-600">Receive push notifications in browser</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
-                </label>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="card">
+              <h3 className="text-lg font-semibold text-black mb-4">Account Settings</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-900">Email Notifications</div>
+                    <div className="text-sm text-gray-600">Receive email updates about projects</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
+                  </label>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-900">Push Notifications</div>
+                    <div className="text-sm text-gray-600">Receive push notifications in browser</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -171,6 +227,73 @@ export default function ProfilePage() {
                   className="btn-primary flex-1"
                 >
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePassword && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-black mb-4">Change Password</h3>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                />
+                <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters long</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                />
+              </div>
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChangePassword(false);
+                    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                  }}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary flex-1"
+                >
+                  Change Password
                 </button>
               </div>
             </form>

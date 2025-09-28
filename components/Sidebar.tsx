@@ -72,7 +72,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Settings', 
       href: '/dashboard/settings',
       active: pathname === '/dashboard/settings',
-      roles: ['client', 'project_manager', 'designer']
+      roles: ['client', 'project_manager']
     },
   ];
 

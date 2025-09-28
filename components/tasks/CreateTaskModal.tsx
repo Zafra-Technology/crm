@@ -5,6 +5,7 @@ import { User, Project } from '@/types';
 import { tasksApi } from '@/lib/api/tasks';
 import { designersApi } from '@/lib/api/designers';
 import { X, CalendarIcon, UserIcon, AlertCircleIcon } from 'lucide-react';
+import { NotificationService } from '@/lib/services/notificationService';
 
 interface CreateTaskModalProps {
   project: Project;
@@ -81,6 +82,15 @@ export default function CreateTaskModal({ project, currentUser, onClose, onTaskC
       console.log('🚀 Creating task with data:', taskData);
       const newTask = await tasksApi.create(taskData);
       console.log('✅ Task created successfully:', newTask);
+
+      // Create notification for task assignment
+      await NotificationService.createTaskAssignedNotification(
+        newTask.id,
+        newTask.title,
+        formData.assigneeId,
+        project.name,
+        currentUser.name
+      );
 
       onTaskCreated();
     } catch (error) {

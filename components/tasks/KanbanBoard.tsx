@@ -6,6 +6,7 @@ import { tasksApi } from '@/lib/api/tasks';
 import { designersApi } from '@/lib/api/designers';
 import { CalendarIcon, UserIcon, MessageSquareIcon, PaperclipIcon } from 'lucide-react';
 import TaskCard from './TaskCard';
+import { NotificationService } from '@/lib/services/notificationService';
 
 export interface Task {
   id: string;
@@ -94,6 +95,11 @@ export default function KanbanBoard({ project, currentUser, onTaskCreated }: Kan
 
   const handleStatusUpdate = async (taskId: string, newStatus: Task['status']) => {
     try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const oldStatus = task.status;
+      
       await tasksApi.updateStatus(taskId, newStatus);
       
       // Update local state
@@ -104,6 +110,31 @@ export default function KanbanBoard({ project, currentUser, onTaskCreated }: Kan
             : task
         )
       );
+
+      // Create notifications based on status change
+      if (oldStatus !== newStatus) {
+        // If task moved to review by designer, notify manager
+        if (newStatus === 'review' && currentUser.role === 'designer') {
+          await NotificationService.createTaskReviewNotification(
+            taskId,
+            task.title,
+            project.managerId,
+            project.name,
+            currentUser.name
+          );
+        }
+
+        // If task completed by manager, notify assignee
+        if (newStatus === 'completed' && currentUser.role === 'project_manager') {
+          await NotificationService.createTaskCompletedNotification(
+            taskId,
+            task.title,
+            task.assigneeId,
+            project.name,
+            currentUser.name
+          );
+        }
+      }
     } catch (error) {
       console.error('Error updating task status:', error);
     }
@@ -158,6 +189,15 @@ ${message}`;
       if (!response.ok) {
         throw new Error('Failed to send message');
       }
+
+      // Create notification for task tagging
+      await NotificationService.createTaskTaggedNotification(
+        task.assigneeId,
+        task.title,
+        project.name,
+        currentUser.name,
+        message.substring(0, 100) + (message.length > 100 ? '...' : '')
+      );
 
       alert(`Message sent to ${assignee.name} successfully!`);
       

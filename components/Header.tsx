@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronDownIcon, LogOutIcon, UserIcon } from 'lucide-react';
 import { User } from '@/types';
 import { logout } from '@/lib/auth';
+import NotificationDropdown from './NotificationDropdown';
 
 interface HeaderProps {
   user: User;
@@ -27,6 +28,11 @@ export default function Header({ user }: HeaderProps) {
         </div>
 
         <div className="flex items-center space-x-4">
+          {/* Notifications */}
+          {(user.role === 'designer' || user.role === 'project_manager') && (
+            <NotificationDropdown user={user} />
+          )}
+          
           <div className="relative">
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
