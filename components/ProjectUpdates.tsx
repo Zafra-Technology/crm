@@ -5,6 +5,21 @@ import { FileIcon, MessageSquareIcon, ImageIcon, PlusIcon, UploadIcon, XIcon, Ey
 import { ProjectUpdate, User } from '@/types';
 import { ProjectAttachment } from '@/types';
 import FileViewerModal from '@/components/modals/FileViewerModal';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ProjectUpdatesProps {
   projectId: string;
@@ -230,8 +245,8 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
           </div>
           ))
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <ImageIcon size={48} className="mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 text-muted-foreground">
+            <ImageIcon size={48} className="mx-auto mb-4 text-muted-foreground/50" />
             <p>No updates yet</p>
             <p className="text-sm">Project updates will appear here</p>
           </div>
@@ -239,50 +254,55 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
       </div>
 
       {/* Add Update Form */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
-          <div className="bg-white rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-black mb-4">Add Project Update</h3>
-            <form onSubmit={handleAddUpdate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Update Type
-                </label>
-                <select
-                  value={newUpdate.type}
-                  onChange={(e) => setNewUpdate({ ...newUpdate, type: e.target.value as ProjectUpdate['type'] })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                >
-                  <option value="design">Design Update</option>
-                  <option value="file">File Upload</option>
-                  <option value="comment">Comment</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newUpdate.title}
-                  onChange={(e) => setNewUpdate({ ...newUpdate, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                  placeholder="Update title"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={newUpdate.description}
-                  onChange={(e) => setNewUpdate({ ...newUpdate, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                  rows={3}
-                  placeholder="Describe the update"
-                />
-              </div>
+      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Project Update</DialogTitle>
+            <DialogDescription>
+              Share a new update about this project.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleAddUpdate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="update-type">Update Type</Label>
+              <Select
+                value={newUpdate.type}
+                onValueChange={(value) => setNewUpdate({ ...newUpdate, type: value as ProjectUpdate['type'] })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select update type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="design">Design Update</SelectItem>
+                  <SelectItem value="file">File Upload</SelectItem>
+                  <SelectItem value="comment">Comment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="update-title">Title</Label>
+              <Input
+                id="update-title"
+                type="text"
+                required
+                value={newUpdate.title}
+                onChange={(e) => setNewUpdate({ ...newUpdate, title: e.target.value })}
+                placeholder="Update title"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="update-description">Description</Label>
+              <Textarea
+                id="update-description"
+                value={newUpdate.description}
+                onChange={(e) => setNewUpdate({ ...newUpdate, description: e.target.value })}
+                rows={3}
+                placeholder="Describe the update"
+              />
+            </div>
 
               {/* File Upload (Optional) */}
               <div>
@@ -331,27 +351,29 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                 </div>
               </div>
 
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  disabled={loading}
-                  className="btn-secondary flex-1 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary flex-1 disabled:opacity-50"
-                >
-                  {loading ? 'Adding...' : 'Add Update'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </form>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddForm(false)}
+              disabled={loading}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="flex-1"
+              onClick={handleAddUpdate}
+            >
+              {loading ? 'Adding...' : 'Add Update'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* File Viewer Modal */}
       <FileViewerModal

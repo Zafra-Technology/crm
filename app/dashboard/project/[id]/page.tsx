@@ -18,7 +18,7 @@ import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon } from 'lucid
 
 export default function ProjectDetailsPage() {
   const params = useParams();
-  const projectId = params.id as string;
+  const projectId = params?.id as string;
   
   const [user, setUser] = useState<User | null>(null);
   const [project, setProject] = useState<Project | null>(null);

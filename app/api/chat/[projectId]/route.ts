@@ -50,14 +50,14 @@ export async function GET(
       console.log('✅ MongoDB: Retrieved', messages.length, 'messages');
       return NextResponse.json(messages);
     } catch (dbError) {
-      console.error('❌ MongoDB error, trying file storage:', dbError.message);
+      console.error('❌ MongoDB error, trying file storage:', dbError instanceof Error ? dbError.message : dbError);
       
       try {
         const messages = await fileStorage.getMessagesByProject(params.projectId);
         console.log('📁 File storage: Retrieved', messages.length, 'messages');
         return NextResponse.json(messages);
       } catch (fileError) {
-        console.error('❌ File storage error, using memory:', fileError.message);
+        console.error('❌ File storage error, using memory:', fileError instanceof Error ? fileError.message : fileError);
         const messages = await fallbackChatAPI.getByProjectId(params.projectId);
         console.log('🔄 Memory fallback: Retrieved', messages.length, 'messages');
         return NextResponse.json(messages);
@@ -115,7 +115,7 @@ export async function POST(
       console.log('✅ MongoDB: Message saved with ID:', newMessage.id);
       return NextResponse.json(newMessage, { status: 201 });
     } catch (dbError) {
-      console.error('❌ MongoDB error, trying file storage:', dbError.message);
+      console.error('❌ MongoDB error, trying file storage:', dbError instanceof Error ? dbError.message : dbError);
       
       try {
         const messageWithId = {
@@ -128,7 +128,7 @@ export async function POST(
         console.log('📁 File storage: Message saved with ID:', newMessage.id);
         return NextResponse.json(newMessage, { status: 201 });
       } catch (fileError) {
-        console.error('❌ File storage error, using memory:', fileError.message);
+        console.error('❌ File storage error, using memory:', fileError instanceof Error ? fileError.message : fileError);
         const newMessage = await fallbackChatAPI.create(messageData);
         console.log('🔄 Memory fallback: Message saved with ID:', newMessage.id);
         return NextResponse.json(newMessage, { status: 201 });

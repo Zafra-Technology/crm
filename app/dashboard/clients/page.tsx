@@ -16,6 +16,19 @@ import {
   TrashIcon,
   SearchIcon
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function ClientsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -232,7 +245,7 @@ export default function ClientsPage() {
   if (!user || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -244,245 +257,252 @@ export default function ClientsPage() {
     <div className="space-y-6">
       {/* Sticky Header */}
       <div className="sticky top-0 bg-gray-50 z-20 pb-4 mb-2 -mx-6 px-6">
-        <div className="flex items-center justify-between bg-gray-50 pt-2">
+        <div className="flex items-center justify-between pt-2">
           <div>
-            <h1 className="text-2xl font-bold text-black">Clients</h1>
-            <p className="text-gray-600 mt-1">Manage your client relationships</p>
+            <h1 className="text-2xl font-bold text-foreground">Clients</h1>
+            <p className="text-muted-foreground mt-1">Manage your client relationships</p>
           </div>
           {canManageClients && (
-            <button
+            <Button
               onClick={() => {
                 setEditingClient(null);
                 setFormData({ name: '', email: '', phoneNumber: '', company: '' });
                 setShowAddForm(true);
               }}
-              className="btn-primary flex items-center space-x-2 shadow-md"
+              className="flex items-center space-x-2"
             >
               <PlusIcon size={20} />
               <span>Add Client</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-black">{clients.length}</div>
-          <div className="text-sm text-gray-600">Total Clients</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-green-600">
-            {clients.filter(c => c.status === 'active').length}
-          </div>
-          <div className="text-sm text-gray-600">Active</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-gray-600">
-            {clients.filter(c => c.status === 'inactive').length}
-          </div>
-          <div className="text-sm text-gray-600">Inactive</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-blue-600">
-            {clients.reduce((sum, c) => sum + (c.projectsCount || 0), 0)}
-          </div>
-          <div className="text-sm text-gray-600">Total Projects</div>
-        </div>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-foreground">{clients.length}</div>
+            <div className="text-sm text-muted-foreground">Total Clients</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">
+              {clients.filter(c => c.status === 'active').length}
+            </div>
+            <div className="text-sm text-muted-foreground">Active</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-muted-foreground">
+              {clients.filter(c => c.status === 'inactive').length}
+            </div>
+            <div className="text-sm text-muted-foreground">Inactive</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-blue-600">
+              {clients.reduce((sum, c) => sum + (c.projectsCount || 0), 0)}
+            </div>
+            <div className="text-sm text-muted-foreground">Total Projects</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search Bar */}
       <div className="card">
         <div className="relative">
-          <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
+          <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+          <Input
             type="text"
             placeholder="Search clients by name, email, or company..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+            className="pl-9"
           />
         </div>
       </div>
 
       {/* Clients List */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">Client Directory</h2>
+        <h2 className="text-lg font-semibold text-foreground">Client Directory</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredClients.map((client) => (
-            <div key={client.id} className="card h-full flex flex-col">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-12 h-12 ${getAvatarColor(client.name)} rounded-full flex items-center justify-center`}>
-                    <span className="text-white font-semibold text-sm">{getInitials(client.name)}</span>
+            <Card key={client.id} className="h-full flex flex-col">
+              <CardContent className="p-4 h-full flex flex-col">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-12 h-12 ${getAvatarColor(client.name)} rounded-full flex items-center justify-center`}>
+                      <span className="text-white font-semibold text-sm">{getInitials(client.name)}</span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">{client.name}</h3>
+                      <Badge 
+                        variant={client.status === 'active' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {client.status}
+                      </Badge>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-black">{client.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      client.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {client.status}
-                    </span>
-                  </div>
+                  {canManageClients && (
+                    <div className="flex space-x-1">
+                      <Button
+                        onClick={() => handleEditClient(client)}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      >
+                        <EditIcon size={16} />
+                      </Button>
+                      <Button
+                        onClick={() => openDeleteModal(client)}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <TrashIcon size={16} />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                {canManageClients && (
-                  <div className="flex space-x-1">
-                    <button
-                      onClick={() => handleEditClient(client)}
-                      className="p-1 text-gray-400 hover:text-gray-600"
-                    >
-                      <EditIcon size={16} />
-                    </button>
-                    <button
-                      onClick={() => openDeleteModal(client)}
-                      className="p-1 text-gray-400 hover:text-red-600"
-                    >
-                      <TrashIcon size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center space-x-2 text-gray-600">
-                  <MailIcon size={14} />
-                  <span>{client.email}</span>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center space-x-2 text-muted-foreground">
+                    <MailIcon size={14} />
+                    <span>{client.email}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-muted-foreground">
+                    <PhoneIcon size={14} />
+                    <span>{client.phoneNumber}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-muted-foreground">
+                    <BuildingIcon size={14} />
+                    <span>{client.company}</span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2 text-gray-600">
-                  <PhoneIcon size={14} />
-                  <span>{client.phoneNumber}</span>
-                </div>
-                <div className="flex items-center space-x-2 text-gray-600">
-                  <BuildingIcon size={14} />
-                  <span>{client.company}</span>
-                </div>
-              </div>
 
-              <div className="mt-auto pt-4 border-t border-gray-200 flex items-center justify-between text-sm">
-                <div className="text-gray-500">
-                  {client.projectsCount} project{client.projectsCount !== 1 ? 's' : ''}
-                </div>
+                <div className="mt-auto pt-4 border-t flex items-center justify-between text-sm">
+                  <div className="text-muted-foreground">
+                    {client.projectsCount} project{client.projectsCount !== 1 ? 's' : ''}
+                  </div>
                 {canManageClients && (
-                  <button
+                  <Button
                     onClick={() => toggleClientStatus(client.id)}
+                    variant="ghost"
+                    size="sm"
                     className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
                   >
                     {client.status === 'active' ? 'Deactivate' : 'Activate'}
-                  </button>
+                  </Button>
                 )}
               </div>
-            </div>
+            </CardContent>
+          </Card>
           ))}
         </div>
 
         {filteredClients.length === 0 && (
-          <div className="card text-center py-12">
-            <BuildingIcon size={48} className="mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">No clients found</h3>
-            <p className="text-gray-500">
-              {searchTerm ? 'Try adjusting your search terms.' : 'Add your first client to get started.'}
-            </p>
-          </div>
+          <Card className="text-center py-12">
+            <CardContent>
+              <BuildingIcon size={48} className="mx-auto mb-4 text-muted-foreground/50" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No clients found</h3>
+              <p className="text-muted-foreground">
+                {searchTerm ? 'Try adjusting your search terms.' : 'Add your first client to get started.'}
+              </p>
+            </CardContent>
+          </Card>
         )}
       </div>
 
       {/* Add/Edit Client Modal */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
-          <div className="bg-white rounded-lg max-w-2xl w-full my-8 max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Sticky Modal Header */}
-            <div className="sticky top-0 bg-white rounded-t-lg px-6 pt-6 pb-4 border-b border-gray-200 z-10">
-              <h3 className="text-lg font-semibold text-black">
-                {editingClient ? 'Edit Client' : 'Add New Client'}
-              </h3>
-            </div>
-            
-            {/* Scrollable Modal Content */}
-            <div className="flex-1 overflow-y-auto px-6 pb-6">
-            <form onSubmit={editingClient ? handleUpdateClient : handleAddClient} className="space-y-6">
-              {/* Two Column Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                    placeholder="Enter full name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                    placeholder="Enter email address"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                    placeholder="Enter phone number"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Company *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                    placeholder="Enter company name"
-                  />
-                </div>
+      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              {editingClient ? 'Edit Client' : 'Add New Client'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingClient ? 'Update client information below.' : 'Fill in the client details below.'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={editingClient ? handleUpdateClient : handleAddClient} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="client-name">Full Name *</Label>
+                <Input
+                  id="client-name"
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter full name"
+                />
               </div>
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setEditingClient(null);
-                    setFormData({ name: '', email: '', phoneNumber: '', company: '' });
-                  }}
-                  disabled={loading}
-                  className="btn-secondary flex-1 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary flex-1 disabled:opacity-50"
-                >
-                  {loading ? 'Processing...' : (editingClient ? 'Update Client' : 'Add Client')}
-                </button>
+              <div className="space-y-2">
+                <Label htmlFor="client-email">Email Address *</Label>
+                <Input
+                  id="client-email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Enter email address"
+                />
               </div>
-            </form>
+              <div className="space-y-2">
+                <Label htmlFor="client-phone">Phone Number *</Label>
+                <Input
+                  id="client-phone"
+                  type="tel"
+                  required
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  placeholder="Enter phone number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="client-company">Company *</Label>
+                <Input
+                  id="client-company"
+                  type="text"
+                  required
+                  value={formData.company}
+                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  placeholder="Enter company name"
+                />
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowAddForm(false);
+                setEditingClient(null);
+                setFormData({ name: '', email: '', phoneNumber: '', company: '' });
+              }}
+              disabled={loading}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="flex-1"
+              onClick={handleAddClient}
+            >
+              {loading ? 'Processing...' : (editingClient ? 'Update Client' : 'Add Client')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal

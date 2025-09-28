@@ -188,7 +188,8 @@ export default function TasksPage() {
             currentUser={user!}
             onTaskCreated={() => {
               console.log('🔄 Task created, refreshing view...');
-              setSelectedProject({ ...selectedProject, lastUpdated: Date.now() });
+              // Trigger a re-render by updating the selected project
+              setSelectedProject(prev => prev ? { ...prev } : null);
             }}
           />
         ) : (
