@@ -232,7 +232,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
           };
 
           const messageText = messageType === 'image' 
-            ? `📷 Shared an image: ${file.name}`
+            ? `[Image: ${file.name}]`
             : `📎 Shared a file: ${file.name}`;
 
           await sendMessage(messageText, messageType, fileData);
@@ -379,71 +379,56 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
               </div>
               <div className={`flex-1 max-w-sm ${isOwnMessage ? 'text-right' : ''}`}>
                 <div className={`flex items-center space-x-2 mb-1 ${isOwnMessage ? 'justify-end' : ''}`}>
-                  <span className="text-sm font-medium text-gray-900">
-                    {message.userName}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleTag.color}`}>
-                    {roleTag.label}
-                  </span>
+                  {!isOwnMessage && (
+                    <>
+                      <span className="text-sm font-medium text-gray-900">
+                        {message.userName}
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${roleTag.color}`}>
+                        {roleTag.label}
+                      </span>
+                    </>
+                  )}
                   <span className="text-xs text-gray-500">
                     {formatTime(message.timestamp)}
                   </span>
                 </div>
                 <div
-                  className={`inline-block px-3 py-2 rounded-lg text-sm break-all ${
-                    isOwnMessage
-                      ? 'bg-gray-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
+                  className={`inline-block text-sm break-all ${
+                    (message.message && 
+                     !message.message.startsWith('📷 Shared an image:') && 
+                     !message.message.startsWith('[Image:')) ? (
+                      isOwnMessage
+                        ? 'bg-gray-300 text-black rounded-l-xl rounded-tr-xl rounded-br-sm px-3 py-2'
+                        : 'bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl rounded-bl-sm px-3 py-2'
+                    ) : ''
                   }`}
                 >
                   {/* Text message */}
-                  <div className="mb-2">
-                    {message.message}
-                  </div>
+                  {message.message && 
+                   !message.message.startsWith('📷 Shared an image:') && 
+                   !message.message.startsWith('[Image:') && (
+                    <div className="mb-2">
+                      {message.message}
+                    </div>
+                  )}
 
                   {/* File attachment */}
                   {message.fileUrl && (
-                    <div className="mt-2">
-                      
+                    <div className={`${(message.message && 
+                     !message.message.startsWith('📷 Shared an image:') && 
+                     !message.message.startsWith('[Image:')) ? 'mt-2' : ''}`}>
                       {/* Image preview */}
-                      {(message.messageType === 'image' || isImageFile(message.fileType)) && (
-                        <div className="mb-2">
+                      {(message.messageType === 'image' || isImageFile(message.fileType)) ? (
+                        <div className="relative group">
                           <img
                             src={message.fileUrl}
-                            alt={message.fileName || 'Shared image'}
-                            className="max-w-xs max-h-48 rounded border"
+                            alt="Shared image"
+                            className="max-w-xs max-h-48 rounded cursor-pointer"
                             onError={(e) => {
                               console.error('Image failed to load:', message.fileName);
-                              console.error('FileURL preview:', message.fileUrl?.substring(0, 100) + '...');
                             }}
                           />
-                        </div>
-                      )}
-
-                      {/* File info */}
-                      <div 
-                        className={`flex items-center space-x-2 p-2 rounded border ${
-                          isOwnMessage 
-                            ? 'bg-gray-200 border-gray-300' 
-                            : 'bg-white border-gray-200'
-                        }`}
-                      >
-                        {getFileIcon(message.fileType)}
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-medium truncate ${
-                            isOwnMessage ? 'text-gray-700' : 'text-gray-700'
-                          }`}>
-                            {message.fileName || 'Unknown file'}
-                          </p>
-                          {message.fileSize && (
-                            <p className={`text-xs ${
-                              isOwnMessage ? 'text-gray-500' : 'text-gray-500'
-                            }`}>
-                              {formatFileSize(message.fileSize)}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-1">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -454,17 +439,44 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                               link.click();
                               document.body.removeChild(link);
                             }}
-                            className={`p-1 rounded hover:bg-opacity-80 ${
-                              isOwnMessage 
-                                ? 'text-gray-600 hover:bg-gray-300' 
-                                : 'text-gray-500 hover:bg-gray-200'
-                            }`}
+                            className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Download"
                           >
                             <DownloadIcon size={14} />
                           </button>
                         </div>
-                      </div>
+                      ) : (
+                        /* File info for non-images */
+                        <div 
+                          className={`flex items-center space-x-2 p-2 rounded border ${
+                            isOwnMessage 
+                              ? 'bg-gray-200 border-gray-300' 
+                              : 'bg-white border-gray-200'
+                          }`}
+                        >
+                          {getFileIcon(message.fileType)}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate text-gray-700">
+                              {message.fileName || 'Unknown file'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const link = document.createElement('a');
+                              link.href = message.fileUrl!;
+                              link.download = message.fileName || 'download';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="text-gray-600 hover:bg-gray-300 p-1 rounded transition-colors"
+                            title="Download"
+                          >
+                            <DownloadIcon size={14} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
