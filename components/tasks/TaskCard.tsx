@@ -37,6 +37,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [messageText, setMessageText] = useState('');
 
   const getPriorityVariant = (priority: string) => {
@@ -122,10 +123,19 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   };
 
   const handleDelete = () => {
-    if (onDelete && window.confirm('Are you sure you want to delete this task?')) {
+    setShowActionsMenu(false);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (onDelete) {
       onDelete(task.id);
     }
-    setShowActionsMenu(false);
+    setShowDeleteModal(false);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
   };
 
   const handleTagInMessage = () => {
@@ -330,6 +340,47 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
               disabled={!messageText.trim()}
             >
               Send Message
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Task</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="p-3">
+                <p className="text-sm font-medium text-foreground">{task.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  Assigned to: {getAssigneeName(task.assigneeId)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Priority: {task.priority} • Status: {getStatusLabel(task.status)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={cancelDelete}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+            >
+              Delete Task
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -109,17 +109,19 @@ export const tasksApi = {
   },
 
   async delete(taskId: string): Promise<void> {
-    console.log('Deleting task:', taskId);
+    console.log('🗑️ Deleting task:', taskId);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const taskIndex = mockTasks.findIndex(task => task.id === taskId);
-    if (taskIndex === -1) {
-      throw new Error('Task not found');
+    try {
+      const response = await fetch(`/api/tasks?taskId=${taskId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) throw new Error('Failed to delete task');
+      
+      console.log('✅ Task deleted successfully from database');
+    } catch (error) {
+      console.error('❌ Error deleting task:', error);
+      throw error;
     }
-    
-    mockTasks.splice(taskIndex, 1);
-    console.log('Task deleted successfully');
   }
 };

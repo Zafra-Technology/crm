@@ -52,8 +52,8 @@ export const useNotificationData = (user: User | null) => {
     if (user) {
       loadNotifications();
       
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(loadNotifications, 30000);
+      // Poll for new notifications every 5 seconds for real-time updates
+      const interval = setInterval(loadNotifications, 5000);
       return () => clearInterval(interval);
     }
   }, [user?.id]);
@@ -65,7 +65,13 @@ export const useNotificationData = (user: User | null) => {
       const response = await fetch(`/api/notifications?userId=${user.id}`);
       if (response.ok) {
         const data = await response.json();
-        setNotifications(data.notifications || []);
+        const newNotifications = data.notifications || [];
+        
+        // Only update state if notifications actually changed
+        setNotifications(prevNotifications => {
+          const hasChanges = JSON.stringify(prevNotifications) !== JSON.stringify(newNotifications);
+          return hasChanges ? newNotifications : prevNotifications;
+        });
       }
     } catch (error) {
       console.error('Error loading notifications:', error);
@@ -129,6 +135,32 @@ export const useNotificationData = (user: User | null) => {
     };
   };
 
+  // Create a global notification refresh function
+  const refreshNotificationsImmediately = () => {
+    loadNotifications();
+  };
+
+  // Listen for storage events (for cross-tab notifications) and custom events (for same-tab)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'notification-refresh' && e.newValue) {
+        loadNotifications();
+      }
+    };
+
+    const handleCustomRefresh = () => {
+      loadNotifications();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('refresh-notifications', handleCustomRefresh);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('refresh-notifications', handleCustomRefresh);
+    };
+  }, []);
+
   return {
     notifications,
     counts: getCounts(),
@@ -136,6 +168,7 @@ export const useNotificationData = (user: User | null) => {
     markAllAsRead,
     addNotification,
     refreshNotifications: loadNotifications,
+    refreshNotificationsImmediately,
     loading
   };
 };

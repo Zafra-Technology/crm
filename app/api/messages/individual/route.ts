@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { connectToDatabase } from '@/lib/mongodb';
+import { NotificationService } from '@/lib/services/notificationService';
 
 interface IndividualMessage {
   _id?: ObjectId;
@@ -11,6 +12,8 @@ interface IndividualMessage {
   message: string;
   timestamp: string;
   createdAt: string;
+  isRead?: boolean;
+  readAt?: string;
   // File attachment fields
   fileUrl?: string;
   fileName?: string;
@@ -88,6 +91,7 @@ export async function POST(request: NextRequest) {
       message,
       timestamp: new Date().toISOString(),
       createdAt: new Date().toISOString(),
+      isRead: false, // New messages start as unread
       // Include file attachment fields if present
       ...(messageType && { messageType }),
       ...(fileUrl && { fileUrl }),
@@ -100,6 +104,36 @@ export async function POST(request: NextRequest) {
     const result = await db.collection('individual_messages').insertOne(messageData);
     
     console.log('✅ Individual message saved with ID:', result.insertedId);
+
+    // Create notification for the receiver
+    try {
+      console.log('🔔 Attempting to create notification for:', {
+        receiverId,
+        senderName,
+        messageLength: message.length
+      });
+      
+      const messagePreview = message.length > 50 ? message.substring(0, 50) + '...' : message;
+      const notificationResult = await NotificationService.createMessageNotification(
+        receiverId,
+        senderName,
+        messagePreview
+      );
+      
+      console.log('✅ Message notification created successfully:', {
+        receiverId,
+        notificationId: notificationResult?._id || 'unknown',
+        preview: messagePreview
+      });
+    } catch (notificationError) {
+      console.error('❌ Failed to create message notification:', {
+        error: notificationError,
+        receiverId,
+        senderName,
+        stack: notificationError instanceof Error ? notificationError.stack : 'No stack trace'
+      });
+      // Don't fail the message sending if notification fails
+    }
 
     return NextResponse.json({ 
       ...messageData, 

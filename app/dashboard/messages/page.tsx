@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { designersApi } from '@/lib/api/designers';
 import { MessageSquareIcon, UserIcon, SearchIcon } from 'lucide-react';
 import IndividualChat from '@/components/chat/IndividualChat';
+import { useIndividualMessageCounts } from '@/lib/hooks/useIndividualMessageCounts';
 
 interface Designer {
   id: string;
@@ -29,6 +30,9 @@ export default function MessagesPage() {
   const [selectedUser, setSelectedUser] = useState<Designer | Manager | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // Message counts hook
+  const { getUnreadCount, markMessagesAsRead, getTotalUnreadCount } = useIndividualMessageCounts(user);
 
   // Mock managers data since we don't have a dedicated API
   const mockManagers: Manager[] = [
@@ -97,6 +101,15 @@ export default function MessagesPage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  const handleUserSelect = async (selectedUserData: Designer | Manager) => {
+    setSelectedUser(selectedUserData);
+    
+    // Mark messages from this user as read
+    if (user && selectedUserData.id !== user.id) {
+      await markMessagesAsRead(selectedUserData.id);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -138,29 +151,38 @@ export default function MessagesPage() {
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   Project Manager
                 </h3>
-                {filteredManagers.map((manager) => (
-                  <div
-                    key={manager.id}
-                    onClick={() => setSelectedUser(manager)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 border-2 border-green-200 bg-green-50 ${selectedUser?.id === manager.id ? 'bg-green-100 border-green-300' : 'hover:bg-green-100'
-                      }`}
-                  >
-                    <div className={`w-10 h-10 ${getAvatarColor(manager.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-white font-medium text-sm">
-                        {getInitials(manager.name)}
-                      </span>
+                {filteredManagers.map((manager) => {
+                  const unreadCount = getUnreadCount(manager.id);
+                  return (
+                    <div
+                      key={manager.id}
+                      onClick={() => handleUserSelect(manager)}
+                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 border-2 border-green-200 bg-green-50 ${selectedUser?.id === manager.id ? 'bg-green-100 border-green-300' : 'hover:bg-green-100'
+                        }`}
+                    >
+                      <div className={`w-10 h-10 ${getAvatarColor(manager.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-white font-medium text-sm">
+                          {getInitials(manager.name)}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {manager.name}
+                          </p>
+                          {unreadCount > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center ml-2">
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 truncate">
+                          Project Manager
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {manager.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        Project Manager
-                      </p>
-                    </div>
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -170,31 +192,40 @@ export default function MessagesPage() {
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   {user?.role === 'project_manager' ? 'Designers' : 'Team Designers'}
                 </h3>
-                {filteredDesigners.map((designer) => (
-                  <div
-                    key={designer.id}
-                    onClick={() => setSelectedUser(designer)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${selectedUser?.id === designer.id
-                        ? 'bg-blue-100 border border-blue-300'
-                        : 'hover:bg-gray-50'
-                      }`}
-                  >
-                    <div className={`w-10 h-10 ${getAvatarColor(designer.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-white font-medium text-sm">
-                        {getInitials(designer.name)}
-                      </span>
+                {filteredDesigners.map((designer) => {
+                  const unreadCount = getUnreadCount(designer.id);
+                  return (
+                    <div
+                      key={designer.id}
+                      onClick={() => handleUserSelect(designer)}
+                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${selectedUser?.id === designer.id
+                          ? 'bg-blue-100 border border-blue-300'
+                          : 'hover:bg-gray-50'
+                        }`}
+                    >
+                      <div className={`w-10 h-10 ${getAvatarColor(designer.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-white font-medium text-sm">
+                          {getInitials(designer.name)}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {designer.name}
+                          </p>
+                          {unreadCount > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center ml-2">
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 truncate">
+                          {designer.role}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {designer.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {designer.role}
-                      </p>
-                    </div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

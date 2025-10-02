@@ -7,7 +7,11 @@ export class NotificationService {
     assignedBy: string
   ) {
     try {
-      await fetch('/api/notifications', {
+      const baseUrl = typeof window === 'undefined' 
+        ? process.env.NEXTAUTH_URL || 'http://localhost:3000'
+        : '';
+        
+      const response = await fetch(`${baseUrl}/api/notifications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -19,6 +23,13 @@ export class NotificationService {
           senderName: assignedBy
         })
       });
+
+      if (response.ok) {
+        const result = await response.json();
+        return result;
+      } else {
+        throw new Error(`API call failed: ${response.status}`);
+      }
     } catch (error) {
       console.error('Error creating task assigned notification:', error);
     }
@@ -32,7 +43,11 @@ export class NotificationService {
     submittedBy: string
   ) {
     try {
-      await fetch('/api/notifications', {
+      const baseUrl = typeof window === 'undefined' 
+        ? process.env.NEXTAUTH_URL || 'http://localhost:3000'
+        : '';
+        
+      const response = await fetch(`${baseUrl}/api/notifications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -44,6 +59,13 @@ export class NotificationService {
           senderName: submittedBy
         })
       });
+
+      if (response.ok) {
+        const result = await response.json();
+        return result;
+      } else {
+        throw new Error(`API call failed: ${response.status}`);
+      }
     } catch (error) {
       console.error('Error creating task review notification:', error);
     }
@@ -57,7 +79,11 @@ export class NotificationService {
     approvedBy: string
   ) {
     try {
-      await fetch('/api/notifications', {
+      const baseUrl = typeof window === 'undefined' 
+        ? process.env.NEXTAUTH_URL || 'http://localhost:3000'
+        : '';
+        
+      const response = await fetch(`${baseUrl}/api/notifications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,6 +95,13 @@ export class NotificationService {
           senderName: approvedBy
         })
       });
+
+      if (response.ok) {
+        const result = await response.json();
+        return result;
+      } else {
+        throw new Error(`API call failed: ${response.status}`);
+      }
     } catch (error) {
       console.error('Error creating task completed notification:', error);
     }
@@ -86,7 +119,12 @@ export class NotificationService {
         ? `${senderName} sent a message in project "${projectName}": ${messagePreview}`
         : `${senderName} sent you a message: ${messagePreview}`;
 
-      await fetch('/api/notifications', {
+      // Use API call for both client and server-side usage
+      const baseUrl = typeof window === 'undefined' 
+        ? process.env.NEXTAUTH_URL || 'http://localhost:3000'
+        : '';
+        
+      const response = await fetch(`${baseUrl}/api/notifications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,8 +135,17 @@ export class NotificationService {
           senderName
         })
       });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Message notification created via API:', result.id);
+        return result;
+      } else {
+        throw new Error(`API call failed: ${response.status}`);
+      }
     } catch (error) {
       console.error('Error creating message notification:', error);
+      throw error;
     }
   }
 
@@ -110,7 +157,11 @@ export class NotificationService {
     messagePreview: string
   ) {
     try {
-      await fetch('/api/notifications', {
+      const baseUrl = typeof window === 'undefined' 
+        ? process.env.NEXTAUTH_URL || 'http://localhost:3000'
+        : '';
+        
+      const response = await fetch(`${baseUrl}/api/notifications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -121,6 +172,13 @@ export class NotificationService {
           senderName
         })
       });
+
+      if (response.ok) {
+        const result = await response.json();
+        return result;
+      } else {
+        throw new Error(`API call failed: ${response.status}`);
+      }
     } catch (error) {
       console.error('Error creating task tagged notification:', error);
     }

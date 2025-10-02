@@ -43,21 +43,28 @@ export default function CreateTaskModal({ project, currentUser, onClose, onTaskC
     const loadDesigners = async () => {
       try {
         console.log('🔍 Loading designers for task assignment...');
+        console.log('📋 Project designer IDs:', project.designerIds);
+        
         const designersList = await designersApi.getAll();
-        console.log('📋 Designers from API:', designersList.length);
+        console.log('📋 All designers from API:', designersList.length);
         
-        const activeDesigners = designersList.filter(d => d.status === 'active');
-        console.log('✅ Active designers:', activeDesigners.length);
+        // Filter to only show designers assigned to this project
+        const projectDesigners = designersList.filter(designer => 
+          designer.status === 'active' && 
+          project.designerIds.includes(designer.id)
+        );
         
-        console.log('👥 Active designers available:', activeDesigners.length);
-        setDesigners(activeDesigners);
+        console.log('✅ Project-assigned designers:', projectDesigners.length);
+        console.log('👥 Available designers for this project:', projectDesigners.map(d => d.name));
+        
+        setDesigners(projectDesigners);
       } catch (error) {
         console.error('❌ Error loading designers:', error);
       }
     };
 
     loadDesigners();
-  }, []);
+  }, [project.designerIds]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +78,13 @@ export default function CreateTaskModal({ project, currentUser, onClose, onTaskC
     
     if (!formData.title.trim() || !formData.assigneeId) {
       console.log('❌ Validation failed - missing title or assignee');
+      alert('Please fill in all required fields (title and assignee).');
+      return;
+    }
+
+    if (designers.length === 0) {
+      console.log('❌ Validation failed - no designers assigned to project');
+      alert('No designers are assigned to this project. Please assign designers to the project first.');
       return;
     }
 
@@ -188,7 +202,7 @@ export default function CreateTaskModal({ project, currentUser, onClose, onTaskC
             
             {designers.length === 0 && (
               <p className="text-xs text-destructive mt-1">
-                No designers found. Using fallback option.
+                No designers assigned to this project. Please assign designers to the project first.
               </p>
             )}
           </div>
@@ -266,11 +280,11 @@ export default function CreateTaskModal({ project, currentUser, onClose, onTaskC
           </Button>
           <Button
             type="submit"
-            disabled={loading || !formData.title.trim() || !formData.assigneeId}
+            disabled={loading || !formData.title.trim() || !formData.assigneeId || designers.length === 0}
             className="flex-1"
             onClick={handleSubmit}
           >
-            {loading ? 'Creating...' : 'Create Task'}
+            {loading ? 'Creating...' : designers.length === 0 ? 'No Designers Available' : 'Create Task'}
           </Button>
         </DialogFooter>
       </DialogContent>

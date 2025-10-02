@@ -84,15 +84,23 @@ export default function KanbanBoard({ project, currentUser, onTaskCreated }: Kan
   const loadDesigners = async () => {
     try {
       const designersList = await designersApi.getAll();
-      console.log('🎨 Designers from API:', designersList.length);
+      console.log('🎨 All designers from API:', designersList.length);
       
-      setDesigners(designersList);
+      // Filter to only show designers assigned to this project
+      const projectDesigners = designersList.filter(designer => 
+        designer.status === 'active' && 
+        project.designerIds.includes(designer.id)
+      );
+      
+      console.log('🎨 Project-assigned designers:', projectDesigners.length);
+      setDesigners(projectDesigners);
     } catch (error) {
       console.error('Error loading designers:', error);
-      // Use fallback designers if API fails
+      // Use fallback designers if API fails (only if they're in the project)
       const fallbackDesigners = [
         { id: '3', name: 'Mike Designer', role: 'designer', status: 'active' }
-      ];
+      ].filter(designer => project.designerIds.includes(designer.id));
+      
       setDesigners(fallbackDesigners);
     }
   };
@@ -146,15 +154,26 @@ export default function KanbanBoard({ project, currentUser, onTaskCreated }: Kan
 
   const handleDeleteTask = async (taskId: string) => {
     try {
+      const taskToDelete = tasks.find(t => t.id === taskId);
+      
       await tasksApi.delete(taskId);
       
       // Remove from local state
       setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
       
-      console.log('Task deleted successfully');
+      toast({
+        title: "Task deleted successfully",
+        description: `"${taskToDelete?.title || 'Task'}" has been removed from the project.`,
+      });
+      
+      console.log('✅ Task deleted successfully');
     } catch (error) {
-      console.error('Error deleting task:', error);
-      alert('Failed to delete task. Please try again.');
+      console.error('❌ Error deleting task:', error);
+      toast({
+        title: "Failed to delete task",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

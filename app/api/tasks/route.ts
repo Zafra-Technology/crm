@@ -159,3 +159,46 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+// DELETE - Delete a task
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const taskId = searchParams.get('taskId');
+
+    console.log('🗑️ DELETE /api/tasks - Deleting task:', taskId);
+
+    if (!taskId) {
+      return NextResponse.json(
+        { error: 'Task ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const { db } = await connectToDatabase();
+    
+    const result = await db.collection('tasks').deleteOne({
+      _id: new ObjectId(taskId)
+    });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { error: 'Task not found' },
+        { status: 404 }
+      );
+    }
+
+    console.log('✅ Task deleted successfully');
+
+    return NextResponse.json({ 
+      success: true,
+      message: 'Task deleted successfully' 
+    });
+  } catch (error) {
+    console.error('❌ Error deleting task:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete task' },
+      { status: 500 }
+    );
+  }
+}

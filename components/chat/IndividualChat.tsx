@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { SendIcon, ArrowLeftIcon, PaperclipIcon, DownloadIcon } from 'lucide-react';
+import { SendIcon, ArrowLeftIcon, PaperclipIcon, DownloadIcon, ChevronDownIcon } from 'lucide-react';
 import { User } from '@/types';
+import { triggerNotificationRefresh } from '@/lib/utils/notificationTrigger';
 
 interface Message {
   id: string;
@@ -28,9 +29,11 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [isUserAtBottom, setIsUserAtBottom] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastMessageCountRef = useRef(0);
 
   // Load messages for this conversation
   useEffect(() => {
@@ -39,7 +42,13 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         const response = await fetch(`/api/messages/individual?user1=${currentUser.id}&user2=${targetUser.id}`);
         if (response.ok) {
           const data = await response.json();
-          setMessages(data);
+          setMessages(prevMessages => {
+            // Only update if there are actually new messages
+            if (JSON.stringify(prevMessages) !== JSON.stringify(data)) {
+              return data;
+            }
+            return prevMessages;
+          });
         }
       } catch (error) {
         console.error('Error loading messages:', error);
@@ -48,19 +57,48 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
 
     loadMessages();
     
-    // Poll for new messages every 3 seconds
-    const interval = setInterval(loadMessages, 3000);
+    // Poll for new messages every 5 seconds (reduced frequency)
+    const interval = setInterval(loadMessages, 5000);
     return () => clearInterval(interval);
   }, [currentUser.id, targetUser.id]);
 
-  // Auto-scroll to bottom when messages change
+  // Smart auto-scroll: only scroll to bottom if user was already at bottom or if it's their own message
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const currentMessageCount = messages.length;
+    const hasNewMessages = currentMessageCount > lastMessageCountRef.current;
+    
+    if (hasNewMessages) {
+      const lastMessage = messages[messages.length - 1];
+      const isOwnMessage = lastMessage?.senderId === currentUser.id;
+      
+      // Auto-scroll only if user is at bottom OR if it's their own message
+      if (isUserAtBottom || isOwnMessage) {
+        scrollToBottom();
+      }
+    }
+    
+    lastMessageCountRef.current = currentMessageCount;
+  }, [messages, isUserAtBottom, currentUser.id]);
+
+  // Track if user is at the bottom of the chat
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px threshold
+      setIsUserAtBottom(isAtBottom);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      setIsUserAtBottom(true);
     }
   };
 
@@ -69,6 +107,8 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
     if (!newMessage.trim()) return;
 
     await sendMessage(newMessage.trim(), 'text');
+    // Always scroll to bottom when user sends a message
+    setTimeout(scrollToBottom, 100);
   };
 
   const sendMessage = async (content: string, messageType: 'text' | 'file' | 'image', fileData?: any) => {
@@ -102,6 +142,9 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         setMessages(prev => 
           prev.map(msg => msg.id === tempMessage.id ? savedMessage : msg)
         );
+        
+        // Trigger immediate notification refresh for the receiver
+        triggerNotificationRefresh();
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -210,8 +253,9 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
       </div>
 
       {/* Messages */}
-      <div ref={messagesContainerRef} className="h-[calc(100vh-20rem)] overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => {
+      <div className="relative flex-1 overflow-hidden">
+        <div ref={messagesContainerRef} className="h-[calc(100vh-20rem)] overflow-y-auto p-4 space-y-4">
+          {messages.map((message) => {
           const isOwnMessage = message.senderId === currentUser.id;
           const isTaskTagged = (message.messageType as string) === 'task_tag' || message.message.includes('Task:');
           
@@ -313,6 +357,18 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         })}
         <div ref={messagesEndRef} />
       </div>
+      
+      {/* Scroll to bottom button */}
+      {!isUserAtBottom && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-4 right-4 bg-primary hover:bg-primary/90 text-primary-foreground p-3 rounded-full shadow-lg transition-all duration-200 z-10"
+          title="Scroll to bottom"
+        >
+          <ChevronDownIcon size={20} />
+        </button>
+      )}
+    </div>
 
       {/* Message Input */}
       <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200">
