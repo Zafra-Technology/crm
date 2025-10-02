@@ -361,7 +361,28 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-0">
-        {chatMessages.map((message) => {
+        {chatMessages.length === 0 ? (
+          /* Empty state placeholder */
+          <div className="flex-1 flex items-center justify-center h-full min-h-[300px]">
+            <div className="text-center max-w-md mx-auto px-4">
+              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                <SendIcon size={32} className="text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Start the conversation
+              </h3>
+              <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                Send a message to begin collaborating with your team. Share updates, ask questions, 
+                or upload files to keep everyone in sync.
+              </p>
+              <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
+                <PaperclipIcon size={14} />
+                <span>You can also drag & drop files or click the attachment icon</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          chatMessages.map((message) => {
           const roleTag = getRoleTag(message.userRole || 'user');
           const isOwnMessage = message.userId === currentUser.id;
           
@@ -483,10 +504,10 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
               </div>
             </div>
           );
-        })}
+        }))}
         
-        {/* Typing indicators */}
-        {isTyping.length > 0 && (
+        {/* Typing indicators - only show when there are messages or when someone is typing */}
+        {(chatMessages.length > 0 || isTyping.length > 0) && isTyping.length > 0 && (
           <div className="flex items-center space-x-2 text-sm text-gray-500 italic">
             <span>{isTyping.map(u => u.userName).join(', ')} {isTyping.length === 1 ? 'is' : 'are'} typing...</span>
           </div>
