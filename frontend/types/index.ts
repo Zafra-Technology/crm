@@ -1,4 +1,4 @@
-export type UserRole = 'client' | 'project_manager' | 'designer';
+export type UserRole = 'admin' | 'project_manager' | 'assistant_project_manager' | 'team_head' | 'team_lead' | 'senior_designer' | 'designer' | 'auto_cad_drafter' | 'hr' | 'accountant' | 'marketing' | 'sales' | 'digital_marketing' | 'client';
 
 export interface User {
   id: string;
@@ -52,7 +52,7 @@ export interface ChatMessage {
   projectId: string;
   userId: string;
   userName: string;
-  userRole: 'client' | 'project_manager' | 'designer';
+  userRole: 'admin' | 'project_manager' | 'assistant_project_manager' | 'team_head' | 'team_lead' | 'senior_designer' | 'designer' | 'auto_cad_drafter' | 'hr' | 'accountant' | 'marketing' | 'sales' | 'digital_marketing' | 'client';
   message: string;
   timestamp: string;
   // File attachment fields

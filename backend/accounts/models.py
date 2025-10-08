@@ -7,9 +7,17 @@ class ROLE_CHOICES(models.TextChoices):
     """Enumeration of all possible staff roles"""
     ADMIN = 'admin', 'Admin'
     PROJECT_MANAGER = 'project_manager', 'Project Manager'
+    ASSISTANT_PROJECT_MANAGER = 'assistant_project_manager', 'Assistant Project Manager'
+    TEAM_HEAD = 'team_head', 'Team Head'
+    TEAM_LEAD = 'team_lead', 'Team Lead'
+    SENIOR_DESIGNER = 'senior_designer', 'Senior Designer'
     DESIGNER = 'designer', 'Designer'
+    AUTO_CAD_DRAFTER = 'auto_cad_drafter', 'Auto CAD Drafter'
     HR = 'hr', 'HR'
+    ACCOUNTANT = 'accountant', 'Accountant'
     MARKETING = 'marketing', 'Marketing'
+    SALES = 'sales', 'Sales'
+    DIGITAL_MARKETING = 'digital_marketing', 'Digital Marketing'
     CLIENT = 'client', 'Client'
 
 
@@ -89,7 +97,7 @@ class StaffUserAuth(AbstractUser):
     
     # Employment Details
     role = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=ROLE_CHOICES.choices,
         default=ROLE_CHOICES.CLIENT
     )
@@ -144,13 +152,25 @@ class StaffUserAuth(AbstractUser):
         return self.role == ROLE_CHOICES.ADMIN
     
     def is_project_manager(self):
-        """Check if user is project manager"""
-        return self.role == ROLE_CHOICES.PROJECT_MANAGER
+        """Check if user is project manager or assistant project manager"""
+        return self.role in [ROLE_CHOICES.PROJECT_MANAGER, ROLE_CHOICES.ASSISTANT_PROJECT_MANAGER]
     
     def is_designer(self):
-        """Check if user is designer"""
-        return self.role == ROLE_CHOICES.DESIGNER
+        """Check if user is any type of designer"""
+        return self.role in [ROLE_CHOICES.DESIGNER, ROLE_CHOICES.SENIOR_DESIGNER, ROLE_CHOICES.AUTO_CAD_DRAFTER]
     
     def is_client(self):
         """Check if user is client"""
         return self.role == ROLE_CHOICES.CLIENT
+    
+    def is_management(self):
+        """Check if user is in management role"""
+        return self.role in [ROLE_CHOICES.ADMIN, ROLE_CHOICES.PROJECT_MANAGER, ROLE_CHOICES.ASSISTANT_PROJECT_MANAGER, ROLE_CHOICES.TEAM_HEAD, ROLE_CHOICES.TEAM_LEAD]
+    
+    def is_design_team(self):
+        """Check if user is in design team"""
+        return self.role in [ROLE_CHOICES.DESIGNER, ROLE_CHOICES.SENIOR_DESIGNER, ROLE_CHOICES.AUTO_CAD_DRAFTER]
+    
+    def is_support_staff(self):
+        """Check if user is support staff"""
+        return self.role in [ROLE_CHOICES.HR, ROLE_CHOICES.ACCOUNTANT, ROLE_CHOICES.MARKETING, ROLE_CHOICES.SALES, ROLE_CHOICES.DIGITAL_MARKETING]

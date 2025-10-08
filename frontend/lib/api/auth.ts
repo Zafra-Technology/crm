@@ -21,6 +21,7 @@ export interface RegisterData {
   pincode?: string;
   aadhar_number?: string;
   date_of_joining?: string;
+  is_active?: boolean;
 }
 
 export interface User {
@@ -259,6 +260,16 @@ class AuthAPI {
     
     if (!response.ok) {
       throw new Error('Failed to get role choices');
+    }
+
+    return response.json();
+  }
+
+  async checkEmailExists(email: string): Promise<{exists: boolean, email: string}> {
+    const response = await fetch(`${API_BASE_URL}/auth/check-email/${encodeURIComponent(email)}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to check email existence');
     }
 
     return response.json();

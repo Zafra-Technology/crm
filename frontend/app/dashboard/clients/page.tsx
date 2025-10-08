@@ -27,11 +27,22 @@ export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+  const [emailError, setEmailError] = useState('');
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
-    phoneNumber: '',
-    company: '',
+    password: '',
+    first_name: '',
+    last_name: '',
+    mobile_number: '',
+    address: '',
+    city: '',
+    state: '',
+    country: '',
+    pincode: '',
+    aadhar_number: '',
+    pan_number: '',
+    company_name: '',
+    profile_pic: null as File | null,
   });
 
   // Generate colorful avatar background
@@ -62,45 +73,101 @@ export default function ClientsPage() {
   const loadClientsAndProjects = async () => {
     try {
       setLoading(true);
-      // Load both clients and projects
-      const [clientsData, projectsData] = await Promise.all([
-        authAPI.getUsers('client'),
-        fetch('/api/projects').then(res => res.json()).then(data => data.projects)
-      ]);
+      // Load clients only (projects API not available yet)
+      const clientsData = await authAPI.getUsers('client');
       
-      // Calculate actual project counts for each client
+      // Set projects count to 0 for now (will be updated when projects API is ready)
       const clientsWithCounts = clientsData.map(client => ({
         ...client,
-        projectsCount: projectsData.filter((project: any) => 
-          project.clientId === client.id
-        ).length
+        id: client.id.toString(), // Convert number to string
+        pan_number: (client as any).pan_number || '', // Handle missing pan_number
+        projectsCount: 0 // TODO: Update when projects API is available
       }));
       
       setClients(clientsWithCounts);
-      setProjects(projectsData);
+      setProjects([]); // Empty projects array for now
     } catch (error) {
-      console.error('Error loading clients and projects:', error);
+      console.error('Error loading clients:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddClient = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateEmail = async (email: string) => {
+    if (!email) {
+      setEmailError('');
+      return true;
+    }
+    
     try {
-      setLoading(true);
-      // Client creation now handled through admin dashboard user creation
-      console.log('Client creation should be done through admin dashboard');
-      if (newClient) {
-        // Add with project count of 0 for new clients
-        const clientWithCount = { ...newClient, projectsCount: 0 };
-        setClients([...clients, clientWithCount]);
-        setFormData({ name: '', email: '', phoneNumber: '', company: '' });
-        setShowAddForm(false);
+      const emailCheck = await authAPI.checkEmailExists(email);
+      if (emailCheck.exists) {
+        setEmailError('Email already exists. Please use a different email address.');
+        return false;
+      } else {
+        setEmailError('');
+        return true;
       }
     } catch (error) {
+      console.error('Error checking email:', error);
+      setEmailError('Error checking email availability');
+      return false;
+    }
+  };
+
+  const handleAddClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Clear previous email error
+    setEmailError('');
+    
+    try {
+      setLoading(true);
+      
+      // Check if email already exists
+      const isEmailValid = await validateEmail(formData.email);
+      if (!isEmailValid) {
+        setLoading(false);
+        return;
+      }
+      
+      const clientData = {
+        email: formData.email,
+        password: formData.password,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        mobile_number: formData.mobile_number,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        country: formData.country,
+        pincode: formData.pincode,
+        aadhar_number: formData.aadhar_number,
+        company_name: formData.company_name,
+        role: 'client' // Always set role as client
+      };
+
+      const newClient = await authAPI.createUser(clientData);
+      
+      // Add to clients list with projects count
+      const clientWithCount = {
+        ...newClient,
+        id: newClient.id.toString(), // Convert number to string
+        pan_number: (newClient as any).pan_number || '', // Handle missing pan_number
+        projectsCount: 0
+      };
+      
+      setClients([...clients, clientWithCount]);
+      setFormData({ 
+        email: '', password: '', first_name: '', last_name: '', 
+        mobile_number: '', address: '', city: '', 
+        state: '', country: '', pincode: '', aadhar_number: '', 
+        pan_number: '', company_name: '', profile_pic: null 
+      });
+      setShowAddForm(false);
+    } catch (error) {
       console.error('Error adding client:', error);
-      alert('Failed to add client. Please try again.');
+      alert('Failed to create client. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -109,10 +176,20 @@ export default function ClientsPage() {
   const handleEditClient = (client: Client) => {
     setEditingClient(client);
     setFormData({
-      name: client.name,
       email: client.email,
-      phoneNumber: client.phoneNumber,
-      company: client.company,
+      password: '', // Don't populate password for editing
+      first_name: client.first_name || '',
+      last_name: client.last_name || '',
+      mobile_number: client.mobile_number || '',
+      address: client.address || '',
+      city: client.city || '',
+      state: client.state || '',
+      country: client.country || '',
+      pincode: client.pincode || '',
+      aadhar_number: client.aadhar_number || '',
+      pan_number: '', // This field doesn't exist in API yet
+      company_name: client.company_name || '',
+      profile_pic: null,
     });
     setShowAddForm(true);
   };
@@ -122,21 +199,40 @@ export default function ClientsPage() {
     if (editingClient) {
       try {
         setLoading(true);
-        // Client updates now handled through Django backend
-        console.log('Client updates should be done through user management API');
-        if (updatedClient) {
-          // Preserve the project count when updating
-          const clientWithCount = { 
-            ...updatedClient, 
-            projectsCount: editingClient.projectsCount 
-          };
-          setClients(clients.map(c => 
-            c.id === editingClient.id ? clientWithCount : c
-          ));
-          setEditingClient(null);
-          setFormData({ name: '', email: '', phoneNumber: '', company: '' });
-          setShowAddForm(false);
-        }
+        
+        // Update client through API
+        const updatedClient = await authAPI.updateUser(parseInt(editingClient.id), {
+          email: formData.email,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          mobile_number: formData.mobile_number,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          country: formData.country,
+          pincode: formData.pincode,
+          aadhar_number: formData.aadhar_number,
+          company_name: formData.company_name,
+        });
+        
+        // Preserve the project count when updating
+        const clientWithCount = { 
+          ...updatedClient, 
+          id: updatedClient.id.toString(), // Convert number to string
+          pan_number: (updatedClient as any).pan_number || '',
+          projectsCount: editingClient.projectsCount 
+        };
+        setClients(clients.map(c => 
+          c.id === editingClient.id ? clientWithCount : c
+        ));
+        setEditingClient(null);
+        setFormData({ 
+          email: '', password: '', first_name: '', last_name: '', 
+          mobile_number: '', address: '', city: '', 
+          state: '', country: '', pincode: '', aadhar_number: '', 
+          pan_number: '', company_name: '', profile_pic: null 
+        });
+        setShowAddForm(false);
       } catch (error) {
         console.error('Error updating client:', error);
         alert('Failed to update client. Please try again.');
@@ -152,12 +248,10 @@ export default function ClientsPage() {
     try {
       setLoading(true);
       // Client deletion now handled through Django backend
-      const success = await authAPI.deleteUser(parseInt(selectedClient.id));
-      if (success) {
-        setClients(clients.filter(c => c.id !== selectedClient.id));
-        setShowDeleteModal(false);
-        setSelectedClient(null);
-      }
+      await authAPI.deleteUser(parseInt(selectedClient.id));
+      setClients(clients.filter(c => c.id !== selectedClient.id));
+      setShowDeleteModal(false);
+      setSelectedClient(null);
     } catch (error) {
       console.error('Error deleting client:', error);
       alert('Failed to delete client. Please try again.');
@@ -171,13 +265,21 @@ export default function ClientsPage() {
     if (client) {
       try {
         setLoading(true);
-        // Status toggle now handled through Django backend user management
-        console.log('Status toggle should be done through user management API');
-        if (updatedClient) {
-          setClients(clients.map(c => 
-            c.id === id ? { ...updatedClient, projectsCount: client.projectsCount } : c
-          ));
-        }
+        
+        // Update user status through API
+        const updatedClient = await authAPI.updateUser(parseInt(id), {
+          is_active: !client.is_active
+        });
+        
+        // Update the client in the list
+        setClients(clients.map(c => 
+          c.id === id ? { 
+            ...updatedClient, 
+            id: updatedClient.id.toString(), // Convert number to string
+            pan_number: (updatedClient as any).pan_number || '',
+            projectsCount: client.projectsCount 
+          } : c
+        ));
       } catch (error) {
         console.error('Error toggling client status:', error);
         alert('Failed to update client status. Please try again.');
@@ -196,9 +298,9 @@ export default function ClientsPage() {
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.company.toLowerCase().includes(searchTerm.toLowerCase())
+    (client.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.company_name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSearch = (value: string) => {
@@ -217,6 +319,8 @@ export default function ClientsPage() {
           // Calculate project counts for search results
           const searchWithCounts = searchResults.map(client => ({
             ...client,
+            id: client.id.toString(), // Convert number to string
+            pan_number: (client as any).pan_number || '', // Handle missing pan_number
             projectsCount: projects.filter((project: any) => 
               project.clientId === client.id
             ).length
@@ -241,8 +345,8 @@ export default function ClientsPage() {
     );
   }
 
-  // Only allow project managers to manage clients
-  const canManageClients = user.role === 'project_manager';
+  // Allow project managers and admins to manage clients
+  const canManageClients = user.role === 'project_manager' || user.role === 'admin';
 
   return (
     <div className="space-y-6">
@@ -257,7 +361,12 @@ export default function ClientsPage() {
             <button
               onClick={() => {
                 setEditingClient(null);
-                setFormData({ name: '', email: '', phoneNumber: '', company: '' });
+                setFormData({ 
+          email: '', password: '', first_name: '', last_name: '', 
+          mobile_number: '', address: '', city: '', 
+          state: '', country: '', pincode: '', aadhar_number: '', 
+          pan_number: '', company_name: '', profile_pic: null 
+        });
                 setShowAddForm(true);
               }}
               className="btn-primary flex items-center space-x-2 shadow-md"
@@ -277,13 +386,13 @@ export default function ClientsPage() {
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-green-600">
-            {clients.filter(c => c.status === 'active').length}
+            {clients.filter(c => c.is_active).length}
           </div>
           <div className="text-sm text-gray-600">Active</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-gray-600">
-            {clients.filter(c => c.status === 'inactive').length}
+            {clients.filter(c => !c.is_active).length}
           </div>
           <div className="text-sm text-gray-600">Inactive</div>
         </div>
@@ -317,17 +426,17 @@ export default function ClientsPage() {
             <div key={client.id} className="card h-full flex flex-col">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-12 h-12 ${getAvatarColor(client.name)} rounded-full flex items-center justify-center`}>
-                    <span className="text-white font-semibold text-sm">{getInitials(client.name)}</span>
+                  <div className={`w-12 h-12 ${getAvatarColor(client.full_name)} rounded-full flex items-center justify-center`}>
+                    <span className="text-white font-semibold text-sm">{getInitials(client.full_name)}</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-black">{client.name}</h3>
+                    <h3 className="font-semibold text-black">{client.full_name}</h3>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      client.status === 'active' 
+                      client.is_active 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {client.status}
+                      {client.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                 </div>
@@ -356,11 +465,11 @@ export default function ClientsPage() {
                 </div>
                 <div className="flex items-center space-x-2 text-gray-600">
                   <PhoneIcon size={14} />
-                  <span>{client.phoneNumber}</span>
+                  <span>{client.mobile_number || 'N/A'}</span>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-600">
                   <BuildingIcon size={14} />
-                  <span>{client.company}</span>
+                  <span>{client.company_name || 'N/A'}</span>
                 </div>
               </div>
 
@@ -373,7 +482,7 @@ export default function ClientsPage() {
                     onClick={() => toggleClientStatus(client.id)}
                     className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
                   >
-                    {client.status === 'active' ? 'Deactivate' : 'Activate'}
+                    {client.is_active ? 'Deactivate' : 'Activate'}
                   </button>
                 )}
               </div>
@@ -406,56 +515,196 @@ export default function ClientsPage() {
             {/* Scrollable Modal Content */}
             <div className="flex-1 overflow-y-auto px-6 pb-6">
             <form onSubmit={editingClient ? handleUpdateClient : handleAddClient} className="space-y-6">
-              {/* Two Column Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={async (e) => {
+                        setFormData({ ...formData, email: e.target.value });
+                        // Clear error when user starts typing
+                        if (emailError) setEmailError('');
+                      }}
+                      onBlur={() => validateEmail(formData.email)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-black focus:border-black ${
+                        emailError ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter email address"
+                    />
+                    {emailError && (
+                      <p className="mt-1 text-sm text-red-600">{emailError}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Password *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter password"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.first_name}
+                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter first name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.last_name}
+                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter last name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Mobile Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.mobile_number}
+                      onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter mobile number"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">Address Information</h3>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name *
+                    Address
+                  </label>
+                  <textarea
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                    placeholder="Enter full address"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter city"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      State
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter state"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Country
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.country}
+                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter country"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Pincode
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.pincode}
+                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter pincode"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Identity Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">Identity Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Aadhar Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.aadhar_number}
+                      onChange={(e) => setFormData({ ...formData, aadhar_number: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter Aadhar number"
+                      maxLength={12}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      PAN Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.pan_number}
+                      onChange={(e) => setFormData({ ...formData, pan_number: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                      placeholder="Enter PAN number"
+                      maxLength={10}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Company Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">Company Information</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Company Name
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                    placeholder="Enter full name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                    placeholder="Enter email address"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                    placeholder="Enter phone number"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Company *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    value={formData.company_name}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
                     placeholder="Enter company name"
                   />
@@ -467,7 +716,12 @@ export default function ClientsPage() {
                   onClick={() => {
                     setShowAddForm(false);
                     setEditingClient(null);
-                    setFormData({ name: '', email: '', phoneNumber: '', company: '' });
+                    setFormData({ 
+          email: '', password: '', first_name: '', last_name: '', 
+          mobile_number: '', address: '', city: '', 
+          state: '', country: '', pincode: '', aadhar_number: '', 
+          pan_number: '', company_name: '', profile_pic: null 
+        });
                   }}
                   disabled={loading}
                   className="btn-secondary flex-1 disabled:opacity-50"
@@ -497,7 +751,7 @@ export default function ClientsPage() {
         }}
         onConfirm={handleDeleteClient}
         title="Delete Client"
-        message={`Are you sure you want to delete "${selectedClient?.name}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete "${selectedClient?.full_name}"? This action cannot be undone.`}
         confirmText="Delete Client"
         type="danger"
         loading={loading}

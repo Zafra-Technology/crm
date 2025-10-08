@@ -28,6 +28,7 @@ export default function DesignersPage() {
     name: '',
     email: '',
     phoneNumber: '',
+    company: '',
     role: '',
   });
 
@@ -59,22 +60,29 @@ export default function DesignersPage() {
   const loadDesignersAndProjects = async () => {
     try {
       setLoading(true);
-      // Load both designers and projects
-      const [designersData, projectsData] = await Promise.all([
-        designersApi.getAll(),
-        fetch('/api/projects').then(res => res.json()).then(data => data.projects)
-      ]);
+      // Load designers from user management system
+      const designersData = await authAPI.getUsers();
       
-      // Calculate actual project counts for each designer
-      const designersWithCounts = designersData.map(designer => ({
-        ...designer,
-        projectsCount: projectsData.filter((project: any) => 
-          project.designerIds && project.designerIds.includes(designer.id)
-        ).length
+      // Filter for designer roles
+      const designerRoles = ['designer', 'senior_designer', 'auto_cad_drafter'];
+      const filteredDesigners = designersData.filter(user => 
+        designerRoles.includes(user.role)
+      );
+      
+      // Convert to Designer format and add project count
+      const designersWithCounts = filteredDesigners.map(designer => ({
+        id: designer.id.toString(),
+        name: designer.full_name,
+        email: designer.email,
+        phoneNumber: designer.mobile_number,
+        company: designer.company_name || '',
+        status: designer.is_active ? 'active' : 'inactive',
+        joinedDate: designer.date_of_joining || designer.created_at,
+        projectsCount: 0 // TODO: Update when projects API is available
       }));
       
       setDesigners(designersWithCounts);
-      setProjects(projectsData);
+      setProjects([]); // Empty projects array for now
     } catch (error) {
       console.error('Error loading designers and projects:', error);
     } finally {
@@ -86,12 +94,33 @@ export default function DesignersPage() {
     e.preventDefault();
     try {
       setLoading(true);
-      const newDesigner = await designersApi.create(formData);
+      
+      // Create designer using authAPI
+      const designerData = {
+        email: formData.email,
+        password: 'temp123', // Temporary password - should be changed by user
+        first_name: formData.name.split(' ')[0] || '',
+        last_name: formData.name.split(' ').slice(1).join(' ') || '',
+        mobile_number: formData.phoneNumber,
+        company_name: formData.company,
+        role: 'designer' // Default role
+      };
+      
+      const newDesigner = await authAPI.createUser(designerData);
       if (newDesigner) {
-        // Add with project count of 0 for new designers
-        const designerWithCount = { ...newDesigner, projectsCount: 0 };
+        // Convert to Designer format and add with project count of 0
+        const designerWithCount = {
+          id: newDesigner.id.toString(),
+          name: newDesigner.full_name,
+          email: newDesigner.email,
+          phoneNumber: newDesigner.mobile_number,
+          company: newDesigner.company_name || '',
+          status: newDesigner.is_active ? 'active' : 'inactive',
+          joinedDate: newDesigner.date_of_joining || newDesigner.created_at,
+          projectsCount: 0
+        };
         setDesigners([...designers, designerWithCount]);
-        setFormData({ name: '', email: '', phoneNumber: '', role: '' });
+        setFormData({ name: '', email: '', phoneNumber: '', company: '', role: '' });
         setShowAddForm(false);
       }
     } catch (error) {
@@ -108,6 +137,7 @@ export default function DesignersPage() {
       name: designer.name,
       email: designer.email,
       phoneNumber: designer.phoneNumber,
+      company: designer.company,
       role: designer.role,
     });
     setShowAddForm(true);
@@ -118,18 +148,33 @@ export default function DesignersPage() {
     if (editingDesigner) {
       try {
         setLoading(true);
-        const updatedDesigner = await designersApi.update(editingDesigner.id, formData);
+        
+        // Update designer using authAPI
+        const designerData = {
+          first_name: formData.name.split(' ')[0] || '',
+          last_name: formData.name.split(' ').slice(1).join(' ') || '',
+          mobile_number: formData.phoneNumber,
+          company_name: formData.company
+        };
+        
+        const updatedDesigner = await authAPI.updateUser(parseInt(editingDesigner.id), designerData);
         if (updatedDesigner) {
-          // Preserve the project count when updating
-          const designerWithCount = { 
-            ...updatedDesigner, 
-            projectsCount: editingDesigner.projectsCount 
+          // Convert to Designer format and preserve project count
+          const designerWithCount = {
+            id: updatedDesigner.id.toString(),
+            name: updatedDesigner.full_name,
+            email: updatedDesigner.email,
+            phoneNumber: updatedDesigner.mobile_number,
+            company: updatedDesigner.company_name || '',
+            status: updatedDesigner.is_active ? 'active' : 'inactive',
+            joinedDate: updatedDesigner.date_of_joining || updatedDesigner.created_at,
+            projectsCount: editingDesigner.projectsCount
           };
           setDesigners(designers.map(d => 
             d.id === editingDesigner.id ? designerWithCount : d
           ));
           setEditingDesigner(null);
-          setFormData({ name: '', email: '', phoneNumber: '', role: '' });
+          setFormData({ name: '', email: '', phoneNumber: '', company: '', role: '' });
           setShowAddForm(false);
         }
       } catch (error) {
@@ -145,12 +190,8 @@ export default function DesignersPage() {
     if (confirm('Are you sure you want to delete this designer?')) {
       try {
         setLoading(true);
-        const success = await designersApi.delete(id);
-        if (success) {
-          setDesigners(designers.filter(d => d.id !== id));
-        } else {
-          alert('Failed to delete designer. Please try again.');
-        }
+        await authAPI.deleteUser(parseInt(id));
+        setDesigners(designers.filter(d => d.id !== id));
       } catch (error) {
         console.error('Error deleting designer:', error);
         alert('Failed to delete designer. Please try again.');
@@ -165,10 +206,26 @@ export default function DesignersPage() {
     if (designer) {
       try {
         setLoading(true);
-        const updatedDesigner = await designersApi.toggleStatus(id, designer.status);
+        
+        // Toggle status using authAPI
+        const updatedDesigner = await authAPI.updateUser(parseInt(id), {
+          is_active: designer.status === 'active' ? false : true
+        });
+        
         if (updatedDesigner) {
+          // Convert to Designer format and preserve project count
+          const designerWithCount = {
+            id: updatedDesigner.id.toString(),
+            name: updatedDesigner.full_name,
+            email: updatedDesigner.email,
+            phoneNumber: updatedDesigner.mobile_number,
+            company: updatedDesigner.company_name || '',
+            status: updatedDesigner.is_active ? 'active' : 'inactive',
+            joinedDate: updatedDesigner.date_of_joining || updatedDesigner.created_at,
+            projectsCount: designer.projectsCount
+          };
           setDesigners(designers.map(d => 
-            d.id === id ? updatedDesigner : d
+            d.id === id ? designerWithCount : d
           ));
         }
       } catch (error) {
@@ -201,13 +258,25 @@ export default function DesignersPage() {
     const timeout = setTimeout(async () => {
       if (value.trim()) {
         try {
-          const searchResults = await designersApi.search(value);
-          // Calculate project counts for search results
-          const searchWithCounts = searchResults.map(designer => ({
-            ...designer,
-            projectsCount: projects.filter((project: any) => 
-              project.designerIds && project.designerIds.includes(designer.id)
-            ).length
+          // Search designers using authAPI
+          const searchResults = await authAPI.getUsers(undefined, value);
+          
+          // Filter for designer roles
+          const designerRoles = ['designer', 'senior_designer', 'auto_cad_drafter'];
+          const filteredResults = searchResults.filter(user => 
+            designerRoles.includes(user.role)
+          );
+          
+          // Convert to Designer format
+          const searchWithCounts = filteredResults.map(designer => ({
+            id: designer.id.toString(),
+            name: designer.full_name,
+            email: designer.email,
+            phoneNumber: designer.mobile_number,
+            company: designer.company_name || '',
+            status: designer.is_active ? 'active' : 'inactive',
+            joinedDate: designer.date_of_joining || designer.created_at,
+            projectsCount: 0 // TODO: Update when projects API is available
           }));
           setDesigners(searchWithCounts);
         } catch (error) {

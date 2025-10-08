@@ -230,7 +230,12 @@ def list_users(request):
         
         # Project managers can only see designers and clients
         if user.is_project_manager() and not user.is_superuser:
-            queryset = queryset.filter(role__in=[ROLE_CHOICES.DESIGNER, ROLE_CHOICES.CLIENT])
+            queryset = queryset.filter(role__in=[
+                ROLE_CHOICES.DESIGNER, 
+                ROLE_CHOICES.SENIOR_DESIGNER, 
+                ROLE_CHOICES.AUTO_CAD_DRAFTER, 
+                ROLE_CHOICES.CLIENT
+            ])
         
         users_list = list(queryset)
         print(f"Found {len(users_list)} users")
@@ -327,6 +332,13 @@ def get_role_choices(request):
         RoleChoicesSchema(value=choice[0], label=choice[1])
         for choice in ROLE_CHOICES.choices
     ]
+
+
+@router.get("/check-email/{email}")
+def check_email_exists(request, email: str):
+    """Check if email already exists in database"""
+    exists = StaffUserAuth.objects.filter(email=email).exists()
+    return {"exists": exists, "email": email}
 
 
 @router.post("/logout", response=MessageResponseSchema, auth=auth)

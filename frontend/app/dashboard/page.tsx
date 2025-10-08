@@ -7,6 +7,8 @@ import { User, Project } from '@/types';
 import ClientDashboard from '@/components/dashboards/ClientDashboard';
 import ProjectManagerDashboard from '@/components/dashboards/ProjectManagerDashboard';
 import DesignerDashboard from '@/components/dashboards/DesignerDashboard';
+import DesignerSharedDashboard from '@/components/dashboards/DesignerSharedDashboard';
+import WelcomeDashboard from '@/components/dashboards/WelcomeDashboard';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -25,7 +27,7 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       // For now, set empty projects array until projects API is updated to Django
-      const projectsData = [];
+      const projectsData: Project[] = [];
       setProjects(projectsData);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -48,8 +50,24 @@ export default function DashboardPage() {
         return <ClientDashboard projects={projects} userId={user.id} />;
       case 'project_manager':
         return <ProjectManagerDashboard projects={projects} userId={user.id} />;
+      case 'assistant_project_manager':
+        return <ProjectManagerDashboard projects={projects} userId={user.id} />;
       case 'designer':
-        return <DesignerDashboard projects={projects} userId={user.id} />;
+        return <DesignerSharedDashboard projects={projects} userId={user.id} userRole={user.role} />;
+      case 'senior_designer':
+        return <DesignerSharedDashboard projects={projects} userId={user.id} userRole={user.role} />;
+      case 'auto_cad_drafter':
+        return <DesignerSharedDashboard projects={projects} userId={user.id} userRole={user.role} />;
+      case 'admin':
+        return <ProjectManagerDashboard projects={projects} userId={user.id} />;
+      case 'team_head':
+      case 'team_lead':
+      case 'hr':
+      case 'accountant':
+      case 'marketing':
+      case 'sales':
+      case 'digital_marketing':
+        return <WelcomeDashboard user={user} />;
       default:
         return <div>Unknown role</div>;
     }

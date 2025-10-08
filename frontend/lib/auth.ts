@@ -5,7 +5,7 @@ const convertAPIUser = (apiUser: APIUser) => ({
   id: apiUser.id.toString(),
   email: apiUser.email,
   name: apiUser.full_name,
-  role: apiUser.role,
+  role: apiUser.role as 'admin' | 'project_manager' | 'assistant_project_manager' | 'team_head' | 'team_lead' | 'senior_designer' | 'designer' | 'auto_cad_drafter' | 'hr' | 'accountant' | 'marketing' | 'sales' | 'digital_marketing' | 'client',
   company_name: apiUser.company_name,
   is_active: apiUser.is_active,
   role_display: apiUser.role_display
