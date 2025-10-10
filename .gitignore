@@ -7,8 +7,6 @@
 /frontend/node_modules
 /frontend/.next/
 /frontend/out/
-/frontend/.env.local
-/backend/.env
 /backend/db.sqlite3
 # testing
 /coverage
@@ -32,7 +30,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*.local
+
 
 # vercel
 .vercel
