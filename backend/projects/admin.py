@@ -1,69 +1,76 @@
 from django.contrib import admin
+from django import forms
 from .models import Project, ProjectAttachment, ProjectUpdate, Task
 
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    """Admin for Project model"""
-    
-    list_display = ('name', 'client', 'manager', 'status', 'created_at')
-    list_filter = ('status', 'created_at', 'updated_at')
-    search_fields = ('name', 'description', 'client__email', 'manager__email')
-    filter_horizontal = ('designers',)
-    
-    fieldsets = (
-        ('Project Information', {
-            'fields': ('name', 'description', 'requirements', 'timeline', 'status')
-        }),
-        ('Team Assignment', {
-            'fields': ('client', 'manager', 'designers')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+    # Avoid rendering widgets that trigger Djongo relational queries
+    exclude = ("designers",)
+    # Provide a lightweight text field to manage designers by IDs
+    class ProjectAdminForm(forms.ModelForm):
+        designer_ids = forms.CharField(
+            required=False,
+            help_text="Comma-separated StaffUser IDs to assign as designers"
+        )
+
+        class Meta:
+            model = Project
+            fields = "__all__"
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Pre-fill with current designer IDs
+            if self.instance and self.instance.pk:
+                current_ids = list(
+                    self.instance.designers.values_list("id", flat=True)
+                )
+                self.fields["designer_ids"].initial = ",".join(
+                    str(pk) for pk in current_ids
+                )
+
+    form = ProjectAdminForm
+    fields = (
+        "name",
+        "description",
+        "requirements",
+        "timeline",
+        "status",
+        "client",
+        "manager",
+        "designer_ids",
+        "_assigned_designers",
+        "created_at",
+        "updated_at",
     )
-    
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ("client", "manager", "created_at", "updated_at", "_assigned_designers")
+    list_display = ("name", "status", "client", "manager", "created_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("name", "description")
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        # Update designers from designer_ids text field
+        designer_ids_text = form.cleaned_data.get("designer_ids", "")
+        if designer_ids_text is not None:
+            try:
+                cleaned_ids = [
+                    int(pk.strip()) for pk in designer_ids_text.split(",") if pk.strip()
+                ]
+            except ValueError:
+                cleaned_ids = []
+            obj.designers.set(cleaned_ids)
+
+    def _assigned_designers(self, obj):
+        try:
+            ids = list(obj.designers.values_list("id", flat=True))
+            emails = list(obj.designers.values_list("email", flat=True))
+            return f"IDs: {ids}\nEmails: {emails}"
+        except Exception as e:
+            return f"Error loading designers: {e}"
+    _assigned_designers.short_description = "Assigned Designers"
 
 
-@admin.register(ProjectAttachment)
-class ProjectAttachmentAdmin(admin.ModelAdmin):
-    """Admin for ProjectAttachment model"""
-    
-    list_display = ('name', 'project', 'uploaded_by', 'size', 'uploaded_at')
-    list_filter = ('uploaded_at', 'file_type')
-    search_fields = ('name', 'project__name', 'uploaded_by__email')
-
-
-@admin.register(ProjectUpdate)
-class ProjectUpdateAdmin(admin.ModelAdmin):
-    """Admin for ProjectUpdate model"""
-    
-    list_display = ('title', 'project', 'user', 'type', 'created_at')
-    list_filter = ('type', 'created_at')
-    search_fields = ('title', 'description', 'project__name', 'user__email')
-
-
-@admin.register(Task)
-class TaskAdmin(admin.ModelAdmin):
-    """Admin for Task model"""
-    
-    list_display = ('title', 'project', 'assignee', 'status', 'priority', 'due_date', 'created_at')
-    list_filter = ('status', 'priority', 'created_at', 'due_date')
-    search_fields = ('title', 'description', 'project__name', 'assignee__email')
-    
-    fieldsets = (
-        ('Task Information', {
-            'fields': ('title', 'description', 'project')
-        }),
-        ('Assignment & Status', {
-            'fields': ('assignee', 'status', 'priority', 'due_date')
-        }),
-        ('Metadata', {
-            'fields': ('created_by', 'created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    readonly_fields = ('created_by', 'created_at', 'updated_at')
+admin.site.register(ProjectAttachment)
+admin.site.register(ProjectUpdate)
+admin.site.register(Task)

@@ -34,7 +34,7 @@ class Project(models.Model):
     designers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name='assigned_projects',
-        limit_choices_to={'role': 'designer'},
+        limit_choices_to={'role__in': ['designer', 'senior_designer', 'auto_cad_drafter']},
         blank=True
     )
     

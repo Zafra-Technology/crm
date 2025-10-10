@@ -26,11 +26,13 @@ export default function DashboardPage() {
   const loadProjects = async (currentUser: User) => {
     try {
       setLoading(true);
-      // For now, set empty projects array until projects API is updated to Django
-      const projectsData: Project[] = [];
+      // Import projects API dynamically to avoid circular dependencies
+      const { projectsApi } = await import('@/lib/api/projects');
+      const projectsData = await projectsApi.getByUser(currentUser.id, currentUser.role);
       setProjects(projectsData);
     } catch (error) {
       console.error('Error loading projects:', error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }

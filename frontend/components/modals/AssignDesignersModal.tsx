@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { XIcon, UserCheckIcon, UserXIcon } from 'lucide-react';
 import { Designer } from '@/types/designer';
-import { designersApi } from '@/lib/api/designers';
+import { authAPI } from '@/lib/api/auth';
 
 interface AssignDesignersModalProps {
   isOpen: boolean;
@@ -24,20 +24,49 @@ export default function AssignDesignersModal({
 }: AssignDesignersModalProps) {
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [selectedDesignerIds, setSelectedDesignerIds] = useState<string[]>(currentDesignerIds);
-  const [loadingDesigners, setLoadingDesigners] = useState(true);
+  const [loadingDesigners, setLoadingDesigners] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      console.log('AssignDesignersModal: Opening modal, loading designers...');
       loadDesigners();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      console.log('AssignDesignersModal: Setting selected designer IDs:', currentDesignerIds);
       setSelectedDesignerIds(currentDesignerIds);
     }
   }, [isOpen, currentDesignerIds]);
 
   const loadDesigners = async () => {
     try {
+      console.log('AssignDesignersModal: Starting to load designers...');
       setLoadingDesigners(true);
-      const designersData = await designersApi.getAll();
-      const activeDesigners = designersData.filter(d => d.status === 'active');
+      // Fetch designers by role directly from DB via users API
+      const [designers, seniorDesigners, drafters] = await Promise.all([
+        authAPI.getUsers('designer'),
+        authAPI.getUsers('senior_designer'),
+        authAPI.getUsers('auto_cad_drafter')
+      ]);
+
+      // Merge and de-duplicate by id
+      const merged = [...designers, ...seniorDesigners, ...drafters];
+      const uniqueById = Array.from(new Map(merged.map(u => [u.id, u])).values());
+
+      const activeDesigners: Designer[] = uniqueById
+        .filter(u => u.is_active)
+        .map(u => ({
+          id: u.id.toString(),
+          name: u.full_name,
+          email: u.email,
+          phoneNumber: u.mobile_number || '',
+          role: u.role_display || u.role,
+          status: 'active',
+          joinedDate: u.date_of_joining || u.created_at || '',
+          projectsCount: 0
+        }));
       setDesigners(activeDesigners);
     } catch (error) {
       console.error('Error loading designers:', error);

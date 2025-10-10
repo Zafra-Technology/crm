@@ -46,7 +46,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Clients', 
       href: '/dashboard/clients',
       active: pathname === '/dashboard/clients',
-      roles: ['project_manager', 'assistant_project_manager', 'admin']
+      roles: ['project_manager', 'assistant_project_manager', 'digital_marketing', 'admin']
     },
     { 
       icon: UsersIcon, 

@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { projectsApi } from '@/lib/api/projects';
-import { clientsApi } from '@/lib/api/clients';
-import { designersApi } from '@/lib/api/designers';
-import { projectUpdatesApi } from '@/lib/api/project-updates';
+import { authAPI } from '@/lib/api/auth';
 import { mockChatMessages } from '@/lib/data/mockData';
 import { User, Project, ProjectUpdate, ChatMessage } from '@/types';
 import { Client } from '@/types/client';
@@ -18,7 +16,7 @@ import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon } from 'lucid
 
 export default function ProjectDetailsPage() {
   const params = useParams();
-  const projectId = params.id as string;
+  const projectId = params?.id as string;
   
   const [user, setUser] = useState<User | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -61,32 +59,123 @@ export default function ProjectDetailsPage() {
         
         console.log('Project attachments:', foundProject.attachments); // Debug log
 
-        // Load client details
-        if (foundProject.clientId) {
-          const clientData = await clientsApi.getById(foundProject.clientId);
-          setClient(clientData);
-        }
+        try {
+          // Fetch all users once and derive client, designers, and manager
+          const allUsers = await authAPI.getUsers();
 
-        // Load assigned designers
-        if (foundProject.designerIds && foundProject.designerIds.length > 0) {
-          const allDesigners = await designersApi.getAll();
-          const assignedDesigners = allDesigners.filter(d => 
-            foundProject.designerIds.includes(d.id)
-          );
-          setDesigners(assignedDesigners);
-        }
+          // Load client details
+          if (foundProject.clientId) {
+            const clientUser = allUsers.find(user => user.id.toString() === foundProject.clientId.toString());
+            if (clientUser) {
+              setClient({
+                id: clientUser.id.toString(),
+                full_name: clientUser.full_name,
+                email: clientUser.email,
+                first_name: clientUser.first_name,
+                last_name: clientUser.last_name,
+                mobile_number: clientUser.mobile_number || '',
+                address: clientUser.address || '',
+                city: clientUser.city || '',
+                state: clientUser.state || '',
+                country: clientUser.country || '',
+                pincode: clientUser.pincode || '',
+                aadhar_number: clientUser.aadhar_number,
+                pan_number: undefined,
+                company_name: clientUser.company_name || '',
+                role: clientUser.role,
+                role_display: clientUser.role_display,
+                is_active: clientUser.is_active,
+                date_of_birth: clientUser.date_of_birth,
+                profile_pic: clientUser.profile_pic,
+                date_of_joining: clientUser.date_of_joining,
+                date_of_exit: clientUser.date_of_exit,
+                created_at: clientUser.created_at,
+                updated_at: clientUser.updated_at,
+                projectsCount: 0
+              });
+            }
+          }
 
-        // Mock project manager data (in real app, would fetch from users API)
-        setProjectManager({
-          id: foundProject.managerId,
-          name: 'Sarah Manager',
-          email: 'sarah@company.com'
-        });
+          // Load assigned designers
+          const apiDesigners = (foundProject as any).designers as Array<any> | undefined;
+          if (Array.isArray(apiDesigners) && apiDesigners.length > 0) {
+            const mapped = apiDesigners.map(d => ({
+              id: String(d.id),
+              name: String(d.full_name || d.name || ''),
+              email: String(d.email || ''),
+              phoneNumber: '',
+              role: String(d.role || ''),
+              status: 'active' as const,
+              joinedDate: '',
+              projectsCount: 0,
+              avatar: d.profile_pic,
+            }));
+            setDesigners(mapped);
+            if (typeof window !== 'undefined') {
+              // eslint-disable-next-line no-console
+              console.log('Assigned designers (from API):', mapped);
+            }
+          } else if (foundProject.designerIds && foundProject.designerIds.length > 0) {
+            const wantedIds = foundProject.designerIds.map(id => id.toString());
+            const designerUsers = allUsers.filter(user => 
+              ['designer', 'senior_designer', 'auto_cad_drafter'].includes(user.role) &&
+              wantedIds.includes(user.id.toString())
+            );
+            const assignedDesigners = designerUsers.map(user => ({
+              id: user.id.toString(),
+              name: user.full_name,
+              email: user.email,
+              phoneNumber: user.mobile_number || '',
+              role: user.role_display || user.role,
+              status: (user.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
+              joinedDate: user.date_of_joining || user.created_at || '',
+              projectsCount: 0,
+              avatar: user.profile_pic
+            }));
+            setDesigners(assignedDesigners);
+            if (typeof window !== 'undefined') {
+              // eslint-disable-next-line no-console
+              console.log('Assigned designers (resolved via IDs):', assignedDesigners);
+            }
+          } else {
+            setDesigners([]);
+            if (typeof window !== 'undefined') {
+              // eslint-disable-next-line no-console
+              console.log('Assigned designers: none');
+            }
+          }
+
+          // Load project manager dynamically
+          if (foundProject.managerId) {
+            const pmUser = allUsers.find(user => user.id.toString() === foundProject.managerId.toString());
+            if (pmUser) {
+              setProjectManager({
+                id: pmUser.id.toString(),
+                name: pmUser.full_name,
+                email: pmUser.email
+              });
+            } else {
+              setProjectManager(null);
+            }
+          } else {
+            setProjectManager(null);
+          }
+          if (typeof window !== 'undefined') {
+            // eslint-disable-next-line no-console
+            console.log('Debug IDs', {
+              managerId: foundProject.managerId,
+              designerIds: foundProject.designerIds,
+              usersCount: allUsers.length
+            });
+          }
+        } catch (error) {
+          console.error('Error loading users for client/designers/manager:', error);
+        }
       }
 
-      // Load project updates and messages
-      const projectUpdates = await projectUpdatesApi.getByProjectId(projectId);
-      setUpdates(projectUpdates);
+      // Load project updates and messages (mock for now)
+      // TODO: Implement project updates API
+      setUpdates([]);
 
       // Load chat messages from API
       try {
@@ -263,9 +352,9 @@ export default function ProjectDetailsPage() {
                     <div className="flex items-center space-x-2 text-gray-600">
                       <BuildingIcon size={16} />
                       <div className="flex flex-col">
-                        <span className="font-medium">{client?.name || 'Unknown Client'}</span>
-                        {client?.company && (
-                          <span className="text-sm text-gray-500">{client.company}</span>
+                        <span className="font-medium">{client?.full_name || 'Unknown Client'}</span>
+                        {client?.company_name && (
+                          <span className="text-sm text-gray-500">{client.company_name}</span>
                         )}
                       </div>
                     </div>

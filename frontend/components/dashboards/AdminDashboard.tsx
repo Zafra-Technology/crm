@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, Settings, BarChart3, FolderOpen } from 'lucide-react';
-import { authAPI, User as APIUser } from '@/lib/api/auth';
+import { Users, UserPlus, Settings, BarChart3, FolderOpen, PencilIcon, TrashIcon } from 'lucide-react';
+import { authAPI, User as APIUser, resolveMediaUrl } from '@/lib/api/auth';
 import { getAuthToken } from '@/lib/auth';
 import { User } from '@/types';
 // Removed separate modal imports - using inline modals instead
@@ -23,6 +23,7 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleChoices, setRoleChoices] = useState<Array<{value: string, label: string}>>([]);
   const [emailError, setEmailError] = useState('');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -159,7 +160,15 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
         date_of_joining: formData.date_of_joining || undefined
       };
 
-      await authAPI.createUser(userData);
+      const created = await authAPI.createUser(userData);
+      // Upload profile pic if provided
+      if (formData.profile_pic) {
+        try {
+          await authAPI.uploadUserProfilePic(created.id, formData.profile_pic);
+        } catch (err) {
+          console.error('Profile picture upload failed:', err);
+        }
+      }
       fetchUsers();
       setShowCreateUserModal(false);
       setFormData({
@@ -220,7 +229,15 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
           date_of_exit: formData.date_of_exit || undefined
         };
         
-        await authAPI.updateUser(editingUser.id, userData);
+        const updated = await authAPI.updateUser(editingUser.id, userData);
+        // Upload profile pic if provided
+        if (formData.profile_pic) {
+          try {
+            await authAPI.uploadUserProfilePic(updated.id, formData.profile_pic);
+          } catch (err) {
+            console.error('Profile picture upload failed:', err);
+          }
+        }
         fetchUsers();
         setShowEditUserModal(false);
         setEditingUser(null);
@@ -293,10 +310,10 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
         </div>
         <button
           onClick={() => setShowCreateUserModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          className="btn-primary flex items-center space-x-2 shadow-md"
         >
           <UserPlus size={20} />
-          Create User
+          <span>Create User</span>
         </button>
       </div>
 
@@ -379,10 +396,22 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                            <span className="text-sm font-medium text-gray-700">
-                              {userData.full_name.charAt(0).toUpperCase()}
-                            </span>
+                          <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
+                            {userData.profile_pic ? (
+                              <img
+                                src={resolveMediaUrl(userData.profile_pic)}
+                                alt={userData.full_name}
+                                className="h-10 w-10 rounded-full object-cover cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewImage(resolveMediaUrl(userData.profile_pic || ''));
+                                }}
+                              />
+                            ) : (
+                              <span className="text-sm font-medium text-gray-700">
+                                {userData.full_name.charAt(0).toUpperCase()}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="ml-4">
@@ -420,15 +449,17 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                           onClick={() => handleEditUser(userData)}
                           className="text-blue-600 hover:text-blue-900"
                         >
-                          Edit
+                          <PencilIcon size={16} />
+                          
                         </button>
-                        <button
+                      <button
                           onClick={() => openDeleteModal(userData)}
                           className="text-red-600 hover:text-red-900"
                           disabled={userData.id === parseInt(user.id)}
                         >
-                          Delete
-                        </button>
+                          <TrashIcon size={16} />
+                        
+                      </button>
                       </div>
                     </td>
                   </tr>
@@ -549,6 +580,28 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                   </div>
                 </div>
 
+                {/* Profile Picture */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium text-gray-900">Profile Picture</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Upload Profile Picture
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                        setFormData({ ...formData, profile_pic: file });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {formData.profile_pic && (
+                      <p className="text-sm text-gray-600 mt-1">Selected: {formData.profile_pic.name}</p>
+                    )}
+                  </div>
+                </div>
+
                 {/* Address Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-gray-900">Address Information</h3>
@@ -651,14 +704,14 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                   <button
                     type="button"
                     onClick={() => setShowCreateUserModal(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    className="btn-secondary px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="btn-primary px-4 py-2 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
                     {loading ? 'Creating...' : 'Create User'}
                   </button>
@@ -863,6 +916,39 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                   </div>
                 </div>
 
+                {/* Profile Picture */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium text-gray-900">Profile Picture</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {editingUser?.profile_pic ? 'Replace Profile Picture' : 'Upload Profile Picture'}
+                    </label>
+                    {editingUser?.profile_pic && (
+                      <div className="flex items-center space-x-3 mb-2">
+                        <img
+                          src={resolveMediaUrl(editingUser.profile_pic)}
+                          alt="Current profile"
+                          className="h-12 w-12 rounded-full object-cover cursor-pointer"
+                          onClick={() => setPreviewImage(resolveMediaUrl(editingUser.profile_pic || ''))}
+                        />
+                        <span className="text-sm text-gray-600">Current</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                        setFormData({ ...formData, profile_pic: file });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {formData.profile_pic && (
+                      <p className="text-sm text-gray-600 mt-1">Selected: {formData.profile_pic.name}</p>
+                    )}
+                  </div>
+                </div>
+
                 {/* Form Actions */}
                 <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
                   <button
@@ -871,14 +957,14 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                       setShowEditUserModal(false);
                       setEditingUser(null);
                     }}
-                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    className="btn-secondary px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="btn-primary px-4 py-2 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
                     {loading ? 'Updating...' : 'Update User'}
                   </button>
@@ -958,6 +1044,29 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
               >
                 {loading ? 'Deleting...' : 'Delete User'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview Modal - match edit modal sizing */}
+      {previewImage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" onClick={() => setPreviewImage(null)}>
+          <div className="bg-white rounded-lg max-w-2xl w-full my-8 max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white rounded-t-lg px-6 pt-6 pb-4 border-b border-gray-200 z-10 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-black">Profile Picture</h3>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close preview"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto px-6 pb-6 flex items-center justify-center">
+              <img src={previewImage} alt="Profile preview" className="max-h-[70vh] w-auto rounded-md object-contain" />
             </div>
           </div>
         </div>

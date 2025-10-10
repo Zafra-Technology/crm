@@ -3,19 +3,24 @@
 import { useState, useEffect } from 'react';
 import { getCurrentUser } from '@/lib/auth';
 import { authAPI } from '@/lib/api/auth';
+import type { RegisterData } from '@/lib/api/auth';
 import { User } from '@/types';
 import { Client } from '@/types/client';
 import ConfirmModal from '@/components/modals/ConfirmModal';
 import { 
   PlusIcon, 
   UserIcon, 
+  KeyIcon,
   MailIcon, 
   PhoneIcon, 
   BuildingIcon,
   EditIcon,
   TrashIcon,
-  SearchIcon
+  SearchIcon,
+  EyeIcon,
+  EyeOffIcon
 } from 'lucide-react';
+// use existing authAPI import above
 
 export default function ClientsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -24,10 +29,24 @@ export default function ClientsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ password: '', confirm: '' });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [emailError, setEmailError] = useState('');
+  const [showSendMailModal, setShowSendMailModal] = useState(false);
+  const [mailForm, setMailForm] = useState({ to: '', subject: '', message: '' });
+  const [mailLoading, setMailLoading] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -131,7 +150,7 @@ export default function ClientsPage() {
         return;
       }
       
-      const clientData = {
+      const clientData: RegisterData = {
         email: formData.email,
         password: formData.password,
         first_name: formData.first_name,
@@ -143,6 +162,7 @@ export default function ClientsPage() {
         country: formData.country,
         pincode: formData.pincode,
         aadhar_number: formData.aadhar_number,
+        pan_number: formData.pan_number,
         company_name: formData.company_name,
         role: 'client' // Always set role as client
       };
@@ -187,7 +207,7 @@ export default function ClientsPage() {
       country: client.country || '',
       pincode: client.pincode || '',
       aadhar_number: client.aadhar_number || '',
-      pan_number: '', // This field doesn't exist in API yet
+      pan_number: (client as any).pan_number || '',
       company_name: client.company_name || '',
       profile_pic: null,
     });
@@ -202,7 +222,6 @@ export default function ClientsPage() {
         
         // Update client through API
         const updatedClient = await authAPI.updateUser(parseInt(editingClient.id), {
-          email: formData.email,
           first_name: formData.first_name,
           last_name: formData.last_name,
           mobile_number: formData.mobile_number,
@@ -212,8 +231,9 @@ export default function ClientsPage() {
           country: formData.country,
           pincode: formData.pincode,
           aadhar_number: formData.aadhar_number,
+          pan_number: formData.pan_number,
           company_name: formData.company_name,
-        });
+        } as Partial<RegisterData>);
         
         // Preserve the project count when updating
         const clientWithCount = { 
@@ -345,8 +365,11 @@ export default function ClientsPage() {
     );
   }
 
-  // Allow project managers and admins to manage clients
+  // Allow project managers and admins to manage clients (edit/delete)
   const canManageClients = user.role === 'project_manager' || user.role === 'admin';
+  // Allow digital marketing to create clients
+  const canCreateClients = canManageClients || user.role === 'digital_marketing';
+  const canSendMail = user.role === 'digital_marketing';
 
   return (
     <div className="space-y-6">
@@ -357,7 +380,7 @@ export default function ClientsPage() {
             <h1 className="text-2xl font-bold text-black">Clients</h1>
             <p className="text-gray-600 mt-1">Manage your client relationships</p>
           </div>
-          {canManageClients && (
+          {canCreateClients && (
             <button
               onClick={() => {
                 setEditingClient(null);
@@ -413,6 +436,10 @@ export default function ClientsPage() {
             placeholder="Search clients by name, email, or company..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            name="client_search"
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
           />
         </div>
@@ -440,20 +467,53 @@ export default function ClientsPage() {
                     </span>
                   </div>
                 </div>
-                {canManageClients && (
+                {(canManageClients || canSendMail || user.role === 'digital_marketing') && (
                   <div className="flex space-x-1">
-                    <button
-                      onClick={() => handleEditClient(client)}
-                      className="p-1 text-gray-400 hover:text-gray-600"
-                    >
-                      <EditIcon size={16} />
-                    </button>
-                    <button
-                      onClick={() => openDeleteModal(client)}
-                      className="p-1 text-gray-400 hover:text-red-600"
-                    >
-                      <TrashIcon size={16} />
-                    </button>
+                    {/* Edit: allowed for admins/PMs and digital_marketing */}
+                    {(canManageClients || user.role === 'digital_marketing') && (
+                      <button
+                        onClick={() => handleEditClient(client)}
+                        className="p-1 text-gray-400 hover:text-gray-600"
+                      >
+                        <EditIcon size={16} />
+                      </button>
+                    )}
+                    {/* Change Password: admins/PMs and digital_marketing */}
+                    {(canManageClients || user.role === 'digital_marketing') && (
+                      <button
+                        onClick={() => {
+                          setSelectedClient(client);
+                          setPasswordForm({ password: '', confirm: '' });
+                          setShowPasswordModal(true);
+                        }}
+                        className="p-1 text-gray-400 hover:text-amber-600"
+                        title="Change Password"
+                      >
+                        <KeyIcon size={16} />
+                      </button>
+                    )}
+                    {/* Delete: only admins/PMs */}
+                    {canManageClients && (
+                      <button
+                        onClick={() => openDeleteModal(client)}
+                        className="p-1 text-gray-400 hover:text-red-600"
+                      >
+                        <TrashIcon size={16} />
+                      </button>
+                    )}
+                    {canSendMail && (
+                      <button
+                        onClick={() => {
+                          setSelectedClient(client);
+                          setMailForm({ to: client.email || '', subject: '', message: '' });
+                          setShowSendMailModal(true);
+                        }}
+                        className="p-1 text-gray-400 hover:text-blue-600"
+                        title="Send Mail"
+                      >
+                        <MailIcon size={16} />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -519,42 +579,50 @@ export default function ClientsPage() {
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={async (e) => {
-                        setFormData({ ...formData, email: e.target.value });
-                        // Clear error when user starts typing
-                        if (emailError) setEmailError('');
-                      }}
-                      onBlur={() => validateEmail(formData.email)}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-black focus:border-black ${
-                        emailError ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Enter email address"
-                    />
-                    {emailError && (
-                      <p className="mt-1 text-sm text-red-600">{emailError}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Password *
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                      placeholder="Enter password"
-                    />
-                  </div>
+                  {!editingClient && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Email Address *
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={formData.email}
+                          onChange={async (e) => {
+                            setFormData({ ...formData, email: e.target.value });
+                            // Clear error when user starts typing
+                            if (emailError) setEmailError('');
+                          }}
+                          onBlur={() => validateEmail(formData.email)}
+                          autoComplete="email"
+                          name="client_email"
+                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-black focus:border-black ${
+                            emailError ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                          placeholder="Enter email address"
+                        />
+                        {emailError && (
+                          <p className="mt-1 text-sm text-red-600">{emailError}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Password *
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          autoComplete="new-password"
+                          name="new_client_password"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                          placeholder="Enter password"
+                        />
+                      </div>
+                    </>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       First Name
@@ -756,6 +824,183 @@ export default function ClientsPage() {
         type="danger"
         loading={loading}
       />
+
+      {/* Change Password Modal */}
+      {showPasswordModal && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
+          <div className="bg-white rounded-lg max-w-md w-full overflow-hidden">
+            <div className="px-6 pt-6 pb-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-black">Change Password</h3>
+              <p className="text-sm text-gray-500 mt-1">For {selectedClient.full_name}</p>
+            </div>
+            <div className="px-6 py-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={passwordForm.password}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, password: e.target.value })}
+                    autoComplete="new-password"
+                    name="set_password_new"
+                    className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                    placeholder="Enter new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600"
+                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showNewPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Password must be at least 6 characters.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={passwordForm.confirm}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                    autoComplete="new-password"
+                    name="set_password_confirm"
+                    className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                    placeholder="Re-enter new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                  </button>
+                </div>
+                {passwordForm.confirm && passwordForm.password !== passwordForm.confirm && (
+                  <p className="mt-1 text-xs text-red-600">Passwords do not match.</p>
+                )}
+              </div>
+            </div>
+            <div className="px-6 pb-6 flex space-x-3">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                disabled={passwordLoading}
+                className="btn-secondary flex-1 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!passwordForm.password || passwordForm.password.length < 6) {
+                    showToast('error', 'Password must be at least 6 characters');
+                    return;
+                  }
+                  if (passwordForm.password !== passwordForm.confirm) {
+                    showToast('error', 'Passwords do not match');
+                    return;
+                  }
+                  try {
+                    setPasswordLoading(true);
+                    await authAPI.setUserPassword(parseInt(selectedClient.id), passwordForm.password);
+                    setShowPasswordModal(false);
+                    showToast('success', 'Password updated successfully');
+                  } catch (err: any) {
+                    showToast('error', err?.message || 'Failed to update password');
+                  } finally {
+                    setPasswordLoading(false);
+                  }
+                }}
+                disabled={passwordLoading || !passwordForm.password || passwordForm.password.length < 6 || passwordForm.password !== passwordForm.confirm}
+                className="btn-primary flex-1 disabled:opacity-50"
+              >
+                {passwordLoading ? 'Updating...' : 'Update Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Mail Modal */}
+      {showSendMailModal && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
+          <div className="bg-white rounded-lg max-w-xl w-full overflow-hidden">
+            <div className="px-6 pt-6 pb-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-black">Send Mail</h3>
+              <p className="text-sm text-gray-500 mt-1">Send an email to this client</p>
+            </div>
+            <div className="px-6 py-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">To</label>
+                <input
+                  type="email"
+                  value={mailForm.to}
+                  onChange={(e) => setMailForm({ ...mailForm, to: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                  placeholder="recipient@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={mailForm.subject}
+                  onChange={(e) => setMailForm({ ...mailForm, subject: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                  placeholder="Subject"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                <textarea
+                  rows={6}
+                  value={mailForm.message}
+                  onChange={(e) => setMailForm({ ...mailForm, message: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                  placeholder="Type your message..."
+                />
+              </div>
+            </div>
+            <div className="px-6 pb-6 flex space-x-3">
+              <button
+                onClick={() => setShowSendMailModal(false)}
+                disabled={mailLoading}
+                className="btn-secondary flex-1 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    setMailLoading(true);
+                    await authAPI.sendMail(mailForm);
+                    setShowSendMailModal(false);
+                    showToast('success', 'Email sent successfully');
+                  } catch (err: any) {
+                    showToast('error', err?.message || 'Failed to send email');
+                  } finally {
+                    setMailLoading(false);
+                  }
+                }}
+                disabled={mailLoading || !mailForm.to || !mailForm.subject || !mailForm.message}
+                className="btn-primary flex-1 disabled:opacity-50"
+              >
+                {mailLoading ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-md shadow-md border ${
+          toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

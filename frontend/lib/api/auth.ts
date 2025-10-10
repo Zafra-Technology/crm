@@ -12,6 +12,7 @@ export interface RegisterData {
   last_name?: string;
   mobile_number?: string;
   company_name?: string;
+  pan_number?: string;
   role?: string;
   date_of_birth?: string;
   address?: string;
@@ -32,6 +33,7 @@ export interface User {
   full_name: string;
   mobile_number: string;
   company_name: string;
+  pan_number?: string;
   role: string;
   role_display: string;
   date_of_birth?: string;
@@ -53,6 +55,24 @@ export interface LoginResponse {
   user: User;
   token: string;
   message: string;
+}
+
+export function getBackendOrigin(): string {
+  try {
+    const url = new URL(API_BASE_URL);
+    return url.origin;
+  } catch {
+    return '';
+  }
+}
+
+export function resolveMediaUrl(url?: string | null): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const origin = getBackendOrigin();
+  if (!origin) return url;
+  if (url.startsWith('/')) return origin + url;
+  return `${origin}/${url}`;
 }
 
 class AuthAPI {
@@ -243,6 +263,28 @@ class AuthAPI {
     return response.json();
   }
 
+  async uploadUserProfilePic(userId: number, file: File): Promise<User> {
+    const formData = new FormData();
+    formData.append('profile_pic', file);
+
+    const token = localStorage.getItem('auth_token');
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/upload-profile-pic`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to upload profile picture');
+    }
+
+    return response.json();
+  }
+
   async deleteUser(userId: number): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/auth/users/${userId}`, {
       method: 'DELETE',
@@ -253,6 +295,25 @@ class AuthAPI {
       const error = await response.json();
       throw new Error(error.error || 'User deletion failed');
     }
+  }
+
+  async setUserPassword(userId: number, newPassword: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/set-password`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ new_password: newPassword }),
+    });
+
+    if (!response.ok) {
+      let msg = 'Set password failed';
+      try {
+        const error = await response.json();
+        msg = error?.detail || error?.message || error?.error || msg;
+      } catch (_) {}
+      throw new Error(msg);
+    }
+
+    return response.json();
   }
 
   async getRoleChoices(): Promise<Array<{value: string, label: string}>> {
@@ -297,6 +358,21 @@ class AuthAPI {
 
   isAuthenticated(): boolean {
     return !!this.getToken();
+  }
+
+  async sendMail(payload: { to: string; subject: string; message: string }): Promise<{ message: string; success?: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/auth/send-mail`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to send email');
+    }
+
+    return response.json();
   }
 }
 

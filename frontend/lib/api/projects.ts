@@ -1,15 +1,75 @@
-import { Project } from '@/types';
+import { Project, ProjectAttachment } from '@/types';
 
-const API_BASE = '/api/projects';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+// Django with APPEND_SLASH expects trailing slash for POST/collection routes
+const API_BASE = `${API_BASE_URL}/projects/`;
+
+const getAuthHeaders = () => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  return {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  } as Record<string, string>;
+};
 
 export const projectsApi = {
+  // Internal: map backend project (snake_case) to frontend Project (camelCase)
+  _mapApiProject(p: any): Project {
+    const attachments: ProjectAttachment[] = Array.isArray(p.attachments)
+      ? p.attachments.map((a: any) => ({
+          id: String(a.id),
+          name: String(a.name || ''),
+          size: Number(a.size || 0),
+          type: String(a.type || ''),
+          url: String(a.url || ''),
+          uploadedAt: String(a.uploadedAt || a.uploaded_at || ''),
+          uploadedBy: String(a.uploadedBy || a.uploaded_by || ''),
+        }))
+      : [];
+
+    const project: Project = {
+      id: String(p.id),
+      name: String(p.name || ''),
+      description: String(p.description || ''),
+      requirements: String(p.requirements || ''),
+      timeline: String(p.timeline || ''),
+      status: (p.status || 'planning') as Project['status'],
+      clientId: p.clientId ? String(p.clientId) : String(p.client_id ?? ''),
+      managerId: p.managerId ? String(p.managerId) : String(p.manager_id ?? ''),
+      designerIds: Array.isArray(p.designerIds)
+        ? p.designerIds.map((d: any) => String(d))
+        : Array.isArray(p.designer_ids)
+        ? p.designer_ids.map((d: any) => String(d))
+        : [],
+      attachments,
+      createdAt: String(p.createdAt || p.created_at || ''),
+      updatedAt: String(p.updatedAt || p.updated_at || ''),
+    };
+    // Pass-through designers array from backend for team rendering
+    if (Array.isArray((p as any).designers)) {
+      (project as any).designers = (p as any).designers;
+    }
+    // attach derived/count for UI cards
+    (project as any).designerCount = Number(
+      p.designerCount ?? p.designer_count ?? (Array.isArray(project.designerIds) ? project.designerIds.length : 0)
+    );
+    return project;
+  },
   // Get all projects
   getAll: async (): Promise<Project[]> => {
     try {
-      const response = await fetch(API_BASE);
-      if (!response.ok) throw new Error('Failed to fetch projects');
+      const response = await fetch(API_BASE, { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error(`Failed to fetch projects: ${response.status}`);
       const data = await response.json();
-      return data.projects;
+      const arr = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.projects)
+        ? data.projects
+        : [];
+      return arr.map(projectsApi._mapApiProject);
     } catch (error) {
       console.error('Error fetching projects:', error);
       return [];
@@ -19,10 +79,23 @@ export const projectsApi = {
   // Get projects by user
   getByUser: async (userId: string, userRole: string): Promise<Project[]> => {
     try {
-      const response = await fetch(`${API_BASE}?userId=${userId}&userRole=${userRole}`);
-      if (!response.ok) throw new Error('Failed to fetch user projects');
+      // Backend uses authentication to determine user and role automatically
+      // No need to pass user_id and user_role as query parameters
+      const response = await fetch(API_BASE, { headers: getAuthHeaders() });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Projects API error response:', errorText);
+        throw new Error(`Failed to fetch user projects: ${response.status}`);
+      }
       const data = await response.json();
-      return data.projects;
+      const arr = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.projects)
+        ? data.projects
+        : [];
+      return arr.map(projectsApi._mapApiProject);
     } catch (error) {
       console.error('Error fetching user projects:', error);
       return [];
@@ -32,10 +105,17 @@ export const projectsApi = {
   // Search projects
   search: async (searchTerm: string): Promise<Project[]> => {
     try {
-      const response = await fetch(`${API_BASE}?search=${encodeURIComponent(searchTerm)}`);
-      if (!response.ok) throw new Error('Failed to search projects');
+      const response = await fetch(`${API_BASE}?search=${encodeURIComponent(searchTerm)}`, { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error(`Failed to search projects: ${response.status}`);
       const data = await response.json();
-      return data.projects;
+      const arr = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.projects)
+        ? data.projects
+        : [];
+      return arr.map(projectsApi._mapApiProject);
     } catch (error) {
       console.error('Error searching projects:', error);
       return [];
@@ -45,10 +125,20 @@ export const projectsApi = {
   // Get single project
   getById: async (id: string): Promise<Project | null> => {
     try {
-      const response = await fetch(`${API_BASE}/${id}`);
+      // Detail routes in Django Ninja here are defined without trailing slash
+      const response = await fetch(`${API_BASE}${id}`, { headers: getAuthHeaders() });
       if (!response.ok) return null;
       const data = await response.json();
-      return data.project;
+      if (typeof window !== 'undefined') {
+        // eslint-disable-next-line no-console
+        console.log('Projects API getById raw:', data);
+      }
+      const mapped = projectsApi._mapApiProject(data);
+      if (typeof window !== 'undefined') {
+        // eslint-disable-next-line no-console
+        console.log('Projects API getById mapped:', mapped);
+      }
+      return mapped;
     } catch (error) {
       console.error('Error fetching project:', error);
       return null;
@@ -67,21 +157,47 @@ export const projectsApi = {
     attachments?: any[];
   }): Promise<Project | null> => {
     try {
+      // Map to backend-expected snake_case keys; omit attachments for create to avoid 422
+      const payload: Record<string, any> = {
+        name: projectData.name,
+        description: projectData.description,
+        requirements: projectData.requirements,
+        timeline: projectData.timeline,
+        client_id: projectData.clientId ? parseInt(projectData.clientId) : undefined,
+        manager_id: projectData.managerId ? parseInt(projectData.managerId) : undefined,
+        designer_ids: Array.isArray(projectData.designerIds)
+          ? projectData.designerIds.map(id => parseInt(id)).filter(n => !Number.isNaN(n))
+          : [],
+      };
+      // Remove undefined keys
+      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+      // Debug: log payload being sent
+      console.log('Creating project with payload:', payload);
+
       const response = await fetch(API_BASE, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(projectData),
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
       });
       
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create project');
+        let detail = 'Failed to create project';
+        try {
+          const text = await response.text();
+          console.error('Create project error status:', response.status, 'body:', text);
+          try {
+            const error = JSON.parse(text);
+            detail = error.error || error.detail || text;
+          } catch {
+            detail = text || detail;
+          }
+        } catch {}
+        throw new Error(`HTTP ${response.status} - ${detail}`);
       }
       
       const data = await response.json();
-      return data.project;
+      return projectsApi._mapApiProject(data);
     } catch (error) {
       console.error('Error creating project:', error);
       throw error;
@@ -91,21 +207,57 @@ export const projectsApi = {
   // Update project
   update: async (id: string, updateData: Partial<Project>): Promise<Project | null> => {
     try {
-      const response = await fetch(`${API_BASE}/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to update project');
+      // Transform to backend-expected shape
+      const payload: Record<string, any> = {};
+
+      if (updateData.name !== undefined) payload.name = updateData.name;
+      if (updateData.description !== undefined) payload.description = updateData.description;
+      if (updateData.requirements !== undefined) payload.requirements = updateData.requirements;
+      if (updateData.timeline !== undefined) payload.timeline = updateData.timeline;
+      if ((updateData as any).status !== undefined) payload.status = (updateData as any).status;
+
+      const clientId = (updateData as any).clientId;
+      if (clientId !== undefined) payload.client_id = clientId ? parseInt(String(clientId)) : null;
+
+      const managerId = (updateData as any).managerId;
+      if (managerId !== undefined) payload.manager_id = managerId ? parseInt(String(managerId)) : null;
+
+      const designerIds = (updateData as any).designerIds as (string[] | number[] | undefined);
+      if (designerIds !== undefined) {
+        payload.designer_ids = Array.isArray(designerIds)
+          ? designerIds.map((d) => parseInt(String(d))).filter((n) => !Number.isNaN(n))
+          : [];
       }
-      
+
+      // Pass attachments through as-is; backend expects [{name,size,type,url,...}]
+      const attachments = (updateData as any).attachments as any[] | undefined;
+      if (attachments !== undefined) {
+        payload.attachments = attachments;
+      }
+
+      const response = await fetch(`${API_BASE}${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let detail = 'Failed to update project';
+        try {
+          const text = await response.text();
+          console.error('Update project error status:', response.status, 'body:', text);
+          try {
+            const error = JSON.parse(text);
+            detail = error.error || error.detail || text;
+          } catch {
+            detail = text || detail;
+          }
+        } catch {}
+        throw new Error(detail);
+      }
+
       const data = await response.json();
-      return data.project;
+      return projectsApi._mapApiProject(data);
     } catch (error) {
       console.error('Error updating project:', error);
       throw error;
@@ -115,8 +267,9 @@ export const projectsApi = {
   // Delete project
   delete: async (id: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE}/${id}`, {
+      const response = await fetch(`${API_BASE}${id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       
       return response.ok;

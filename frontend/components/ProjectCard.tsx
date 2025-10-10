@@ -24,6 +24,24 @@ const statusLabels = {
 };
 
 export default function ProjectCard({ project, showActions = true }: ProjectCardProps) {
+  const anyProject = project as any;
+  const teamCount = (
+    (Array.isArray(project.designerIds) && project.designerIds.length) ||
+    (Array.isArray(anyProject.designer_ids) && anyProject.designer_ids.length) ||
+    Number(anyProject.designerCount || anyProject.designer_count || 0)
+  );
+  if (typeof window !== 'undefined') {
+    // Debug: print team-related fields for this card
+    // eslint-disable-next-line no-console
+    console.log('ProjectCard team debug', {
+      id: project.id,
+      designerIds: project.designerIds,
+      designer_ids: anyProject.designer_ids,
+      designerCount: anyProject.designerCount,
+      designer_count: anyProject.designer_count,
+      teamCount,
+    });
+  }
   return (
     <div className="card hover:shadow-md transition-shadow h-full flex flex-col">
       {/* Header with title and status */}
@@ -47,7 +65,7 @@ export default function ProjectCard({ project, showActions = true }: ProjectCard
         </div>
         <div className="flex items-center space-x-1">
           <UsersIcon size={14} />
-          <span className="whitespace-nowrap">{project.designerIds?.length || 0} team</span>
+          <span className="whitespace-nowrap">{teamCount} team</span>
         </div>
       </div>
 

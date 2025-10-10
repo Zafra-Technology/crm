@@ -12,6 +12,7 @@ class UserCreateSchema(Schema):
     last_name: Optional[str] = None
     mobile_number: Optional[str] = None
     company_name: Optional[str] = None
+    pan_number: Optional[str] = None
     role: str  # Required field - no default
     date_of_birth: Optional[date] = None
     address: Optional[str] = None
@@ -29,6 +30,7 @@ class UserUpdateSchema(Schema):
     last_name: Optional[str] = None
     mobile_number: Optional[str] = None
     company_name: Optional[str] = None
+    pan_number: Optional[str] = None
     role: Optional[str] = None
     date_of_birth: Optional[date] = None
     address: Optional[str] = None
@@ -51,6 +53,7 @@ class UserResponseSchema(Schema):
     full_name: str
     mobile_number: Optional[str] = ""
     company_name: Optional[str] = ""
+    pan_number: Optional[str] = ""
     role: str
     role_display: str
     date_of_birth: Optional[date]
@@ -77,6 +80,7 @@ class UserResponseSchema(Schema):
             full_name=obj.full_name,
             mobile_number=obj.mobile_number or "",
             company_name=obj.company_name or "",
+            pan_number=getattr(obj, 'pan_number', None) or "",
             role=obj.role,
             role_display=obj.get_role_display_name(),
             date_of_birth=obj.date_of_birth,
@@ -114,6 +118,11 @@ class PasswordChangeSchema(Schema):
     new_password: str
 
 
+class AdminSetPasswordSchema(Schema):
+    """Schema for admin to set another user's password"""
+    new_password: str
+
+
 class MessageResponseSchema(Schema):
     """Schema for simple message responses"""
     message: str
@@ -124,3 +133,10 @@ class RoleChoicesSchema(Schema):
     """Schema for role choices"""
     value: str
     label: str
+
+
+class EmailSendSchema(Schema):
+    """Schema for sending an email"""
+    to: str
+    subject: str
+    message: str

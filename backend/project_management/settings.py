@@ -120,3 +120,14 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only in development
 # Django Ninja settings
 NINJA_PAGINATION_CLASS = 'ninja.pagination.PageNumberPagination'
 NINJA_PAGINATION_PER_PAGE = 20
+
+# Email configuration (Gmail SMTP)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# Use TLS on port 587 (recommended for Gmail)
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = 'ahamedmansoor169@gmail.com'
+EMAIL_HOST_PASSWORD = 'oscs ksxl nsnz cscm'  # Google App Password
+EMAIL_PORT = 587
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

@@ -7,7 +7,7 @@ import ProjectCard from '@/components/ProjectCard';
 import ConfirmModal from '@/components/modals/ConfirmModal';
 import AssignDesignersModal from '@/components/modals/AssignDesignersModal';
 import { projectsApi } from '@/lib/api/projects';
-import { designersApi } from '@/lib/api/designers';
+// Designers fetched via authAPI in AssignDesignersModal and here if needed
 import { PlusIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, UsersIcon, XIcon, PaperclipIcon, FileIcon, DownloadIcon } from 'lucide-react';
 
 interface ProjectManagerDashboardProps {
@@ -34,6 +34,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateProjectForm>({
     name: '',
     description: '',
@@ -61,10 +62,30 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
 
   const loadDesigners = async () => {
     try {
-      const designersData = await designersApi.getAll();
-      setDesigners(designersData.filter(d => d.status === 'active'));
+      const { authAPI } = await import('@/lib/api/auth');
+      const [designers, seniorDesigners, drafters] = await Promise.all([
+        authAPI.getUsers('designer'),
+        authAPI.getUsers('senior_designer'),
+        authAPI.getUsers('auto_cad_drafter')
+      ]);
+      const merged = [...designers, ...seniorDesigners, ...drafters];
+      const uniqueById = Array.from(new Map(merged.map(u => [u.id, u])).values());
+      const mapped = uniqueById
+        .filter(u => u.is_active)
+        .map(u => ({
+          id: u.id.toString(),
+          name: u.full_name,
+          email: u.email,
+          phoneNumber: u.mobile_number || '',
+          role: u.role_display || u.role,
+          status: 'active' as const,
+          joinedDate: u.date_of_joining || u.created_at || '',
+          projectsCount: 0
+        }));
+      setDesigners(mapped);
     } catch (error) {
       console.error('Error loading designers:', error);
+      setDesigners([]);
     }
   };
 
@@ -117,13 +138,23 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         timeline: formData.timeline,
         clientId: formData.clientId,
         managerId: userId,
-        designerIds: formData.designerIds,
-        attachments
+        designerIds: formData.designerIds
+        // Note: Attachments will be handled separately after project creation
       };
 
       const newProject = await projectsApi.create(projectData);
       if (newProject) {
+        // Immediately upload attachments via update call
+        if (attachments.length > 0) {
+          try {
+            await projectsApi.update(newProject.id, { attachments });
+          } catch (e) {
+            console.error('Failed to upload attachments after create:', e);
+          }
+        }
+        // Add the new project to the list
         setProjects([newProject, ...projects]);
+        // Reset form data
         setFormData({
           name: '',
           description: '',
@@ -133,7 +164,16 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
           designerIds: [],
           attachments: []
         });
+        // Show success message
+        setSuccessMessage('Project created successfully!');
+        // Close the modal
         setShowCreateForm(false);
+        // Reload projects to ensure we have the latest data
+        await loadProjects();
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        console.error('No project returned from API');
       }
     } catch (error) {
       console.error('Error creating project:', error);
@@ -225,6 +265,13 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
 
   return (
     <div className="space-y-6">
+      {/* Success Message */}
+      {successMessage && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+          <span className="block sm:inline">{successMessage}</span>
+        </div>
+      )}
+      
       {/* Sticky Header */}
       <div className="sticky top-0 bg-gray-50 z-20 pb-4 mb-2 -mx-6 px-6">
         <div className="flex items-center justify-between bg-gray-50 pt-2">
@@ -322,11 +369,28 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
 
       {/* Create Project Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowCreateForm(false);
+            }
+          }}
+        >
           <div className="bg-white rounded-lg max-w-3xl w-full my-8 max-h-[90vh] overflow-hidden flex flex-col">
             {/* Sticky Modal Header */}
             <div className="sticky top-0 bg-white rounded-t-lg px-6 pt-6 pb-4 border-b border-gray-200 z-10">
-              <h3 className="text-lg font-semibold text-black">Create New Project</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-black">Create New Project</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XIcon size={20} />
+                </button>
+              </div>
             </div>
             
             {/* Scrollable Modal Content */}

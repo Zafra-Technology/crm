@@ -91,6 +91,8 @@ class StaffUserAuth(AbstractUser):
         blank=True,
         null=True,
     )
+    # Tax Identification
+    pan_number = models.CharField(max_length=10, blank=True, null=True)
     
     # Company Information
     company_name = models.CharField(max_length=200, blank=True)

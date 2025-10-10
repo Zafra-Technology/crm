@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { User } from '@/types';
 import { getCurrentUser } from '@/lib/auth';
-import { designersApi } from '@/lib/api/designers';
+import { authAPI } from '@/lib/api/auth';
 import { MessageSquareIcon, UserIcon, SearchIcon } from 'lucide-react';
 import IndividualChat from '@/components/chat/IndividualChat';
 
@@ -48,16 +48,62 @@ export default function MessagesPage() {
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        if (user?.role === 'project_manager') {
-          // Manager sees all designers
-          const designersList = await designersApi.getAll();
-          setDesigners(designersList.filter(d => d.status === 'active'));
-        } else if (user?.role === 'designer') {
-          // Designer sees managers and other designers
-          const designersList = await designersApi.getAll();
-          
-          setDesigners(designersList.filter(d => d.status === 'active' && d.id !== user.id));
-          setManagers(mockManagers);
+        if (!user) return;
+
+        // Fetch all users once
+        const allUsers = await authAPI.getUsers();
+
+        // Derive designers and managers from roles
+        const designerRoles = ['designer', 'senior_designer', 'auto_cad_drafter'];
+        const managerRoles = ['project_manager', 'assistant_project_manager'];
+
+        const allDesigners = allUsers
+          .filter(u => designerRoles.includes(u.role) && u.is_active)
+          .map(u => ({
+            id: u.id.toString(),
+            name: u.full_name,
+            email: u.email,
+            role: u.role_display || u.role,
+            status: (u.is_active ? 'active' : 'inactive') as 'active' | 'inactive'
+          }));
+
+        const allManagers = allUsers
+          .filter(u => managerRoles.includes(u.role) && u.is_active)
+          .map(u => ({
+            id: u.id.toString(),
+            name: u.full_name,
+            email: u.email,
+            role: u.role
+          }));
+
+        const allAdmins = allUsers
+          .filter(u => u.role === 'admin' && u.is_active)
+          .map(u => ({
+            id: u.id.toString(),
+            name: u.full_name,
+            email: u.email,
+            role: u.role
+          }));
+
+        if (user.role === 'project_manager' || user.role === 'assistant_project_manager') {
+          // Managers see all active designers and admins; exclude self from managers list
+          setDesigners(allDesigners);
+          setManagers([
+            ...allManagers.filter(m => m.id !== user.id),
+            ...allAdmins
+          ]);
+        } else if (designerRoles.includes(user.role)) {
+          // Designers see managers, admins and other designers (excluding self)
+          setDesigners(allDesigners.filter(d => d.id !== user.id));
+          setManagers([...allManagers, ...allAdmins]);
+        } else if (user.role === 'admin') {
+          // Admins can see all staff (designers listed, managers & admins in managers section excluding self)
+          setDesigners(allDesigners);
+          setManagers([...allManagers, ...allAdmins.filter(a => a.id !== user.id)]);
+        } else {
+          // Default: show designers
+          setDesigners(allDesigners);
+          setManagers([...allManagers, ...allAdmins]);
         }
       } catch (error) {
         console.error('Error loading users:', error);
@@ -80,6 +126,8 @@ export default function MessagesPage() {
     manager.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     manager.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const filteredAdminsOnly = filteredManagers.filter(m => m.role === 'admin');
+  const filteredProjectManagersOnly = filteredManagers.filter(m => m.role === 'project_manager' || m.role === 'assistant_project_manager');
 
   const getAvatarColor = (name: string) => {
     const colors = [
@@ -132,13 +180,46 @@ export default function MessagesPage() {
 
           {/* Contacts List */}
           <div className="overflow-y-auto h-[calc(100vh-16rem)]">
-            {/* For Designers: Show Manager first (highlighted) */}
-            {user?.role === 'designer' && filteredManagers.length > 0 && (
+            {/* Admins Section */}
+            {filteredAdminsOnly.length > 0 && (
               <div className="p-3">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Project Manager
+                  Admins
                 </h3>
-                {filteredManagers.map((manager) => (
+                {filteredAdminsOnly.map((manager) => (
+                  <div
+                    key={manager.id}
+                    onClick={() => setSelectedUser(manager)}
+                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 border-2 border-green-200 bg-green-50 ${
+                      selectedUser?.id === manager.id ? 'bg-green-100 border-green-300' : 'hover:bg-green-100'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 ${getAvatarColor(manager.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
+                      <span className="text-white font-medium text-sm">
+                        {getInitials(manager.name)}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {manager.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        Admin
+                      </p>
+                    </div>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Project Managers Section */}
+            {filteredProjectManagersOnly.length > 0 && (
+              <div className="p-3">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Project Managers
+                </h3>
+                {filteredProjectManagersOnly.map((manager) => (
                   <div
                     key={manager.id}
                     onClick={() => setSelectedUser(manager)}
