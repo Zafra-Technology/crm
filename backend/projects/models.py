@@ -6,17 +6,32 @@ class Project(models.Model):
     """Project model"""
     
     STATUS_CHOICES = [
+        ('inactive', 'Inactive'),
+        ('rejected', 'Rejected'),
+        ('quotation_submitted', 'Quotation Submitted'),
         ('planning', 'Planning'),
         ('in_progress', 'In Progress'),
         ('review', 'Review'),
         ('completed', 'Completed'),
     ]
     
+    PROJECT_TYPE_CHOICES = [
+        ('residential', 'Residential'),
+        ('commercial', 'Commercial'),
+    ]
+    
     name = models.CharField(max_length=200)
     description = models.TextField()
     requirements = models.TextField(blank=True)
     timeline = models.CharField(max_length=100, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='planning')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='inactive')
+    project_type = models.CharField(max_length=20, choices=PROJECT_TYPE_CHOICES, default='residential')
+    
+    # Feedback and quotation fields
+    feedback_message = models.TextField(blank=True, null=True)
+    quotation_file = models.FileField(upload_to='quotations/', blank=True, null=True)
+    quotation_message = models.TextField(blank=True, null=True)
+    quotation_accepted = models.BooleanField(default=False)
     
     # Relationships
     client = models.ForeignKey(

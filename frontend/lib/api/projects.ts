@@ -34,7 +34,12 @@ export const projectsApi = {
       description: String(p.description || ''),
       requirements: String(p.requirements || ''),
       timeline: String(p.timeline || ''),
-      status: (p.status || 'planning') as Project['status'],
+      status: (p.status || 'inactive') as Project['status'],
+      projectType: (p.project_type || p.projectType || 'residential') as Project['projectType'],
+      feedbackMessage: p.feedback_message || p.feedbackMessage || undefined,
+      quotationMessage: p.quotation_message || p.quotationMessage || undefined,
+      quotationFile: p.quotation_file || p.quotationFile || undefined,
+      quotationAccepted: Boolean(p.quotation_accepted || p.quotationAccepted || false),
       clientId: p.clientId ? String(p.clientId) : String(p.client_id ?? ''),
       managerId: p.managerId ? String(p.managerId) : String(p.manager_id ?? ''),
       designerIds: Array.isArray(p.designerIds)
@@ -151,23 +156,28 @@ export const projectsApi = {
     description: string;
     requirements: string;
     timeline: string;
+    projectType?: string;
+    status?: string;
     clientId: string;
     managerId: string;
     designerIds?: string[];
     attachments?: any[];
   }): Promise<Project | null> => {
     try {
-      // Map to backend-expected snake_case keys; omit attachments for create to avoid 422
+      // Map to backend-expected snake_case keys
       const payload: Record<string, any> = {
         name: projectData.name,
         description: projectData.description,
         requirements: projectData.requirements,
         timeline: projectData.timeline,
+        project_type: projectData.projectType || 'residential',
+        status: projectData.status || 'inactive',
         client_id: projectData.clientId ? parseInt(projectData.clientId) : undefined,
         manager_id: projectData.managerId ? parseInt(projectData.managerId) : undefined,
         designer_ids: Array.isArray(projectData.designerIds)
           ? projectData.designerIds.map(id => parseInt(id)).filter(n => !Number.isNaN(n))
           : [],
+        attachments: projectData.attachments || [],
       };
       // Remove undefined keys
       Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
@@ -304,6 +314,137 @@ export const projectsApi = {
     } catch (error) {
       console.error('Error unassigning designer:', error);
       return null;
+    }
+  },
+
+  // Project approval/rejection functions
+  approveProject: async (projectId: string): Promise<Project> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/approve`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to approve project');
+      }
+
+      const data = await response.json();
+      return projectsApi._mapApiProject(data);
+    } catch (error) {
+      console.error('Error approving project:', error);
+      throw error;
+    }
+  },
+
+  rejectProject: async (projectId: string, feedbackMessage: string): Promise<Project> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/reject`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ feedback_message: feedbackMessage }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to reject project');
+      }
+
+      const data = await response.json();
+      return projectsApi._mapApiProject(data);
+    } catch (error) {
+      console.error('Error rejecting project:', error);
+      throw error;
+    }
+  },
+
+  submitQuotation: async (projectId: string, quotationMessage: string, quotationFile?: File): Promise<Project> => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('quotation_message', quotationMessage);
+      
+      if (quotationFile) {
+        formData.append('quotation_file', quotationFile);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/submit-quotation`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          // Don't set Content-Type for FormData - let browser set it with boundary
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to submit quotation';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.detail || errorMessage;
+        } catch (e) {
+          // If we can't parse the error response, use the status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      return projectsApi._mapApiProject(data);
+    } catch (error) {
+      console.error('Error submitting quotation:', error);
+      throw error;
+    }
+  },
+
+  acceptQuotation: async (projectId: string): Promise<Project> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/accept-quotation`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to accept quotation');
+      }
+
+      const data = await response.json();
+      return projectsApi._mapApiProject(data);
+    } catch (error) {
+      console.error('Error accepting quotation:', error);
+      throw error;
+    }
+  },
+
+  rejectQuotation: async (projectId: string, feedbackMessage: string): Promise<Project> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/reject-quotation`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ feedback_message: feedbackMessage }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to reject quotation');
+      }
+
+      const data = await response.json();
+      return projectsApi._mapApiProject(data);
+    } catch (error) {
+      console.error('Error rejecting quotation:', error);
+      throw error;
     }
   },
 };

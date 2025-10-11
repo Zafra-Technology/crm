@@ -27,10 +27,8 @@ class AuthBearer(HttpBearer):
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
             user_id = payload.get('user_id')
             user = StaffUserAuth.objects.get(id=user_id)
-            print(f"Authenticated user: {user.email}, role: {user.role}, is_admin: {user.is_admin()}, is_superuser: {user.is_superuser}")
             return user
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, StaffUserAuth.DoesNotExist) as e:
-            print(f"Authentication failed: {e}")
             return None
 
 
@@ -79,7 +77,6 @@ def _normalize_user_payload(data):
 def _create_user_safe(user_data, password):
     """Safely create user with proper error handling"""
     try:
-        print(f"_create_user_safe called with data: {user_data}")
         
         # Ensure required fields have defaults
         defaults = {
@@ -97,28 +94,18 @@ def _create_user_safe(user_data, password):
         
         # Merge with provided data
         final_data = {**defaults, **user_data}
-        print(f"Final data for user creation: {final_data}")
         
         # Validate role
         if not final_data.get('role'):
             raise ValueError("Role is required for user creation")
         
-        print(f"Calling StaffUserAuth.objects.create_user...")
         new_user = StaffUserAuth.objects.create_user(
             password=password,
             **final_data
         )
-        print(f"User created successfully in database: {new_user.email}")
         return new_user
         
     except Exception as e:
-        print(f"=== ERROR in _create_user_safe ===")
-        print(f"Error: {e}")
-        print(f"Error type: {type(e).__name__}")
-        import traceback
-        print(f"Traceback:")
-        print(traceback.format_exc())
-        print(f"=== END _create_user_safe ERROR ===")
         raise
 
 
@@ -208,23 +195,19 @@ def list_users(request):
         role = request.GET.get('role', None)
         search = request.GET.get('search', None)
         
-        print(f"List users request from: {user.email}, role filter: '{role}', search: '{search}'")
         
         # Check permissions
         if not (user.is_admin() or user.is_project_manager() or user.is_superuser or user.role == ROLE_CHOICES.DIGITAL_MARKETING):
-            print(f"Permission denied for user: {user.email}, role: {user.role}, is_admin: {user.is_admin()}, is_superuser: {user.is_superuser}")
             raise HttpError(403, "Permission denied")
         
         queryset = StaffUserAuth.objects.all()
         
         # Filter by role if provided
         if role and role.strip():
-            print(f"Filtering by role: '{role}'")
             queryset = queryset.filter(role=role)
         
         # Search functionality
         if search and search.strip():
-            print(f"Searching for: '{search}'")
             queryset = queryset.filter(
                 models.Q(first_name__icontains=search) |
                 models.Q(last_name__icontains=search) |
@@ -249,16 +232,11 @@ def list_users(request):
             queryset = queryset.filter(role=ROLE_CHOICES.CLIENT)
         
         users_list = list(queryset)
-        print(f"Found {len(users_list)} users")
         
         result = [UserResponseSchema.from_orm(u) for u in users_list]
-        print(f"Returning {len(result)} user records")
         return result
         
     except Exception as e:
-        print(f"Error in list_users: {e}")
-        import traceback
-        traceback.print_exc()
         raise HttpError(500, f"Internal server error: {str(e)}")
 
 

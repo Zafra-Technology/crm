@@ -6,9 +6,14 @@ import { Designer } from '@/types/designer';
 import ProjectCard from '@/components/ProjectCard';
 import ConfirmModal from '@/components/modals/ConfirmModal';
 import AssignDesignersModal from '@/components/modals/AssignDesignersModal';
+import FeedbackModal from '@/components/modals/FeedbackModal';
+import QuotationModal from '@/components/modals/QuotationModal';
+import ProjectDetailsModal from '@/components/modals/ProjectDetailsModal';
+import ViewFeedbackModal from '@/components/modals/ViewFeedbackModal';
 import { projectsApi } from '@/lib/api/projects';
+import { authAPI, User as APIUser } from '@/lib/api/auth';
 // Designers fetched via authAPI in AssignDesignersModal and here if needed
-import { PlusIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, UsersIcon, XIcon, PaperclipIcon, FileIcon, DownloadIcon } from 'lucide-react';
+import { PlusIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, UsersIcon, XIcon, PaperclipIcon, FileIcon, DownloadIcon, Check, XCircle, MessageSquare, Eye } from 'lucide-react';
 
 interface ProjectManagerDashboardProps {
   projects: Project[];
@@ -29,12 +34,18 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<APIUser[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showQuotationModal, setShowQuotationModal] = useState(false);
+  const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
+  const [showViewFeedbackModal, setShowViewFeedbackModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateProjectForm>({
     name: '',
     description: '',
@@ -93,6 +104,12 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     try {
       // Get clients from Django backend (users with role='client')
       const { authAPI } = await import('@/lib/api/auth');
+      
+      // Load all users for client info lookup
+      const allUsersData = await authAPI.getUsers();
+      setAllUsers(allUsersData);
+      
+      // Load clients for the create form
       const usersData = await authAPI.getUsers('client');
       const clientsData = usersData.map(user => ({
         id: user.id.toString(),
@@ -107,6 +124,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     } catch (error) {
       console.error('Error loading clients:', error);
       setClients([]);
+      setAllUsers([]);
     }
   };
 
@@ -177,7 +195,8 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       }
     } catch (error) {
       console.error('Error creating project:', error);
-      alert('Failed to create project. Please try again.');
+      setErrorMessage('Failed to create project. Please try again.');
+      setTimeout(() => setErrorMessage(null), 5000);
     } finally {
       setLoading(false);
     }
@@ -196,6 +215,87 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       ...formData,
       attachments: formData.attachments.filter((_, i) => i !== index)
     });
+  };
+
+  // Project approval/rejection handlers
+  const handleApproveProject = async (project: Project) => {
+    setLoading(true);
+    try {
+      await projectsApi.approveProject(project.id);
+      await loadProjects();
+      setSuccessMessage('Project approved successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error('Error approving project:', error);
+      setErrorMessage('Failed to approve project. Please try again.');
+      setTimeout(() => setErrorMessage(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectProject = async (feedback: string) => {
+    if (!selectedProject) return;
+    
+    setLoading(true);
+    try {
+      await projectsApi.rejectProject(selectedProject.id, feedback);
+      await loadProjects();
+      setShowFeedbackModal(false);
+      setSelectedProject(null);
+      setSuccessMessage('Project rejected with feedback.');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error('Error rejecting project:', error);
+      setErrorMessage('Failed to reject project. Please try again.');
+      setTimeout(() => setErrorMessage(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitQuotation = async (quotationMessage: string, quotationFile?: File) => {
+    if (!selectedProject) return;
+    
+    setLoading(true);
+    try {
+      await projectsApi.submitQuotation(selectedProject.id, quotationMessage, quotationFile);
+      await loadProjects();
+      setShowQuotationModal(false);
+      setSelectedProject(null);
+      setSuccessMessage('Quotation submitted successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error('Error submitting quotation:', error);
+      setErrorMessage('Failed to submit quotation. Please try again.');
+      setTimeout(() => setErrorMessage(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openRejectModal = (project: Project) => {
+    setSelectedProject(project);
+    setShowFeedbackModal(true);
+  };
+
+  const openQuotationModal = (project: Project) => {
+    setSelectedProject(project);
+    setShowQuotationModal(true);
+  };
+
+  const openProjectDetailsModal = (project: Project) => {
+    setSelectedProject(project);
+    setShowProjectDetailsModal(true);
+  };
+
+  const openViewFeedbackModal = (project: Project) => {
+    setSelectedProject(project);
+    setShowViewFeedbackModal(true);
+  };
+
+  const getClientInfo = (clientId: string): APIUser | null => {
+    return allUsers.find(user => user.id.toString() === clientId) || null;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -228,7 +328,8 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       }
     } catch (error) {
       console.error('Error assigning designers:', error);
-      alert('Failed to assign designers. Please try again.');
+      setErrorMessage('Failed to assign designers. Please try again.');
+      setTimeout(() => setErrorMessage(null), 5000);
     } finally {
       setLoading(false);
     }
@@ -247,7 +348,8 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       }
     } catch (error) {
       console.error('Error deleting project:', error);
-      alert('Failed to delete project. Please try again.');
+      setErrorMessage('Failed to delete project. Please try again.');
+      setTimeout(() => setErrorMessage(null), 5000);
     } finally {
       setLoading(false);
     }
@@ -271,6 +373,13 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
           <span className="block sm:inline">{successMessage}</span>
         </div>
       )}
+
+      {/* Error Message */}
+      {errorMessage && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <span className="block sm:inline">{errorMessage}</span>
+        </div>
+      )}
       
       {/* Sticky Header */}
       <div className="sticky top-0 bg-gray-50 z-20 pb-4 mb-2 -mx-6 px-6">
@@ -290,13 +399,22 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="card text-center">
           <div className="flex items-center justify-center mb-2">
             <TrendingUpIcon size={24} className="text-blue-600" />
           </div>
           <div className="text-2xl font-bold text-black">{managedProjects.length}</div>
           <div className="text-sm text-gray-600">Total Projects</div>
+        </div>
+        <div className="card text-center">
+          <div className="flex items-center justify-center mb-2">
+            <ClockIcon size={24} className="text-gray-600" />
+          </div>
+          <div className="text-2xl font-bold text-gray-600">
+            {managedProjects.filter(p => p.status === 'inactive').length}
+          </div>
+          <div className="text-sm text-gray-600">Pending</div>
         </div>
         <div className="card text-center">
           <div className="flex items-center justify-center mb-2">
@@ -327,13 +445,101 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         </div>
       </div>
 
-      {/* Active Projects */}
+      {/* Pending Projects */}
+      {managedProjects.filter(p => p.status === 'inactive').length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-black">Pending Project Requests</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {managedProjects
+              .filter(p => p.status === 'inactive')
+              .map((project) => (
+                <div key={project.id} className="card p-4 border-l-4 border-orange-500">
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="font-semibold text-gray-900">{project.name}</h3>
+                    <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                      {project.projectType}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2 mb-4">
+                    <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
+                    <p className="text-xs text-gray-500">
+                      <strong>Timeline:</strong> {project.timeline}
+                    </p>
+                    {project.requirements && (
+                      <p className="text-xs text-gray-500">
+                        <strong>Requirements:</strong> {project.requirements.substring(0, 100)}...
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openProjectDetailsModal(project)}
+                      disabled={loading}
+                      className="px-3 py-1 text-sm btn-secondary disabled:opacity-50 flex items-center justify-center gap-1"
+                    >
+                      <Eye size={14} />
+                      View Details
+                    </button>
+                    
+                    {project.projectType === 'residential' ? (
+                      <>
+                        <button
+                          onClick={() => handleApproveProject(project)}
+                          disabled={loading}
+                          className="flex-1 px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <Check size={14} />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => openRejectModal(project)}
+                          disabled={loading}
+                          className="flex-1 px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <XCircle size={14} />
+                          Reject
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => openQuotationModal(project)}
+                          disabled={loading}
+                          className="flex-1 px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <Check size={14} />
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => openRejectModal(project)}
+                          disabled={loading}
+                          className="flex-1 px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <XCircle size={14} />
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+
+      {/* All Projects */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">Active Projects</h2>
+        <h2 className="text-lg font-semibold text-black">All Projects</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {managedProjects.map((project) => (
             <div key={project.id} className="relative group">
-              <ProjectCard project={project} />
+              <ProjectCard 
+                project={project} 
+                onViewFeedback={openViewFeedbackModal}
+              />
               
               {/* Action buttons - appear on hover */}
               <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
@@ -616,6 +822,52 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         confirmText="Delete Project"
         type="danger"
         loading={loading}
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => {
+          setShowFeedbackModal(false);
+          setSelectedProject(null);
+        }}
+        onSubmit={handleRejectProject}
+        title="Reject Project"
+        placeholder="Please provide feedback for rejecting this project..."
+        loading={loading}
+      />
+
+      {/* Quotation Modal */}
+      <QuotationModal
+        isOpen={showQuotationModal}
+        onClose={() => {
+          setShowQuotationModal(false);
+          setSelectedProject(null);
+        }}
+        onSubmit={handleSubmitQuotation}
+        loading={loading}
+      />
+
+      {/* Project Details Modal */}
+      <ProjectDetailsModal
+        isOpen={showProjectDetailsModal}
+        onClose={() => {
+          setShowProjectDetailsModal(false);
+          setSelectedProject(null);
+        }}
+        project={selectedProject}
+        clientInfo={selectedProject ? getClientInfo(selectedProject.clientId) : null}
+      />
+
+      {/* View Feedback Modal */}
+      <ViewFeedbackModal
+        isOpen={showViewFeedbackModal}
+        onClose={() => {
+          setShowViewFeedbackModal(false);
+          setSelectedProject(null);
+        }}
+        projectName={selectedProject?.name || ''}
+        feedbackMessage={selectedProject?.feedbackMessage || ''}
       />
     </div>
   );

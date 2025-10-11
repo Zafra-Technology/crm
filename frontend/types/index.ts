@@ -24,7 +24,12 @@ export interface Project {
   description: string;
   requirements: string;
   timeline: string;
-  status: 'planning' | 'in_progress' | 'review' | 'completed';
+  status: 'inactive' | 'rejected' | 'quotation_submitted' | 'planning' | 'in_progress' | 'review' | 'completed';
+  projectType: 'residential' | 'commercial';
+  feedbackMessage?: string;
+  quotationMessage?: string;
+  quotationFile?: string;
+  quotationAccepted: boolean;
   clientId: string;
   managerId: string;
   designerIds: string[];

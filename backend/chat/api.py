@@ -1,5 +1,6 @@
 from ninja import Router
 from django.shortcuts import get_object_or_404
+from django.db import models
 from typing import List
 from accounts.api import auth
 from projects.models import Project

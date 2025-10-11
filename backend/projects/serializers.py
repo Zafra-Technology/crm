@@ -9,10 +9,12 @@ class ProjectCreateSchema(Schema):
     description: str
     requirements: Optional[str] = ""
     timeline: Optional[str] = ""
-    status: str = "planning"
+    status: str = "inactive"
+    project_type: str = "residential"
     client_id: int
     manager_id: int
     designer_ids: Optional[List[int]] = []
+    attachments: Optional[List[dict]] = []
 
 
 class ProjectUpdateSchema(Schema):
@@ -22,6 +24,10 @@ class ProjectUpdateSchema(Schema):
     requirements: Optional[str] = None
     timeline: Optional[str] = None
     status: Optional[str] = None
+    project_type: Optional[str] = None
+    feedback_message: Optional[str] = None
+    quotation_message: Optional[str] = None
+    quotation_accepted: Optional[bool] = None
     client_id: Optional[int] = None
     manager_id: Optional[int] = None
     designer_ids: Optional[List[int]] = None
@@ -46,6 +52,11 @@ class ProjectResponseSchema(Schema):
     requirements: str
     timeline: str
     status: str
+    project_type: str
+    feedback_message: Optional[str] = None
+    quotation_message: Optional[str] = None
+    quotation_file: Optional[str] = None
+    quotation_accepted: bool = False
     client_id: int
     manager_id: int
     designer_ids: List[int] = []

@@ -40,8 +40,12 @@ class ProjectAdmin(admin.ModelAdmin):
         "manager",
         "designer_ids",
         "_assigned_designers",
+        "project_type",
         "created_at",
         "updated_at",
+        "quotation_message",
+        "quotation_file",
+        "quotation_accepted",
     )
     readonly_fields = ("client", "manager", "created_at", "updated_at", "_assigned_designers")
     list_display = ("name", "status", "client", "manager", "created_at")
