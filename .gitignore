@@ -10,6 +10,11 @@
 /backend/db.sqlite3
 # testing
 /coverage
+/backend/media
+/backend/accounts/__pycache__/*.pyc
+/backend/projects/__pycache__/*.pyc
+/backend/chat/__pycache__/*.pyc
+/backend/project_management/__pycache__/*.pyc
 
 venv311
 venv
