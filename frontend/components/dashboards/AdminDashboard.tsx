@@ -391,36 +391,36 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
             {loading ? (
               <div className="p-8 text-center text-muted-foreground">Loading users...</div>
             ) : (
-              <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Company
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Joined
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-background divide-y divide-border">
                 {users.map((userData) => (
                   <tr key={userData.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                             {userData.profile_pic ? (
                               <img
                                 src={resolveMediaUrl(userData.profile_pic)}
@@ -432,53 +432,53 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                                 }}
                               />
                             ) : (
-                              <span className="text-sm font-medium text-gray-700">
+                              <span className="text-sm font-medium text-foreground">
                                 {userData.full_name.charAt(0).toUpperCase()}
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-foreground">
                             {userData.full_name}
                           </div>
-                          <div className="text-sm text-gray-500">{userData.email}</div>
+                          <div className="text-sm text-muted-foreground">{userData.email}</div>
                   
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-primary/10 text-primary">
                         {userData.role_display}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       {userData.company_name || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         userData.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                       }`}>
                         {userData.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {userData.date_of_joining ? new Date(userData.date_of_joining).toLocaleDateString() : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleEditUser(userData)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-primary hover:text-primary/80 transition-colors"
                         >
                           <PencilIcon size={16} />
                           
                         </button>
                       <button
                           onClick={() => openDeleteModal(userData)}
-                          className="text-red-600 hover:text-red-900"
+                          className="text-destructive hover:text-destructive/80 transition-colors"
                           disabled={userData.id === parseInt(user.id)}
                         >
                           <TrashIcon size={16} />

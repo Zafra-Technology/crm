@@ -5,6 +5,7 @@ import { LogOutIcon, UserIcon } from 'lucide-react';
 import { User } from '@/types';
 import { logout } from '@/lib/auth';
 import NotificationDropdown from './NotificationDropdown';
+import ThemeToggle from './ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -39,6 +40,9 @@ export default function Header({ user }: HeaderProps) {
         </div>
 
         <div className="flex items-center space-x-4">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+          
           {/* Notifications */}
           {(user.role === 'designer' || user.role === 'project_manager') && (
             <NotificationDropdown user={user} />

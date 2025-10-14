@@ -486,14 +486,14 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
               <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                 <button
                   onClick={() => openAssignModal(project)}
-                  className="p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
+                  className="p-2 bg-background rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-border"
                   title="Assign Designers"
                 >
                   <UsersIcon size={16} className="text-blue-600" />
                 </button>
                 <button
                   onClick={() => openDeleteModal(project)}
-                  className="p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
+                  className="p-2 bg-background rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-border"
                   title="Delete Project"
                 >
                   <XIcon size={16} className="text-red-600" />

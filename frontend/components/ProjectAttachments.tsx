@@ -71,9 +71,9 @@ export default function ProjectAttachments({
   };
 
   return (
-    <div className="card">
+    <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-black">Project Attachments</h3>
+        <h3 className="text-lg font-semibold text-foreground">Project Attachments</h3>
         {canEdit && (
           <button
             onClick={() => setShowUpload(!showUpload)}
@@ -87,11 +87,11 @@ export default function ProjectAttachments({
 
       {/* Upload Section */}
       {showUpload && canEdit && (
-        <div className="mb-4 p-4 border-2 border-dashed border-gray-300 rounded-lg">
+        <div className="mb-4 p-4 border-2 border-dashed border-input rounded-lg">
           <label className="flex flex-col items-center justify-center cursor-pointer">
-            <PaperclipIcon className="w-8 h-8 mb-2 text-gray-400" />
-            <span className="text-sm text-gray-600">Click to upload files</span>
-            <span className="text-xs text-gray-500 mt-1">PDF, DOC, Images, etc.</span>
+            <PaperclipIcon className="w-8 h-8 mb-2 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Click to upload files</span>
+            <span className="text-xs text-muted-foreground mt-1">PDF, DOC, Images, etc.</span>
             <input
               type="file"
               multiple
@@ -107,14 +107,14 @@ export default function ProjectAttachments({
       <div className="space-y-3">
         {attachments && attachments.length > 0 ? (
           attachments.map((attachment) => (
-            <div key={attachment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+            <div key={attachment.id} className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
               <div className="flex items-center space-x-3 flex-1 min-w-0">
                 <div className="flex-shrink-0">
                   <span className="text-2xl">{getFileIcon(attachment.type)}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{attachment.name}</p>
-                  <div className="flex items-center space-x-2 text-xs text-gray-500">
+                  <p className="text-sm font-medium text-foreground truncate">{attachment.name}</p>
+                  <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                     <span>{formatFileSize(attachment.size)}</span>
                     <span>•</span>
                     <span>Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}</span>
@@ -125,14 +125,14 @@ export default function ProjectAttachments({
               <div className="flex items-center space-x-2 flex-shrink-0">
                 <button
                   onClick={() => handleView(attachment)}
-                  className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+                  className="p-1 text-muted-foreground hover:text-primary transition-colors"
                   title="View file"
                 >
                   <EyeIcon size={16} />
                 </button>
                 <button
                   onClick={() => handleDownload(attachment)}
-                  className="p-1 text-gray-500 hover:text-green-600 transition-colors"
+                  className="p-1 text-muted-foreground hover:text-green-600 transition-colors"
                   title="Download file"
                 >
                   <DownloadIcon size={16} />
@@ -140,7 +140,7 @@ export default function ProjectAttachments({
                 {canEdit && onRemoveAttachment && (
                   <button
                     onClick={() => onRemoveAttachment(attachment.id)}
-                    className="p-1 text-gray-500 hover:text-red-600 transition-colors"
+                    className="p-1 text-muted-foreground hover:text-destructive transition-colors"
                     title="Remove file"
                   >
                     <XIcon size={16} />
@@ -150,8 +150,8 @@ export default function ProjectAttachments({
             </div>
           ))
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <PaperclipIcon size={48} className="mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 text-muted-foreground">
+            <PaperclipIcon size={48} className="mx-auto mb-4 text-muted-foreground" />
             <p className="text-sm">No attachments yet</p>
             <p className="text-xs">Project files will appear here</p>
           </div>

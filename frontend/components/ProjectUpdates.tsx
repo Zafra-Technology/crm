@@ -148,9 +148,9 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
   };
 
   return (
-    <div className="card">
+    <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-black">Project Updates</h3>
+        <h3 className="text-lg font-semibold text-foreground">Project Updates</h3>
         {canEdit && (
           <button
             onClick={() => setShowAddForm(true)}
@@ -166,20 +166,20 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
       <div className="space-y-4">
         {updates && updates.length > 0 ? (
           updates.map((update) => (
-            <div key={update.id} className="border-l-2 border-gray-200 pl-4 pb-4">
+            <div key={update.id} className="border-l-2 border-border pl-4 pb-4">
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0 mt-1">
                 {getUpdateIcon(update.type)}
               </div>
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-1">
-                  <span className="text-sm font-medium text-gray-900">{update.title}</span>
-                  <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+                  <span className="text-sm font-medium text-foreground">{update.title}</span>
+                  <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-full">
                     {getUpdateTypeLabel(update.type)}
                   </span>
                 </div>
                 {update.description && (
-                  <p className="text-sm text-gray-600 mb-2">{update.description}</p>
+                  <p className="text-sm text-muted-foreground mb-2">{update.description}</p>
                 )}
                 {update.fileUrl && (
                   <div className="mt-2 flex items-center space-x-2">
@@ -189,7 +189,7 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                       <span>
                         {update.fileName || 'Attached File'}
                         {update.fileSize && (
-                          <span className="text-xs text-gray-500 ml-1">
+                          <span className="text-xs text-muted-foreground ml-1">
                             ({formatFileSize(update.fileSize)})
                           </span>
                         )}
@@ -218,7 +218,7 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                     </button>
                   </div>
                 )}
-                <div className="text-xs text-gray-500 mt-2">
+                <div className="text-xs text-muted-foreground mt-2">
                   {new Date(update.createdAt).toLocaleDateString()} at{' '}
                   {new Date(update.createdAt).toLocaleTimeString([], { 
                     hour: '2-digit', 
@@ -230,8 +230,8 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
           </div>
           ))
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <ImageIcon size={48} className="mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 text-muted-foreground">
+            <ImageIcon size={48} className="mx-auto mb-4 text-muted-foreground" />
             <p>No updates yet</p>
             <p className="text-sm">Project updates will appear here</p>
           </div>
@@ -241,17 +241,17 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
       {/* Add Update Form */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
-          <div className="bg-white rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-black mb-4">Add Project Update</h3>
+          <div className="bg-background rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Add Project Update</h3>
             <form onSubmit={handleAddUpdate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Update Type
                 </label>
                 <select
                   value={newUpdate.type}
                   onChange={(e) => setNewUpdate({ ...newUpdate, type: e.target.value as ProjectUpdate['type'] })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-ring focus:border-ring"
                 >
                   <option value="design">Design Update</option>
                   <option value="file">File Upload</option>
@@ -259,7 +259,7 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Title
                 </label>
                 <input
@@ -267,18 +267,18 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                   required
                   value={newUpdate.title}
                   onChange={(e) => setNewUpdate({ ...newUpdate, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-ring focus:border-ring"
                   placeholder="Update title"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Description
                 </label>
                 <textarea
                   value={newUpdate.description}
                   onChange={(e) => setNewUpdate({ ...newUpdate, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-ring focus:border-ring"
                   rows={3}
                   placeholder="Describe the update"
                 />
@@ -286,20 +286,20 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
 
               {/* File Upload (Optional) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Attach File (Optional)
                 </label>
                 <div className="space-y-3">
                   {/* File Upload Area */}
                   {!newUpdate.file ? (
                     <div className="flex items-center justify-center w-full">
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-input rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <UploadIcon className="w-8 h-8 mb-4 text-gray-500" />
-                          <p className="mb-2 text-sm text-gray-500">
+                          <UploadIcon className="w-8 h-8 mb-4 text-muted-foreground" />
+                          <p className="mb-2 text-sm text-muted-foreground">
                             <span className="font-semibold">Click to upload</span> or drag and drop
                           </p>
-                          <p className="text-xs text-gray-500">PDF, DOC, Images, etc. (MAX. 10MB)</p>
+                          <p className="text-xs text-muted-foreground">PDF, DOC, Images, etc. (MAX. 10MB)</p>
                         </div>
                         <input
                           type="file"
@@ -311,12 +311,12 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                     </div>
                   ) : (
                     /* Selected File Display */
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-md border border-border">
                       <div className="flex items-center space-x-3">
-                        <FileIcon size={20} className="text-gray-500" />
+                        <FileIcon size={20} className="text-muted-foreground" />
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{newUpdate.file.name}</p>
-                          <p className="text-xs text-gray-500">{formatFileSize(newUpdate.file.size)}</p>
+                          <p className="text-sm font-medium text-foreground">{newUpdate.file.name}</p>
+                          <p className="text-xs text-muted-foreground">{formatFileSize(newUpdate.file.size)}</p>
                         </div>
                       </div>
                       <button

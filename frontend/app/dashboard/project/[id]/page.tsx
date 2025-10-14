@@ -276,7 +276,7 @@ export default function ProjectDetailsPage() {
   if (!user || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -284,7 +284,7 @@ export default function ProjectDetailsPage() {
   if (!project) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-600">Project not found</div>
+        <div className="text-muted-foreground">Project not found</div>
       </div>
     );
   }
@@ -313,8 +313,8 @@ export default function ProjectDetailsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black">{project.name}</h1>
-          <p className="text-gray-600 mt-1">Project management and team collaboration</p>
+          <h1 className="text-2xl font-bold text-foreground">{project.name}</h1>
+          <p className="text-muted-foreground mt-1">Project management and team collaboration</p>
         </div>
         {canEdit && !isClient && !isDesigner && (
           <button
@@ -331,11 +331,11 @@ export default function ProjectDetailsPage() {
         {/* Left Column - Project Content */}
         <div className="lg:col-span-1 space-y-6">
           {/* Project Details */}
-          <div className="card space-y-6">
+          <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6 space-y-6">
             {/* Project Overview */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-black">Project Overview</h3>
+                <h3 className="text-lg font-semibold text-foreground">Project Overview</h3>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[project.status]}`}>
                   {statusLabels[project.status]}
                 </span>
@@ -343,32 +343,32 @@ export default function ProjectDetailsPage() {
               
               <div className="space-y-4">
                 <div>
-                  <p className="text-gray-600 leading-relaxed">{project.description}</p>
+                  <p className="text-muted-foreground leading-relaxed">{project.description}</p>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-border">
                   <div>
-                    <h4 className="font-medium text-black mb-2">Client</h4>
-                    <div className="flex items-center space-x-2 text-gray-600">
+                    <h4 className="font-medium text-foreground mb-2">Client</h4>
+                    <div className="flex items-center space-x-2 text-muted-foreground">
                       <BuildingIcon size={16} />
                       <div className="flex flex-col">
                         <span className="font-medium">{client?.full_name || 'Unknown Client'}</span>
                         {client?.company_name && (
-                          <span className="text-sm text-gray-500">{client.company_name}</span>
+                          <span className="text-sm text-muted-foreground">{client.company_name}</span>
                         )}
                       </div>
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-medium text-black mb-2">Timeline</h4>
-                    <div className="flex items-center space-x-2 text-gray-600">
+                    <h4 className="font-medium text-foreground mb-2">Timeline</h4>
+                    <div className="flex items-center space-x-2 text-muted-foreground">
                       <CalendarIcon size={16} />
                       <span>{project.timeline}</span>
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-medium text-black mb-2">Team Size</h4>
-                    <div className="flex items-center space-x-2 text-gray-600">
+                    <h4 className="font-medium text-foreground mb-2">Team Size</h4>
+                    <div className="flex items-center space-x-2 text-muted-foreground">
                       <UsersIcon size={16} />
                       <span>{designers.length + 1} members</span>
                     </div>
@@ -378,15 +378,15 @@ export default function ProjectDetailsPage() {
             </div>
 
             {/* Project Requirements */}
-            <div className="pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-black mb-4">Project Requirements</h3>
+            <div className="pt-6 border-t border-border">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Project Requirements</h3>
               <div className="prose prose-sm max-w-none">
-                <p className="text-gray-600 leading-relaxed">{project.requirements}</p>
+                <p className="text-muted-foreground leading-relaxed">{project.requirements}</p>
               </div>
             </div>
 
             {/* Project Attachments */}
-            <div className="pt-6 border-t border-gray-200">
+            <div className="pt-6 border-t border-border">
               <ProjectAttachments
                 attachments={project.attachments || []}
                 canEdit={!isDesigner} // Allow both clients and managers to upload files
@@ -408,34 +408,34 @@ export default function ProjectDetailsPage() {
           )}
 
           {/* 5. Team Members */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-black mb-4">Team Members</h3>
+          <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Team Members</h3>
             <div className="space-y-3">
               {/* Project Manager */}
               {projectManager && (
-                <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <UserIcon size={20} className="text-green-600" />
+                <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <UserIcon size={20} className="text-primary" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium text-black">{projectManager.name}</div>
-                    <div className="text-sm text-gray-600">Project Manager</div>
+                    <div className="font-medium text-foreground">{projectManager.name}</div>
+                    <div className="text-sm text-muted-foreground">Project Manager</div>
                   </div>
-                  <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">Manager</div>
+                  <div className="text-xs text-primary bg-primary/10 px-2 py-1 rounded">Manager</div>
                 </div>
               )}
 
               {/* Designers */}
               {designers.map((designer) => (
-                <div key={designer.id} className="flex items-center space-x-3 p-3 bg-purple-50 rounded-lg">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                    <UserIcon size={20} className="text-purple-600" />
+                <div key={designer.id} className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
+                  <div className="w-10 h-10 bg-secondary/20 rounded-full flex items-center justify-center">
+                    <UserIcon size={20} className="text-secondary-foreground" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium text-black">{designer.name}</div>
-                    <div className="text-sm text-gray-600">{designer.role}</div>
+                    <div className="font-medium text-foreground">{designer.name}</div>
+                    <div className="text-sm text-muted-foreground">{designer.role}</div>
                   </div>
-                  <div className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded">Designer</div>
+                  <div className="text-xs text-secondary-foreground bg-secondary/20 px-2 py-1 rounded">Designer</div>
                 </div>
               ))}
             </div>
@@ -457,11 +457,11 @@ export default function ProjectDetailsPage() {
       {/* Edit Modal */}
       {isEditing && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
-          <div className="bg-white rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-black mb-4">Edit Project</h3>
+          <div className="bg-background rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Edit Project</h3>
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Project Name
                 </label>
                 <input
@@ -469,29 +469,29 @@ export default function ProjectDetailsPage() {
                   required
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-ring focus:border-ring"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Description
                 </label>
                 <textarea
                   required
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-ring focus:border-ring"
                   rows={3}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Status
                 </label>
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value as Project['status'] })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-ring focus:border-ring"
                 >
                   <option value="planning">Planning</option>
                   <option value="in_progress">In Progress</option>

@@ -124,6 +124,16 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
 
   const sendMessage = async (content: string, messageType: 'text' | 'file' | 'image', fileData?: any) => {
     const messageData = {
+      message: content,
+      message_type: messageType,
+      file_name: fileData?.fileName || null,
+      file_size: fileData?.fileSize || null,
+      file_type: fileData?.fileType || null,
+    };
+
+    // Optimistically add message to UI first
+    const tempMessage = {
+      id: `temp-${Date.now()}`,
       projectId,
       userId: currentUser.id,
       userName: currentUser.name,
@@ -133,23 +143,24 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       timestamp: new Date().toISOString(),
       ...fileData,
     };
-
-    // Optimistically add message to UI first
-    const tempMessage = {
-      ...messageData,
-      id: `temp-${Date.now()}`,
-    };
     setChatMessages(prev => [...prev, tempMessage]);
     setNewMessage('');
 
     try {
-      console.log('Calling API:', `/api/chat/${projectId}`);
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const apiUrl = `${API_BASE_URL}/chat/project/${projectId}/messages`;
+      console.log('Calling API:', apiUrl);
+      
+      // Get auth token
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
       
       // Save message to database
-      const response = await fetch(`/api/chat/${projectId}`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify(messageData),
       });
@@ -160,10 +171,25 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         const savedMessage = await response.json();
         console.log('Message saved:', savedMessage);
         
+        // Convert backend response to frontend format
+        const frontendMessage = {
+          id: savedMessage.id,
+          projectId: savedMessage.project_id,
+          userId: savedMessage.user_id,
+          userName: savedMessage.user_name,
+          userRole: savedMessage.user_role,
+          message: savedMessage.message,
+          messageType: savedMessage.message_type,
+          timestamp: savedMessage.timestamp,
+          fileName: savedMessage.file_name,
+          fileSize: savedMessage.file_size,
+          fileType: savedMessage.file_type,
+        };
+        
         // Replace temp message with real one
         setChatMessages(prev => 
           prev.map(msg => 
-            msg.id === tempMessage.id ? savedMessage : msg
+            msg.id === tempMessage.id ? frontendMessage : msg
           )
         );
         
@@ -172,7 +198,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
           console.log('Emitting via socket');
           socket.emit('send-message', {
             projectId,
-            message: savedMessage,
+            message: frontendMessage,
           });
         } else {
           console.log('Socket not connected:', { socket: !!socket, isConnected });
@@ -181,13 +207,13 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         console.error('API Error:', await response.text());
         // Remove temp message on error
         setChatMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
-        if (messageType === 'text') setNewMessage(messageData.message); // Restore text message
+        if (messageType === 'text') setNewMessage(content); // Restore text message
       }
     } catch (error) {
       console.error('Error sending message:', error);
       // Remove temp message on error
       setChatMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
-      if (messageType === 'text') setNewMessage(messageData.message); // Restore text message
+      if (messageType === 'text') setNewMessage(content); // Restore text message
     }
   };
 
@@ -305,7 +331,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       project_manager: { label: 'Manager', color: 'bg-green-100 text-green-800' },
       designer: { label: 'Designer', color: 'bg-purple-100 text-purple-800' },
     };
-    return roleConfig[role as keyof typeof roleConfig] || { label: 'User', color: 'bg-gray-100 text-gray-800' };
+    return roleConfig[role as keyof typeof roleConfig] || { label: 'User', color: 'bg-muted text-muted-foreground' };
   };
 
   const getRoleAvatar = (role: string) => {
@@ -314,7 +340,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       project_manager: 'bg-green-500', 
       designer: 'bg-purple-500',
     };
-    return colors[role as keyof typeof colors] || 'bg-gray-500';
+    return colors[role as keyof typeof colors] || 'bg-muted';
   };
 
   const formatFileSize = (bytes: number) => {
@@ -340,22 +366,22 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
 
   return (
     <div 
-      className={`card h-full flex flex-col relative ${dragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+      className={`bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6 h-full flex flex-col relative ${dragOver ? 'ring-2 ring-primary bg-primary/10' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Drag overlay */}
       {dragOver && (
-        <div className="absolute inset-0 bg-blue-500 bg-opacity-10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center z-10">
+        <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-lg flex items-center justify-center z-10">
           <div className="text-center">
             <div className="text-4xl mb-2">📎</div>
-            <p className="text-blue-600 font-medium">Drop file to share</p>
+            <p className="text-primary font-medium">Drop file to share</p>
           </div>
         </div>
       )}
       
-      <h3 className="text-lg font-semibold text-black mb-4 pb-3 border-b border-gray-200 flex-shrink-0">
+      <h3 className="text-lg font-semibold text-foreground mb-4 pb-3 border-b border-border flex-shrink-0">
         Project Chat
       </h3>
 
@@ -374,26 +400,26 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
             >
               <div className={`w-8 h-8 ${getRoleAvatar(message.userRole || 'user')} rounded-full flex items-center justify-center flex-shrink-0`}>
                 <span className="text-white font-medium text-xs">
-                  {message.userName.charAt(0).toUpperCase()}
+                  {message.userName?.charAt(0).toUpperCase() || 'U'}
                 </span>
               </div>
               <div className={`flex-1 max-w-xs ${isOwnMessage ? 'text-right' : ''}`}>
                 <div className={`flex items-center space-x-2 mb-1 ${isOwnMessage ? 'justify-end' : ''}`}>
-                  <span className="text-sm font-medium text-gray-900">
-                    {message.userName}
+                  <span className="text-sm font-medium text-foreground">
+                    {message.userName || 'Unknown User'}
                   </span>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleTag.color}`}>
                     {roleTag.label}
                   </span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     {formatTime(message.timestamp)}
                   </span>
                 </div>
                 <div
                   className={`inline-block px-3 py-2 rounded-lg text-sm ${
                     isOwnMessage
-                      ? 'bg-black text-white'
-                      : 'bg-gray-100 text-gray-900'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-foreground'
                   }`}
                 >
                   {/* Text message */}
@@ -424,20 +450,20 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                       <div 
                         className={`flex items-center space-x-2 p-2 rounded border ${
                           isOwnMessage 
-                            ? 'bg-gray-800 border-gray-600' 
-                            : 'bg-white border-gray-200'
+                            ? 'bg-muted border-border' 
+                            : 'bg-background border-border'
                         }`}
                       >
                         {getFileIcon(message.fileType)}
                         <div className="flex-1 min-w-0">
                           <p className={`text-xs font-medium truncate ${
-                            isOwnMessage ? 'text-gray-200' : 'text-gray-700'
+                            isOwnMessage ? 'text-muted-foreground' : 'text-foreground'
                           }`}>
                             {message.fileName || 'Unknown file'}
                           </p>
                           {message.fileSize && (
                             <p className={`text-xs ${
-                              isOwnMessage ? 'text-gray-400' : 'text-gray-500'
+                              isOwnMessage ? 'text-muted-foreground' : 'text-muted-foreground'
                             }`}>
                               {formatFileSize(message.fileSize)}
                             </p>
@@ -456,8 +482,8 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                             }}
                             className={`p-1 rounded hover:bg-opacity-80 ${
                               isOwnMessage 
-                                ? 'text-gray-300 hover:bg-gray-600' 
-                                : 'text-gray-500 hover:bg-gray-200'
+                                ? 'text-muted-foreground hover:bg-muted/80' 
+                                : 'text-muted-foreground hover:bg-muted/80'
                             }`}
                             title="Download"
                           >
@@ -475,8 +501,8 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         
         {/* Typing indicators */}
         {isTyping.length > 0 && (
-          <div className="flex items-center space-x-2 text-sm text-gray-500 italic">
-            <span>{isTyping.map(u => u.userName).join(', ')} {isTyping.length === 1 ? 'is' : 'are'} typing...</span>
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground italic">
+            <span>{isTyping.map(u => u.userName || 'Someone').join(', ')} {isTyping.length === 1 ? 'is' : 'are'} typing...</span>
           </div>
         )}
         
@@ -494,7 +520,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
           accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.xls,.ppt,.pptx"
         />
         
-        <div className="flex-1 flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-md focus-within:ring-black focus-within:border-black">
+        <div className="flex-1 flex items-center space-x-2 px-3 py-2 border border-input rounded-md focus-within:ring-ring focus-within:border-ring">
           <input
             type="text"
             value={newMessage}
@@ -508,7 +534,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingFile}
-            className="text-gray-500 hover:text-gray-700 disabled:opacity-50 transition-colors"
+            className="text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
             title="Attach file"
           >
             <PaperclipIcon size={16} />
