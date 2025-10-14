@@ -15,7 +15,8 @@ import {
   XIcon,
   ShieldIcon,
   UserPlus2Icon,
-  UserPlusIcon
+  UserPlusIcon,
+  ClockIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +43,13 @@ export default function Sidebar({ userRole }: SidebarProps) {
       href: '/dashboard',
       active: pathname === '/dashboard',
       roles: ['client', 'project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'auto_cad_drafter', 'admin']
+    },
+    { 
+      icon: ClockIcon, 
+      label: 'Pending Requests', 
+      href: '/dashboard/pending-requests',
+      active: pathname === '/dashboard/pending-requests',
+      roles: ['project_manager', 'assistant_project_manager', 'admin']
     },
     { 
       icon: CheckSquareIcon, 

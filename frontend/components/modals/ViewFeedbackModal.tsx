@@ -1,6 +1,17 @@
 'use client';
 
-import { X, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface ViewFeedbackModalProps {
   isOpen: boolean;
@@ -15,54 +26,55 @@ export default function ViewFeedbackModal({
   projectName,
   feedbackMessage 
 }: ViewFeedbackModalProps) {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Project Feedback</h2>
-          <button
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Project Feedback</DialogTitle>
+          <DialogDescription>
+            View feedback details for this project.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Project Name</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Badge variant="secondary" className="text-sm font-medium">
+                {projectName}
+              </Badge>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Feedback Message
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="p-4 bg-muted rounded-md">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                  {feedbackMessage || 'No feedback message provided.'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
           >
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project Name
-            </label>
-            <p className="text-gray-900 bg-gray-50 p-3 rounded-md font-medium">
-              {projectName}
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <MessageSquare className="inline w-4 h-4 mr-1" />
-              Feedback Message
-            </label>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <p className="text-gray-900 whitespace-pre-wrap leading-relaxed">
-                {feedbackMessage || 'No feedback message provided.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-secondary px-6 py-2"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

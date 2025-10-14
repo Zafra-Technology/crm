@@ -1,8 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Check, XCircle, Download, FileText, Eye, Paperclip } from 'lucide-react';
+import { Check, XCircle, Download, FileText, Eye, Paperclip } from 'lucide-react';
 import { resolveMediaUrl } from '@/lib/api/auth';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface QuotationReviewModalProps {
   isOpen: boolean;
@@ -47,65 +60,63 @@ export default function QuotationReviewModal({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Quotation Review</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700"
-            disabled={loading}
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Quotation Review</DialogTitle>
+          <DialogDescription>
+            Review the quotation details and decide whether to accept or reject.
+          </DialogDescription>
+        </DialogHeader>
 
         {!showRejectForm ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quotation Details:
-              </label>
-              <div className="p-3 bg-gray-50 rounded-md">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{quotationMessage}</p>
-              </div>
-            </div>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Quotation Details</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{quotationMessage}</p>
+              </CardContent>
+            </Card>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quotation File:
-              </label>
-              {quotationFile ? (
-                <div className="p-3 bg-gray-50 rounded-md">
-                  <div className="flex items-center justify-between">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Quotation File</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {quotationFile ? (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
-                        <Paperclip className="w-5 h-5 text-gray-500" />
+                        <Paperclip className="w-5 h-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-sm font-medium truncate">
                           {quotationFile.split('/').pop() || 'Quotation File'}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           Quotation document
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           const url = resolveMediaUrl(quotationFile);
                           window.open(url, '_blank', 'noopener,noreferrer');
                         }}
-                        className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                        className="h-8 w-8 p-0"
                         title="Preview file"
                       >
                         <Eye size={16} />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           const url = resolveMediaUrl(quotationFile);
                           const link = document.createElement('a');
@@ -115,89 +126,88 @@ export default function QuotationReviewModal({
                           link.click();
                           document.body.removeChild(link);
                         }}
-                        className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                        className="h-8 w-8 p-0"
                         title="Download file"
                       >
                         <Download size={16} />
-                      </button>
+                      </Button>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="p-3 bg-gray-50 rounded-md border-2 border-dashed border-gray-300">
-                  <div className="flex items-center justify-center space-x-2 text-gray-500">
-                    <FileText size={16} />
-                    <span className="text-sm">No quotation file attached</span>
+                ) : (
+                  <div className="p-3 bg-muted rounded-md border-2 border-dashed border-muted-foreground/25">
+                    <div className="flex items-center justify-center space-x-2 text-muted-foreground">
+                      <FileText size={16} />
+                      <span className="text-sm">No quotation file attached</span>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </CardContent>
+            </Card>
 
-            <div className="flex gap-3 pt-4">
-              <button
+            <DialogFooter>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handleClose}
                 disabled={loading}
-                className="btn-secondary flex-1 disabled:opacity-50"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
                 onClick={() => setShowRejectForm(true)}
                 disabled={loading}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <XCircle size={16} />
+                <XCircle size={16} className="mr-2" />
                 Reject
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handleAccept}
                 disabled={loading}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="bg-green-600 hover:bg-green-700"
               >
-                <Check size={16} />
+                <Check size={16} className="mr-2" />
                 Accept
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </div>
         ) : (
           <form onSubmit={handleReject} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rejection Feedback *
-              </label>
-              <textarea
+            <div className="space-y-2">
+              <Label htmlFor="reject-feedback">Rejection Feedback *</Label>
+              <Textarea
+                id="reject-feedback"
                 value={rejectFeedback}
                 onChange={(e) => setRejectFeedback(e.target.value)}
                 required
                 rows={4}
                 placeholder="Please provide your feedback for rejecting this quotation..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="resize-none"
               />
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <button
+            <DialogFooter>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setShowRejectForm(false)}
                 disabled={loading}
-                className="btn-secondary flex-1 disabled:opacity-50"
               >
                 Back
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
+                variant="destructive"
                 disabled={loading || !rejectFeedback.trim()}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
               >
                 {loading ? 'Submitting...' : 'Submit Feedback'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

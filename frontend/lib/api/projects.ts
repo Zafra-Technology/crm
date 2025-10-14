@@ -107,6 +107,35 @@ export const projectsApi = {
     }
   },
 
+  // Get pending projects (status: inactive)
+  getPending: async (): Promise<Project[]> => {
+    try {
+      // Get all projects and filter for inactive ones on the frontend
+      // This ensures we get the correct filtering even if backend filtering isn't working
+      const response = await fetch(API_BASE, { headers: getAuthHeaders() });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Projects API error response:', errorText);
+        throw new Error(`Failed to fetch projects: ${response.status}`);
+      }
+      const data = await response.json();
+      const arr = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.projects)
+        ? data.projects
+        : [];
+      
+      const allProjects = arr.map(projectsApi._mapApiProject);
+      // Filter for inactive projects on the frontend
+      return allProjects.filter(project => project.status === 'inactive');
+    } catch (error) {
+      console.error('Error fetching pending projects:', error);
+      return [];
+    }
+  },
+
   // Search projects
   search: async (searchTerm: string): Promise<Project[]> => {
     try {
