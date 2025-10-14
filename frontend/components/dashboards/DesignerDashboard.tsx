@@ -89,7 +89,7 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-600">Loading dashboard...</div>
+        <div className="text-muted-foreground">Loading dashboard...</div>
       </div>
     );
   }
@@ -98,8 +98,8 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black">Design Dashboard</h1>
-          <p className="text-gray-600 mt-1">Manage your assigned projects and tasks</p>
+          <h1 className="text-2xl font-bold text-foreground">Design Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Manage your assigned projects and tasks</p>
         </div>
       </div>
 
@@ -109,35 +109,35 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
           <div className="flex items-center justify-center mb-2">
             <BrushIcon size={24} className="text-purple-600" />
           </div>
-          <div className="text-2xl font-bold text-black">{tasks.length}</div>
-          <div className="text-sm text-gray-600">Total Tasks</div>
+          <div className="text-2xl font-bold text-foreground">{tasks.length}</div>
+          <div className="text-sm text-muted-foreground">Total Tasks</div>
         </div>
         <div className="card text-center">
           <div className="flex items-center justify-center mb-2">
             <ClockIcon size={24} className="text-yellow-600" />
           </div>
           <div className="text-2xl font-bold text-yellow-600">{inProgressTasks.length}</div>
-          <div className="text-sm text-gray-600">In Progress</div>
+          <div className="text-sm text-muted-foreground">In Progress</div>
         </div>
         <div className="card text-center">
           <div className="flex items-center justify-center mb-2">
             <AlertCircleIcon size={24} className="text-orange-600" />
           </div>
           <div className="text-2xl font-bold text-orange-600">{reviewTasks.length}</div>
-          <div className="text-sm text-gray-600">In Review</div>
+          <div className="text-sm text-muted-foreground">In Review</div>
         </div>
         <div className="card text-center">
           <div className="flex items-center justify-center mb-2">
             <TrendingUpIcon size={24} className="text-green-600" />
           </div>
           <div className="text-2xl font-bold text-green-600">{completedTasks.length}</div>
-          <div className="text-sm text-gray-600">Completed</div>
+          <div className="text-sm text-muted-foreground">Completed</div>
         </div>
       </div>
 
       {/* Active Projects */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">Current Projects</h2>
+        <h2 className="text-lg font-semibold text-foreground">Current Projects</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
             <div key={project.id} className="relative group h-full">
@@ -155,12 +155,12 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
 
       {/* Recent Activity */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-black mb-4">Recent Activity</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h3>
         <div className="space-y-3">
           {(() => {
             const recentReviewTasks = getRecentReviewTasks();
             const recentCompletedTasks = getRecentCompletedTasks();
-            const allActivities = [];
+            const allActivities: any[] = [];
 
             // Add tasks submitted for review (primary activity for designers)
             recentReviewTasks.forEach(task => {
@@ -245,21 +245,21 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
 
             return sortedActivities.length > 0 ? (
               sortedActivities.map((activity) => (
-                <div key={activity.id} className="flex items-center space-x-3 py-2 border-b border-gray-100 last:border-b-0">
+                <div key={activity.id} className="flex items-center space-x-3 py-2 border-b border-border last:border-b-0">
                   <div className={`w-2 h-2 ${getActivityTypeColor(activity.type)} rounded-full`}></div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium text-gray-900">{activity.title}</div>
+                      <div className="text-sm font-medium text-foreground">{activity.title}</div>
                       {getPriorityBadge(activity.priority)}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {activity.projectName} • {formatTimeAgo(activity.timestamp)}
                     </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-muted-foreground">
                 <div className="text-sm">No recent activity</div>
               </div>
             );

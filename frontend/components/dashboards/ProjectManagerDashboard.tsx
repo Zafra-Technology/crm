@@ -14,6 +14,21 @@ import { projectsApi } from '@/lib/api/projects';
 import { authAPI, User as APIUser } from '@/lib/api/auth';
 // Designers fetched via authAPI in AssignDesignersModal and here if needed
 import { PlusIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, UsersIcon, XIcon, PaperclipIcon, FileIcon, DownloadIcon, Check, XCircle, MessageSquare, Eye } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ProjectManagerDashboardProps {
   projects: Project[];
@@ -88,6 +103,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
           name: u.full_name,
           email: u.email,
           phoneNumber: u.mobile_number || '',
+          company: u.company_name || '',
           role: u.role_display || u.role,
           status: 'active' as const,
           joinedDate: u.date_of_joining || u.created_at || '',
@@ -369,86 +385,96 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     <div className="space-y-6">
       {/* Success Message */}
       {successMessage && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">{successMessage}</span>
-        </div>
+        <Alert>
+          <AlertDescription>{successMessage}</AlertDescription>
+        </Alert>
       )}
 
       {/* Error Message */}
       {errorMessage && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">{errorMessage}</span>
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
       )}
       
       {/* Sticky Header */}
-      <div className="sticky top-0 bg-gray-50 z-20 pb-4 mb-2 -mx-6 px-6">
-        <div className="flex items-center justify-between bg-gray-50 pt-2">
+      <div className="sticky top-0 bg-background z-20 pb-4 mb-2 -mx-6 px-6">
+        <div className="flex items-center justify-between bg-background pt-2">
           <div>
-            <h1 className="text-2xl font-bold text-black">Project Management</h1>
-            <p className="text-gray-600 mt-1">Manage and oversee all active projects</p>
+            <h1 className="text-2xl font-bold text-foreground">Project Management</h1>
+            <p className="text-muted-foreground mt-1">Manage and oversee all active projects</p>
           </div>
-          <button
+          <Button
             onClick={() => setShowCreateForm(true)}
-            className="btn-primary flex items-center space-x-2 shadow-md"
+            className="flex items-center space-x-2 shadow-md"
           >
             <PlusIcon size={20} />
             <span>Create Project</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <TrendingUpIcon size={24} className="text-blue-600" />
-          </div>
-          <div className="text-2xl font-bold text-black">{managedProjects.length}</div>
-          <div className="text-sm text-gray-600">Total Projects</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <ClockIcon size={24} className="text-gray-600" />
-          </div>
-          <div className="text-2xl font-bold text-gray-600">
-            {managedProjects.filter(p => p.status === 'inactive').length}
-          </div>
-          <div className="text-sm text-gray-600">Pending</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <ClockIcon size={24} className="text-yellow-600" />
-          </div>
-          <div className="text-2xl font-bold text-yellow-600">
-            {managedProjects.filter(p => p.status === 'in_progress').length}
-          </div>
-          <div className="text-sm text-gray-600">In Progress</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <ClockIcon size={24} className="text-purple-600" />
-          </div>
-          <div className="text-2xl font-bold text-purple-600">
-            {managedProjects.filter(p => p.status === 'review').length}
-          </div>
-          <div className="text-sm text-gray-600">In Review</div>
-        </div>
-        <div className="card text-center">
-          <div className="flex items-center justify-center mb-2">
-            <CheckCircleIcon size={24} className="text-green-600" />
-          </div>
-          <div className="text-2xl font-bold text-green-600">
-            {managedProjects.filter(p => p.status === 'completed').length}
-          </div>
-          <div className="text-sm text-gray-600">Completed</div>
-        </div>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <TrendingUpIcon size={24} className="text-blue-600" />
+            </div>
+            <div className="text-2xl font-bold text-foreground">{managedProjects.length}</div>
+            <div className="text-sm text-muted-foreground">Total Projects</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <ClockIcon size={24} className="text-muted-foreground" />
+            </div>
+            <div className="text-2xl font-bold text-muted-foreground">
+              {managedProjects.filter(p => p.status === 'inactive').length}
+            </div>
+            <div className="text-sm text-muted-foreground">Pending</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <ClockIcon size={24} className="text-yellow-600" />
+            </div>
+            <div className="text-2xl font-bold text-yellow-600">
+              {managedProjects.filter(p => p.status === 'in_progress').length}
+            </div>
+            <div className="text-sm text-muted-foreground">In Progress</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <ClockIcon size={24} className="text-purple-600" />
+            </div>
+            <div className="text-2xl font-bold text-purple-600">
+              {managedProjects.filter(p => p.status === 'review').length}
+            </div>
+            <div className="text-sm text-muted-foreground">In Review</div>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center mb-2">
+              <CheckCircleIcon size={24} className="text-green-600" />
+            </div>
+            <div className="text-2xl font-bold text-green-600">
+              {managedProjects.filter(p => p.status === 'completed').length}
+            </div>
+            <div className="text-sm text-muted-foreground">Completed</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Pending Projects */}
       {managedProjects.filter(p => p.status === 'inactive').length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-black">Pending Project Requests</h2>
+          <h2 className="text-lg font-semibold text-foreground">Pending Project Requests</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {managedProjects
               .filter(p => p.status === 'inactive')
@@ -532,7 +558,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
 
       {/* All Projects */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">All Projects</h2>
+        <h2 className="text-lg font-semibold text-foreground">All Projects</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {managedProjects.map((project) => (
             <div key={project.id} className="relative group">
@@ -563,134 +589,111 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         </div>
 
         {managedProjects.length === 0 && (
-          <div className="card text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <PlusIcon size={48} className="mx-auto" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-600 mb-2">No projects yet</h3>
-            <p className="text-gray-500">Create your first project to get started.</p>
-          </div>
+          <Card>
+            <CardContent className="text-center py-12">
+              <div className="text-muted-foreground mb-4">
+                <PlusIcon size={48} className="mx-auto" />
+              </div>
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">No projects yet</h3>
+              <p className="text-muted-foreground">Create your first project to get started.</p>
+            </CardContent>
+          </Card>
         )}
       </div>
 
       {/* Create Project Modal */}
-      {showCreateForm && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" 
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowCreateForm(false);
-            }
-          }}
-        >
-          <div className="bg-white rounded-lg max-w-3xl w-full my-8 max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Sticky Modal Header */}
-            <div className="sticky top-0 bg-white rounded-t-lg px-6 pt-6 pb-4 border-b border-gray-200 z-10">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-black">Create New Project</h3>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <XIcon size={20} />
-                </button>
-              </div>
-            </div>
+      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Create New Project</DialogTitle>
+            <DialogDescription>
+              Fill in the project details to create a new project
+            </DialogDescription>
+          </DialogHeader>
             
             {/* Scrollable Modal Content */}
             <div className="flex-1 overflow-y-auto px-6 pb-6">
             <form onSubmit={handleCreateProject} className="space-y-6">
               {/* Project Name - Full Width */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project Name *
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="projectName">Project Name *</Label>
+                <Input
+                  id="projectName"
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
                   placeholder="Enter project name"
                 />
               </div>
 
               {/* Two Column Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Timeline *
-                  </label>
-                  <input
+                <div className="space-y-2">
+                  <Label htmlFor="timeline">Timeline *</Label>
+                  <Input
+                    id="timeline"
                     type="text"
                     required
                     value={formData.timeline}
                     onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
                     placeholder="e.g., 6 weeks"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select Client *
-                  </label>
-                  <select
+                <div className="space-y-2">
+                  <Label htmlFor="client">Select Client *</Label>
+                  <Select
                     required
                     value={formData.clientId}
-                    onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+                    onValueChange={(value) => setFormData({ ...formData, clientId: value })}
                   >
-                    <option value="">Choose a client...</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name} - {client.company}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a client..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name} - {client.company}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {clients.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-1">No active clients available</p>
+                    <p className="text-sm text-muted-foreground mt-1">No active clients available</p>
                   )}
                 </div>
               </div>
 
               {/* Description - Full Width */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description *
-                </label>
-                <textarea
+              <div className="space-y-2">
+                <Label htmlFor="description">Description *</Label>
+                <Textarea
+                  id="description"
                   required
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
                   rows={3}
                   placeholder="Describe the project"
                 />
               </div>
 
               {/* Requirements - Full Width */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Requirements *
-                </label>
-                <textarea
+              <div className="space-y-2">
+                <Label htmlFor="requirements">Requirements *</Label>
+                <Textarea
+                  id="requirements"
                   required
                   value={formData.requirements}
                   onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
                   rows={2}
                   placeholder="List project requirements"
                 />
               </div>
               
               {/* Designer Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Assign Designers (Optional)
-                </label>
-                <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
+              <div className="space-y-2">
+                <Label>Assign Designers (Optional)</Label>
+                <div className="space-y-2 max-h-32 overflow-y-auto border border-border rounded-md p-2">
                   {designers.map((designer) => (
                     <label key={designer.id} className="flex items-center space-x-2 cursor-pointer">
                       <input
@@ -709,32 +712,30 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                             });
                           }
                         }}
-                        className="rounded border-gray-300 text-black focus:ring-black"
+                        className="rounded border-border text-primary focus:ring-primary"
                       />
-                      <span className="text-sm text-gray-700">{designer.name} - {designer.role}</span>
+                      <span className="text-sm text-foreground">{designer.name} - {designer.role}</span>
                     </label>
                   ))}
                   {designers.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-2">No active designers available</p>
+                    <p className="text-sm text-muted-foreground text-center py-2">No active designers available</p>
                   )}
                 </div>
               </div>
 
               {/* File Attachments */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project Attachments (Optional)
-                </label>
+              <div className="space-y-2">
+                <Label>Project Attachments (Optional)</Label>
                 <div className="space-y-3">
                   {/* File Upload */}
                   <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/20 hover:bg-muted/40 transition-colors">
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <PaperclipIcon className="w-8 h-8 mb-4 text-gray-500" />
-                        <p className="mb-2 text-sm text-gray-500">
+                        <PaperclipIcon className="w-8 h-8 mb-4 text-muted-foreground" />
+                        <p className="mb-2 text-sm text-muted-foreground">
                           <span className="font-semibold">Click to upload</span> or drag and drop
                         </p>
-                        <p className="text-xs text-gray-500">PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT (MAX. 10MB)</p>
+                        <p className="text-xs text-muted-foreground">PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT (MAX. 10MB)</p>
                       </div>
                       <input
                         type="file"
@@ -749,52 +750,55 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                   {/* Uploaded Files List */}
                   {formData.attachments.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm font-medium text-gray-700">Uploaded Files:</p>
+                      <p className="text-sm font-medium text-foreground">Uploaded Files:</p>
                       {formData.attachments.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                        <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md">
                           <div className="flex items-center space-x-2">
-                            <FileIcon size={16} className="text-gray-500" />
+                            <FileIcon size={16} className="text-muted-foreground" />
                             <div>
-                              <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                              <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                              <p className="text-sm font-medium text-foreground">{file.name}</p>
+                              <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
                             </div>
                           </div>
-                          <button
+                          <Button
                             type="button"
                             onClick={() => removeAttachment(index)}
-                            className="text-red-500 hover:text-red-700"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
                           >
                             <XIcon size={16} />
-                          </button>
+                          </Button>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  disabled={loading}
-                  className="btn-secondary flex-1 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary flex-1 disabled:opacity-50"
-                >
-                  {loading ? 'Creating...' : 'Create Project'}
-                </button>
-              </div>
             </form>
             </div>
-          </div>
-        </div>
-      )}
+
+            <DialogFooter className="flex space-x-3">
+              <Button
+                type="button"
+                onClick={() => setShowCreateForm(false)}
+                disabled={loading}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                onClick={handleCreateProject}
+                disabled={loading}
+                className="flex-1"
+              >
+                {loading ? 'Creating...' : 'Create Project'}
+              </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Designers Modal */}
       <AssignDesignersModal

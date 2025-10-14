@@ -3,6 +3,7 @@ export interface Designer {
   name: string;
   email: string;
   phoneNumber: string;
+  company: string;
   role: string;
   status: 'active' | 'inactive';
   joinedDate: string;

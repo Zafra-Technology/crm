@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { User } from '@/types';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { Toaster } from '@/components/ui/toaster';
 
 export default function DashboardLayout({
   children,
@@ -28,8 +29,8 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -39,7 +40,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="h-full bg-gray-50 flex overflow-hidden">
+    <div className="h-full bg-background flex overflow-hidden">
       <div className="flex-shrink-0 h-full">
         <Sidebar userRole={user.role} />
       </div>
@@ -47,14 +48,15 @@ export default function DashboardLayout({
         <div className="flex-shrink-0 relative z-30">
           <Header user={user} />
         </div>
-        <main className="flex-1 overflow-y-auto min-h-0 bg-gray-50 relative">
-          <div className="p-6">
+        <main className="flex-1 overflow-y-auto min-h-0 bg-background relative">
+          <div className="pt-2 px-6 pb-6">
             <div className="max-w-full">
               {children}
             </div>
           </div>
         </main>
       </div>
+      <Toaster />
     </div>
   );
 }

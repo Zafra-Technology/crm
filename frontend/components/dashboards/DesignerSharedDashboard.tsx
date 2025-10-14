@@ -52,11 +52,11 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
   return (
     <div className="space-y-6">
       {/* Sticky Header */}
-      <div className="sticky top-0 bg-gray-50 z-20 pb-4 mb-2 -mx-6 px-6">
-        <div className="flex items-center justify-between bg-gray-50 pt-2">
+      <div className="sticky top-0 bg-background z-20 pb-4 mb-2 -mx-6 px-6">
+        <div className="flex items-center justify-between bg-background pt-2">
           <div>
-            <h1 className="text-2xl font-bold text-black">Design Dashboard</h1>
-            <p className="text-gray-600 mt-1">Manage your assigned design projects</p>
+            <h1 className="text-2xl font-bold text-foreground">Design Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Manage your assigned design projects</p>
           </div>
         </div>
       </div>
@@ -67,8 +67,8 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
           <div className="flex items-center justify-center mb-2">
             <TrendingUpIcon size={24} className="text-blue-600" />
           </div>
-          <div className="text-2xl font-bold text-black">{assignedProjects.length}</div>
-          <div className="text-sm text-gray-600">Assigned Projects</div>
+          <div className="text-2xl font-bold text-foreground">{assignedProjects.length}</div>
+          <div className="text-sm text-muted-foreground">Assigned Projects</div>
         </div>
         <div className="card text-center">
           <div className="flex items-center justify-center mb-2">
@@ -77,7 +77,7 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
           <div className="text-2xl font-bold text-yellow-600">
             {assignedProjects.filter(p => p.status === 'in_progress').length}
           </div>
-          <div className="text-sm text-gray-600">In Progress</div>
+          <div className="text-sm text-muted-foreground">In Progress</div>
         </div>
         <div className="card text-center">
           <div className="flex items-center justify-center mb-2">
@@ -86,7 +86,7 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
           <div className="text-2xl font-bold text-purple-600">
             {assignedProjects.filter(p => p.status === 'review').length}
           </div>
-          <div className="text-sm text-gray-600">In Review</div>
+          <div className="text-sm text-muted-foreground">In Review</div>
         </div>
         <div className="card text-center">
           <div className="flex items-center justify-center mb-2">
@@ -95,13 +95,13 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
           <div className="text-2xl font-bold text-green-600">
             {assignedProjects.filter(p => p.status === 'completed').length}
           </div>
-          <div className="text-sm text-gray-600">Completed</div>
+          <div className="text-sm text-muted-foreground">Completed</div>
         </div>
       </div>
 
       {/* Assigned Projects */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">My Assigned Projects</h2>
+        <h2 className="text-lg font-semibold text-foreground">My Assigned Projects</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {assignedProjects.map((project) => (
             <div key={project.id} className="relative group">
@@ -112,11 +112,11 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
 
         {assignedProjects.length === 0 && (
           <div className="card text-center py-12">
-            <div className="text-gray-400 mb-4">
+            <div className="text-muted-foreground mb-4">
               <UsersIcon size={48} className="mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-600 mb-2">No projects assigned</h3>
-            <p className="text-gray-500">You haven't been assigned to any projects yet.</p>
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">No projects assigned</h3>
+            <p className="text-muted-foreground">You haven't been assigned to any projects yet.</p>
           </div>
         )}
       </div>

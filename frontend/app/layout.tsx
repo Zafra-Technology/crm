@@ -2,8 +2,8 @@ import './globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Project Management Dashboard',
-  description: 'A clean, professional project management tool',
+  title: 'RVR Project Management Dashboard',
+  description: 'A clean, professional project management tool by RVR Engineering',
 }
 
 export default function RootLayout({

@@ -140,3 +140,19 @@ class EmailSendSchema(Schema):
     to: str
     subject: str
     message: str
+
+
+class ClientOnboardingSchema(Schema):
+    """Schema for client onboarding"""
+    name: str
+    email: str
+    company: str
+
+
+class SendCredentialsSchema(Schema):
+    """Schema for sending client credentials"""
+    client_id: int
+    client_email: str
+    client_name: str
+    company_name: str
+    password: str

@@ -1,21 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { User, Project } from '@/types';
 import { tasksApi } from '@/lib/api/tasks';
-import { designersApi } from '@/lib/api/designers';
 import { X, CalendarIcon, UserIcon, AlertCircleIcon } from 'lucide-react';
 import { NotificationService } from '@/lib/services/notificationService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface CreateTaskModalProps {
   project: Project;
   currentUser: User;
+  designers: any[];
+  loadingDesigners: boolean;
   onClose: () => void;
   onTaskCreated: () => void;
 }
 
-export default function CreateTaskModal({ project, currentUser, onClose, onTaskCreated }: CreateTaskModalProps) {
-  const [designers, setDesigners] = useState<any[]>([]);
+export default function CreateTaskModal({ project, currentUser, designers, loadingDesigners, onClose, onTaskCreated }: CreateTaskModalProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -25,25 +39,7 @@ export default function CreateTaskModal({ project, currentUser, onClose, onTaskC
     dueDate: '',
   });
 
-  useEffect(() => {
-    const loadDesigners = async () => {
-      try {
-        console.log('🔍 Loading designers for task assignment...');
-        const designersList = await designersApi.getAll();
-        console.log('📋 Designers from API:', designersList.length);
-        
-        const activeDesigners = designersList.filter(d => d.status === 'active');
-        console.log('✅ Active designers:', activeDesigners.length);
-        
-        console.log('👥 Active designers available:', activeDesigners.length);
-        setDesigners(activeDesigners);
-      } catch (error) {
-        console.error('❌ Error loading designers:', error);
-      }
-    };
-
-    loadDesigners();
-  }, []);
+  // Designers are now loaded at the page level and passed as props
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,83 +114,86 @@ export default function CreateTaskModal({ project, currentUser, onClose, onTaskC
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-semibold text-black">Create New Task</h3>
-            <p className="text-sm text-gray-600">{project.name}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create New Task</DialogTitle>
+          <DialogDescription>{project.name}</DialogDescription>
+        </DialogHeader>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Task Title *
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="title">Task Title *</Label>
+            <Input
+              id="title"
               type="text"
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
               placeholder="Enter task title..."
             />
           </div>
 
           {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
               rows={3}
               placeholder="Describe the task..."
             />
           </div>
 
           {/* Assignee */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Assign to Designer *
-            </label>
-            <select
+          <div className="space-y-2">
+            <Label htmlFor="assignee">Assign to Designer *</Label>
+            <Select
               required
               value={formData.assigneeId}
-              onChange={(e) => setFormData({ ...formData, assigneeId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+              onValueChange={(value) => setFormData({ ...formData, assigneeId: value })}
+              disabled={loadingDesigners}
             >
-              <option value="">Select a designer...</option>
-              {designers.map((designer) => (
-                <option key={designer.id} value={designer.id}>
-                  {designer.name} - {designer.role}
-                  {designer.id === '3' ? ' (Login User)' : ''}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder={loadingDesigners ? "Loading designers..." : "Select a designer..."} />
+              </SelectTrigger>
+              <SelectContent>
+                {designers.map((designer) => (
+                  <SelectItem key={designer.id} value={designer.id}>
+                    {designer.name} - {designer.role}
+                    {designer.id === '3' ? ' (Login User)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             
-            {designers.length === 0 && (
-              <p className="text-xs text-red-500 mt-1">
-                No designers found. Using fallback option.
-              </p>
+            {loadingDesigners && (
+              <div className="text-sm text-muted-foreground">
+                Loading designers...
+              </div>
+            )}
+            
+            {!loadingDesigners && designers.length === 0 && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  No designers found. Please contact your administrator.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {!loadingDesigners && designers.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                {designers.length} designer{designers.length !== 1 ? 's' : ''} available
+              </div>
             )}
           </div>
 
           {/* Selected Assignee Preview */}
           {formData.assigneeId && (
-            <div className="p-3 bg-gray-50 rounded-md">
+            <div className="p-3 bg-muted rounded-md">
               {(() => {
                 const selectedDesigner = designers.find(d => d.id === formData.assigneeId);
                 if (!selectedDesigner) return null;
@@ -207,11 +206,11 @@ export default function CreateTaskModal({ project, currentUser, onClose, onTaskC
                       </span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-foreground">
                         {selectedDesigner.name}
                         {selectedDesigner.id === '3' && <span className="text-green-600"> (Can Login)</span>}
                       </p>
-                      <p className="text-xs text-gray-500">{selectedDesigner.role}</p>
+                      <p className="text-xs text-muted-foreground">{selectedDesigner.role}</p>
                       <p className="text-xs text-blue-600">ID: {selectedDesigner.id}</p>
                     </div>
                   </div>
@@ -221,54 +220,55 @@ export default function CreateTaskModal({ project, currentUser, onClose, onTaskC
           )}
 
           {/* Priority */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Priority
-            </label>
-            <select
+          <div className="space-y-2">
+            <Label htmlFor="priority">Priority</Label>
+            <Select
               value={formData.priority}
-              onChange={(e) => setFormData({ ...formData, priority: e.target.value as 'low' | 'medium' | 'high' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
+              onValueChange={(value) => setFormData({ ...formData, priority: value as 'low' | 'medium' | 'high' })}
             >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Due Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Due Date
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="dueDate">Due Date</Label>
+            <Input
+              id="dueDate"
               type="date"
               value={formData.dueDate}
               onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
               min={new Date().toISOString().split('T')[0]}
             />
           </div>
-
-          {/* Actions */}
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !formData.title.trim() || !formData.assigneeId}
-              className="flex-1 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Creating...' : 'Create Task'}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            onClick={onClose}
+            variant="outline"
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            onClick={handleSubmit}
+            disabled={loading || !formData.title.trim() || !formData.assigneeId}
+            className="flex-1"
+          >
+            {loading ? 'Creating...' : 'Create Task'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

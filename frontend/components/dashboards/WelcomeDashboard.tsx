@@ -2,6 +2,7 @@
 
 import { User } from '@/types';
 import { UserIcon, CalendarIcon, ClockIcon, CheckCircleIcon } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface WelcomeDashboardProps {
   user: User;
@@ -115,79 +116,91 @@ export default function WelcomeDashboard({ user }: WelcomeDashboardProps) {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-8 text-white">
-        <div className="flex items-center space-x-4">
-          <div className="bg-white bg-opacity-20 rounded-full p-3">
-            <UserIcon size={32} />
+      <Card className="bg-gradient-to-r from-blue-600 to-purple-600 border-0">
+        <CardContent className="p-8 text-white">
+          <div className="flex items-center space-x-4">
+            <div className="bg-white bg-opacity-20 rounded-full p-3">
+              <UserIcon size={32} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Welcome, {user.name}!</h1>
+              <p className="text-blue-100 text-lg">{getRoleDisplayName()}</p>
+              <p className="text-blue-100 mt-2">{getWelcomeMessage()}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold">Welcome, {user.name}!</h1>
-            <p className="text-blue-100 text-lg">{getRoleDisplayName()}</p>
-            <p className="text-blue-100 mt-2">{getWelcomeMessage()}</p>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {quickActions.map((action, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="flex items-center space-x-4">
-              <div className={`${action.color} p-3 rounded-lg`}>
-                <action.icon className="h-6 w-6 text-white" />
+          <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className={`${action.color} p-3 rounded-lg`}>
+                  <action.icon className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">{action.name}</h3>
+                  <p className="text-sm text-muted-foreground">Click to access</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">{action.name}</h3>
-                <p className="text-sm text-gray-500">Click to access</p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-        <div className="space-y-3">
-          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">System Login</p>
-              <p className="text-xs text-gray-500">Just now</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <div>
+                <p className="text-sm font-medium text-foreground">System Login</p>
+                <p className="text-xs text-muted-foreground">Just now</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Dashboard Accessed</p>
+                <p className="text-xs text-muted-foreground">Welcome to your personalized dashboard</p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">Dashboard Accessed</p>
-              <p className="text-xs text-gray-500">Welcome to your personalized dashboard</p>
-            </div>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* System Information */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">System Information</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium text-gray-900">Role</h3>
-            <p className="text-sm text-gray-600">{getRoleDisplayName()}</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>System Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <h3 className="font-medium text-foreground">Role</h3>
+              <p className="text-sm text-muted-foreground">{getRoleDisplayName()}</p>
+            </div>
+            <div className="p-4 bg-muted rounded-lg">
+              <h3 className="font-medium text-foreground">Email</h3>
+              <p className="text-sm text-muted-foreground">{user.email}</p>
+            </div>
+            <div className="p-4 bg-muted rounded-lg">
+              <h3 className="font-medium text-foreground">Status</h3>
+              <p className="text-sm text-green-600">Active</p>
+            </div>
+            <div className="p-4 bg-muted rounded-lg">
+              <h3 className="font-medium text-foreground">Last Login</h3>
+              <p className="text-sm text-muted-foreground">Just now</p>
+            </div>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium text-gray-900">Email</h3>
-            <p className="text-sm text-gray-600">{user.email}</p>
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium text-gray-900">Status</h3>
-            <p className="text-sm text-green-600">Active</p>
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium text-gray-900">Last Login</h3>
-            <p className="text-sm text-gray-600">Just now</p>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

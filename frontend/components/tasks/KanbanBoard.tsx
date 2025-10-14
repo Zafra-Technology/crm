@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { User, Project } from '@/types';
 import { tasksApi } from '@/lib/api/tasks';
-import { designersApi } from '@/lib/api/designers';
 import { CalendarIcon, UserIcon, MessageSquareIcon, PaperclipIcon } from 'lucide-react';
 import TaskCard from './TaskCard';
 import { NotificationService } from '@/lib/services/notificationService';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export interface Task {
   id: string;
@@ -29,6 +30,8 @@ export interface Task {
 interface KanbanBoardProps {
   project: Project;
   currentUser: User;
+  designers: any[];
+  loadingDesigners: boolean;
   onTaskCreated: () => void;
 }
 
@@ -36,22 +39,20 @@ interface KanbanBoardProps {
 let taskRefreshKey = 0;
 
 const COLUMNS = [
-  { id: 'todo', title: 'To Do', color: 'bg-gray-50 border-gray-200' },
-  { id: 'in_progress', title: 'In Progress', color: 'bg-blue-50 border-blue-200' },
-  { id: 'review', title: 'Review', color: 'bg-yellow-50 border-yellow-200' },
-  { id: 'completed', title: 'Completed', color: 'bg-green-50 border-green-200' },
+  { id: 'todo', title: 'To Do', color: 'bg-muted/30 border-border' },
+  { id: 'in_progress', title: 'In Progress', color: 'bg-blue-50/50 border-blue-200' },
+  { id: 'review', title: 'Review', color: 'bg-yellow-50/50 border-yellow-200' },
+  { id: 'completed', title: 'Completed', color: 'bg-green-50/50 border-green-200' },
 ];
 
-export default function KanbanBoard({ project, currentUser, onTaskCreated }: KanbanBoardProps) {
+export default function KanbanBoard({ project, currentUser, designers, loadingDesigners, onTaskCreated }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [designers, setDesigners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     console.log('🔄 KanbanBoard useEffect triggered for project:', project.id);
     loadTasks();
-    loadDesigners();
   }, [project.id, project]);
 
   const loadTasks = async () => {
@@ -77,21 +78,7 @@ export default function KanbanBoard({ project, currentUser, onTaskCreated }: Kan
     }
   };
 
-  const loadDesigners = async () => {
-    try {
-      const designersList = await designersApi.getAll();
-      console.log('🎨 Designers from API:', designersList.length);
-      
-      setDesigners(designersList);
-    } catch (error) {
-      console.error('Error loading designers:', error);
-      // Use fallback designers if API fails
-      const fallbackDesigners = [
-        { id: '3', name: 'Mike Designer', role: 'designer', status: 'active' }
-      ];
-      setDesigners(fallbackDesigners);
-    }
-  };
+  // Designers are now loaded at the page level and passed as props
 
   const handleStatusUpdate = async (taskId: string, newStatus: Task['status']) => {
     try {
@@ -244,17 +231,17 @@ ${message}`;
           const columnTasks = getTasksByStatus(column.id);
           
           return (
-            <div key={column.id} className={`rounded-lg border-2 ${column.color} p-4 flex flex-col`}>
-              {/* Column Header */}
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">{column.title}</h3>
-                <span className="bg-white text-gray-600 text-xs font-medium px-2 py-1 rounded-full">
-                  {columnTasks.length}
-                </span>
-              </div>
+            <Card key={column.id} className={`${column.color} h-full flex flex-col`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold text-foreground">{column.title}</CardTitle>
+                  <Badge variant="secondary" className="text-xs">
+                    {columnTasks.length}
+                  </Badge>
+                </div>
+              </CardHeader>
 
-              {/* Tasks */}
-              <div className="flex-1 overflow-y-auto space-y-3">
+              <CardContent className="flex-1 overflow-y-auto space-y-3 p-4 pt-0">
                 {columnTasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -268,12 +255,12 @@ ${message}`;
                 ))}
                 
                 {columnTasks.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-muted-foreground">
                     <div className="text-sm">No tasks</div>
                   </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>

@@ -8,6 +8,9 @@ import { PlusIcon, MessageSquare } from 'lucide-react';
 import CreateProjectModal from '@/components/modals/CreateProjectModal';
 import QuotationReviewModal from '@/components/modals/QuotationReviewModal';
 import ViewFeedbackModal from '@/components/modals/ViewFeedbackModal';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ClientDashboardProps {
   projects: Project[];
@@ -98,55 +101,65 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black">My Projects</h1>
-          <p className="text-gray-600 mt-1">Track your project progress and updates</p>
+          <h1 className="text-2xl font-bold text-foreground">My Projects</h1>
+          <p className="text-muted-foreground mt-1">Track your project progress and updates</p>
         </div>
-        <button
+        <Button
           onClick={() => setShowCreateModal(true)}
-          className="btn-primary flex items-center gap-2"
+          className="flex items-center gap-2"
         >
           <PlusIcon size={20} />
           Create Project
-        </button>
+        </Button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-black">{clientProjects.length}</div>
-          <div className="text-sm text-gray-600">Total Projects</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-gray-600">
-            {clientProjects.filter(p => p.status === 'inactive').length}
-          </div>
-          <div className="text-sm text-gray-600">Pending</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-yellow-600">
-            {clientProjects.filter(p => p.status === 'in_progress').length}
-          </div>
-          <div className="text-sm text-gray-600">In Progress</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-purple-600">
-            {clientProjects.filter(p => p.status === 'review').length}
-          </div>
-          <div className="text-sm text-gray-600">In Review</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-green-600">
-            {clientProjects.filter(p => p.status === 'completed').length}
-          </div>
-          <div className="text-sm text-gray-600">Completed</div>
-        </div>
+        <Card>
+          <CardContent className="text-center p-6">
+            <div className="text-2xl font-bold text-foreground">{clientProjects.length}</div>
+            <div className="text-sm text-muted-foreground">Total Projects</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="text-center p-6">
+            <div className="text-2xl font-bold text-muted-foreground">
+              {clientProjects.filter(p => p.status === 'inactive').length}
+            </div>
+            <div className="text-sm text-muted-foreground">Pending</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="text-center p-6">
+            <div className="text-2xl font-bold text-yellow-600">
+              {clientProjects.filter(p => p.status === 'in_progress').length}
+            </div>
+            <div className="text-sm text-muted-foreground">In Progress</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="text-center p-6">
+            <div className="text-2xl font-bold text-purple-600">
+              {clientProjects.filter(p => p.status === 'review').length}
+            </div>
+            <div className="text-sm text-muted-foreground">In Review</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="text-center p-6">
+            <div className="text-2xl font-bold text-green-600">
+              {clientProjects.filter(p => p.status === 'completed').length}
+            </div>
+            <div className="text-sm text-muted-foreground">Completed</div>
+          </CardContent>
+        </Card>
       </div>
 
 
 
       {/* Projects Grid */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">All Projects</h2>
+        <h2 className="text-lg font-semibold text-foreground">All Projects</h2>
         {clientProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {clientProjects.map((project) => (
@@ -160,13 +173,15 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
             ))}
           </div>
         ) : (
-          <div className="card text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <PlusIcon size={48} className="mx-auto" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-600 mb-2">No projects yet</h3>
-            <p className="text-gray-500">Create your first project to get started.</p>
-          </div>
+          <Card>
+            <CardContent className="text-center py-12">
+              <div className="text-muted-foreground mb-4">
+                <PlusIcon size={48} className="mx-auto" />
+              </div>
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">No projects yet</h3>
+              <p className="text-muted-foreground">Create your first project to get started.</p>
+            </CardContent>
+          </Card>
         )}
       </div>
 
@@ -206,22 +221,22 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
 
       {/* Success Message Toast */}
       {successMessage && (
-        <div className="fixed top-4 right-4 z-50 px-6 py-3 bg-green-50 border border-green-200 text-green-800 rounded-md shadow-lg">
-          <div className="flex items-center space-x-2">
+        <Alert className="fixed top-4 right-4 z-50 w-96">
+          <AlertDescription className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
             <span className="text-sm font-medium">{successMessage}</span>
-          </div>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Error Message Toast */}
       {errorMessage && (
-        <div className="fixed top-4 right-4 z-50 px-6 py-3 bg-red-50 border border-red-200 text-red-800 rounded-md shadow-lg">
-          <div className="flex items-center space-x-2">
+        <Alert variant="destructive" className="fixed top-4 right-4 z-50 w-96">
+          <AlertDescription className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-red-500 rounded-full"></div>
             <span className="text-sm font-medium">{errorMessage}</span>
-          </div>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
     </div>
   );

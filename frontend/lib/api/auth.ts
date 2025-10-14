@@ -374,6 +374,59 @@ class AuthAPI {
 
     return response.json();
   }
+
+  async onboardClient(data: { name: string; email: string; company: string }): Promise<{ user: User; password: string; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/onboard-client`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to onboard client');
+    }
+
+    return response.json();
+  }
+
+  async sendClientCredentials(clientId: number, clientEmail: string, clientName: string, companyName: string, password: string): Promise<{ message: string; success?: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/auth/send-client-credentials`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({
+        client_id: clientId,
+        client_email: clientEmail,
+        client_name: clientName,
+        company_name: companyName,
+        password: password
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to send client credentials');
+    }
+
+    return response.json();
+  }
+
+  async testClientLogin(email: string, password: string): Promise<{ success: boolean; message: string; user?: User; token?: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/test-client-login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to test client login');
+    }
+
+    return response.json();
+  }
 }
 
 export const authAPI = new AuthAPI();

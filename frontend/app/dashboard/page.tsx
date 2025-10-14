@@ -8,6 +8,7 @@ import ClientDashboard from '@/components/dashboards/ClientDashboard';
 import ProjectManagerDashboard from '@/components/dashboards/ProjectManagerDashboard';
 import DesignerDashboard from '@/components/dashboards/DesignerDashboard';
 import DesignerSharedDashboard from '@/components/dashboards/DesignerSharedDashboard';
+import DigitalMarketingDashboard from '@/components/dashboards/DigitalMarketingDashboard';
 import WelcomeDashboard from '@/components/dashboards/WelcomeDashboard';
 
 export default function DashboardPage() {
@@ -41,7 +42,7 @@ export default function DashboardPage() {
   if (!user || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -68,8 +69,9 @@ export default function DashboardPage() {
       case 'accountant':
       case 'marketing':
       case 'sales':
-      case 'digital_marketing':
         return <WelcomeDashboard user={user} />;
+      case 'digital_marketing':
+        return <DigitalMarketingDashboard user={user} />;
       default:
         return <div>Unknown role</div>;
     }

@@ -15,7 +15,8 @@ from .models import StaffUserAuth, ROLE_CHOICES
 from .serializers import (
     UserCreateSchema, UserUpdateSchema, UserResponseSchema,
     LoginSchema, LoginResponseSchema, PasswordChangeSchema, AdminSetPasswordSchema,
-    MessageResponseSchema, RoleChoicesSchema, EmailSendSchema
+    MessageResponseSchema, RoleChoicesSchema, EmailSendSchema,
+    ClientOnboardingSchema, SendCredentialsSchema
 )
 
 router = Router()
@@ -409,3 +410,184 @@ def send_mail_endpoint(request, data: EmailSendSchema):
         return MessageResponseSchema(message="Email sent successfully")
     except Exception as e:
         raise HttpError(500, f"Failed to send email: {str(e)}")
+
+
+@router.post("/onboard-client", response=dict, auth=auth)
+def onboard_client(request, data: ClientOnboardingSchema):
+    """Onboard a new client with auto-generated password (digital marketing only)"""
+    user = request.auth
+    
+    # Check permissions - only digital marketing and admins can onboard clients
+    if not (user.role == ROLE_CHOICES.DIGITAL_MARKETING or user.is_admin() or user.is_superuser):
+        raise HttpError(403, "Permission denied. Only Digital Marketing can onboard clients.")
+    
+    # Validate required fields
+    name = data.name.strip()
+    email = data.email.strip()
+    company = data.company.strip()
+    
+    if not name or not email or not company:
+        raise HttpError(400, "Name, email, and company are required")
+    
+    # Check if email already exists
+    if StaffUserAuth.objects.filter(email=email).exists():
+        raise HttpError(400, "User with this email already exists")
+    
+    # Generate random password
+    import string
+    import random
+    
+    def generate_password(length=8):
+        """Generate a random password with letters and numbers"""
+        characters = string.ascii_letters + string.digits
+        return ''.join(random.choice(characters) for _ in range(length))
+    
+    generated_password = generate_password()
+    
+    # Split name into first and last name
+    name_parts = name.split(' ', 1)
+    first_name = name_parts[0]
+    last_name = name_parts[1] if len(name_parts) > 1 else ''
+    
+    try:
+        # Create client user with all required fields
+        client_user = StaffUserAuth.objects.create_user(
+            email=email,
+            password=generated_password,
+            first_name=first_name,
+            last_name=last_name,
+            company_name=company,
+            role=ROLE_CHOICES.CLIENT,
+            is_active=True,
+            is_staff=False,  # Clients are not staff members
+            is_superuser=False,  # Clients are not superusers
+            mobile_number='',  # Can be updated later
+            address='',  # Can be updated later
+            city='',  # Can be updated later
+            state='',  # Can be updated later
+            country='',  # Can be updated later
+            pincode=''  # Can be updated later
+        )
+        
+        # Verify the user was created successfully
+        print(f"✅ Client user created successfully:")
+        print(f"   - ID: {client_user.id}")
+        print(f"   - Email: {client_user.email}")
+        print(f"   - Name: {client_user.full_name}")
+        print(f"   - Role: {client_user.role}")
+        print(f"   - Active: {client_user.is_active}")
+        print(f"   - Password: {generated_password}")
+        
+        return {
+            "user": UserResponseSchema.from_orm(client_user).dict(),
+            "password": generated_password,
+            "message": "Client onboarded successfully"
+        }
+    except Exception as e:
+        raise HttpError(500, f"Failed to onboard client: {str(e)}")
+
+
+@router.post("/send-client-credentials", response=MessageResponseSchema, auth=auth)
+def send_client_credentials(request, data: SendCredentialsSchema):
+    """Send client login credentials via email (digital marketing only)"""
+    user = request.auth
+    
+    # Check permissions - only digital marketing and admins can send credentials
+    if not (user.role == ROLE_CHOICES.DIGITAL_MARKETING or user.is_admin() or user.is_superuser):
+        raise HttpError(403, "Permission denied. Only Digital Marketing can send client credentials.")
+    
+    # Validate required fields
+    client_id = data.client_id
+    client_email = data.client_email.strip()
+    client_name = data.client_name.strip()
+    company_name = data.company_name.strip()
+    password = data.password.strip()
+    
+    if not all([client_id, client_email, client_name, company_name, password]):
+        raise HttpError(400, "All fields are required")
+    
+    # Verify client exists
+    try:
+        client_user = StaffUserAuth.objects.get(id=client_id, email=client_email, role=ROLE_CHOICES.CLIENT)
+    except StaffUserAuth.DoesNotExist:
+        raise HttpError(404, "Client not found")
+    
+    # Prepare email content
+    from django.conf import settings as dj_settings
+    from django.core.mail import send_mail
+    
+    # Get company name from settings or use default
+    company_display_name = getattr(dj_settings, 'COMPANY_NAME', 'RVR ENGINEERING')
+    support_email = getattr(dj_settings, 'SUPPORT_EMAIL', 'support@rvrengineering.com')
+    login_url = getattr(dj_settings, 'LOGIN_URL', 'https://rvrengineering.com')
+    
+    subject = f"Welcome to {company_display_name} — Your Client Account Details"
+    
+    message = f"""Hello **{client_name}**,
+Welcome to **{company_display_name}**! Your client account has been successfully created by our Digital Marketing Team.
+
+Here are your login credentials:
+
+* **Company Name:** {company_name}
+* **Email ID:** {client_email}
+* **Password:** {password}
+
+You can log in to your dashboard here: [{login_url}]
+
+Please change your password after your first login for security purposes.
+
+If you need any help, contact us at **[{support_email}](mailto:{support_email})**.
+
+Best regards,
+**The {company_display_name} Team**"""
+    
+    try:
+        send_mail(
+            subject,
+            message,
+            getattr(dj_settings, 'DEFAULT_FROM_EMAIL', None) or getattr(dj_settings, 'EMAIL_HOST_USER', None),
+            [client_email],
+            fail_silently=False,
+        )
+        return MessageResponseSchema(message="Client credentials sent successfully")
+    except Exception as e:
+        raise HttpError(500, f"Failed to send credentials: {str(e)}")
+
+
+@router.post("/test-client-login", response=dict)
+def test_client_login(request, data: dict):
+    """Test endpoint to verify client can log in with generated credentials"""
+    email = data.get('email', '').strip()
+    password = data.get('password', '').strip()
+    
+    if not email or not password:
+        raise HttpError(400, "Email and password are required")
+    
+    try:
+        # Try to authenticate the client
+        user = StaffUserAuth.objects.get(email=email)
+        
+        if user.check_password(password) and user.is_active:
+            # Create a token for the client
+            token = create_jwt_token(user)
+            return {
+                "success": True,
+                "message": "Client login successful",
+                "user": UserResponseSchema.from_orm(user).dict(),
+                "token": token
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Invalid credentials or inactive user"
+            }
+    except StaffUserAuth.DoesNotExist:
+        return {
+            "success": False,
+            "message": "Client not found"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Login test failed: {str(e)}"
+        }

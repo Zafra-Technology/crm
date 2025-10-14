@@ -6,6 +6,11 @@ import { getCurrentUser } from '@/lib/auth';
 import { projectsApi } from '@/lib/api/projects';
 import { tasksApi } from '@/lib/api/tasks';
 import { FolderIcon, CalendarIcon, UserIcon, PlusIcon, LayoutGridIcon, TableIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { authAPI } from '@/lib/api/auth';
 import KanbanBoard from '@/components/tasks/KanbanBoard';
 import CreateTaskModal from '@/components/tasks/CreateTaskModal';
 import TaskTable from '@/components/tasks/TaskTable';
@@ -24,11 +29,63 @@ export default function TasksPage() {
     total: 0
   });
   const [projectTaskCounts, setProjectTaskCounts] = useState<Record<string, { total: number; completed: number }>>({});
+  const [designers, setDesigners] = useState<any[]>([]);
+  const [loadingDesigners, setLoadingDesigners] = useState(true);
 
   useEffect(() => {
     const currentUser = getCurrentUser();
     console.log('Tasks page - Current user:', currentUser);
     setUser(currentUser);
+  }, []);
+
+  // Load designers when page loads
+  useEffect(() => {
+    const loadDesigners = async () => {
+      try {
+        setLoadingDesigners(true);
+        console.log('🔍 Tasks page: Loading designers...');
+        
+        // Fetch designers by role directly from DB via users API
+        const [designers, seniorDesigners, drafters] = await Promise.all([
+          authAPI.getUsers('designer'),
+          authAPI.getUsers('senior_designer'),
+          authAPI.getUsers('auto_cad_drafter')
+        ]);
+
+        // Merge and de-duplicate by id
+        const merged = [...designers, ...seniorDesigners, ...drafters];
+        const uniqueById = Array.from(new Map(merged.map(u => [u.id, u])).values());
+
+        const activeDesigners = uniqueById
+          .filter(u => u.is_active)
+          .map(u => ({
+            id: u.id.toString(),
+            name: u.full_name,
+            email: u.email,
+            phoneNumber: u.mobile_number || '',
+            company: u.company_name || '',
+            role: u.role_display || u.role,
+            status: 'active' as const,
+            joinedDate: u.date_of_joining || u.created_at || '',
+            projectsCount: 0
+          }));
+        
+        console.log('📋 Tasks page: Designers loaded:', activeDesigners.length);
+        console.log('🎯 Tasks page: Designer details:', activeDesigners.map(d => ({ id: d.id, name: d.name, role: d.role })));
+        setDesigners(activeDesigners);
+      } catch (error) {
+        console.error('❌ Tasks page: Error loading designers:', error);
+        // Use fallback designers if API fails
+        const fallbackDesigners = [
+          { id: '3', name: 'Mike Designer', role: 'designer', status: 'active' }
+        ];
+        setDesigners(fallbackDesigners);
+      } finally {
+        setLoadingDesigners(false);
+      }
+    };
+
+    loadDesigners();
   }, []);
 
   useEffect(() => {
@@ -123,52 +180,49 @@ export default function TasksPage() {
         {/* Project Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-6">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => setSelectedProject(null)}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+              className="text-primary hover:text-primary/80 text-sm font-medium flex items-center gap-1"
             >
               ← Back to Projects
-            </button>
+            </Button>
             <div>
-              <h1 className="text-2xl font-bold text-black">{selectedProject.name}</h1>
+              <h1 className="text-2xl font-bold text-foreground">{selectedProject.name}</h1>
             </div>
           </div>
           
           <div className="flex items-center space-x-4">
             {/* View Mode Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
-              <button
+            <div className="flex items-center bg-muted rounded-lg p-1">
+              <Button
+                variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+                size="sm"
                 onClick={() => setViewMode('kanban')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  viewMode === 'kanban' 
-                    ? 'bg-white text-black shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className="flex items-center space-x-2"
               >
                 <LayoutGridIcon size={16} />
                 <span>Kanban</span>
-              </button>
-              <button
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
                 onClick={() => setViewMode('table')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  viewMode === 'table' 
-                    ? 'bg-white text-black shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className="flex items-center space-x-2"
               >
                 <TableIcon size={16} />
                 <span>Table</span>
-              </button>
+              </Button>
             </div>
 
-            {user?.role === 'project_manager' && (
-              <button
+          {(user?.role === 'project_manager' || user?.role === 'admin') && (
+              <Button
                 onClick={() => setShowCreateTask(true)}
-                className="btn-primary flex items-center space-x-2"
+                className="flex items-center space-x-2"
               >
                 <PlusIcon size={16} />
                 <span>Create Task</span>
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -183,22 +237,26 @@ export default function TasksPage() {
         {/* Task Views */}
         {viewMode === 'kanban' ? (
           <KanbanBoard 
-            key={`kanban-${selectedProject.id}-${Date.now()}`}
+            key={`kanban-${selectedProject.id}`}
             project={selectedProject}
             currentUser={user!}
+            designers={designers}
+            loadingDesigners={loadingDesigners}
             onTaskCreated={() => {
               console.log('🔄 Task created, refreshing view...');
-              setSelectedProject({ ...selectedProject, lastUpdated: Date.now() });
+              setSelectedProject({ ...selectedProject });
             }}
           />
         ) : (
           <TaskTable
-            key={`table-${selectedProject.id}-${Date.now()}`}
+            key={`table-${selectedProject.id}`}
             project={selectedProject}
             currentUser={user!}
+            designers={designers}
+            loadingDesigners={loadingDesigners}
             onTaskUpdated={() => {
               console.log('🔄 Task updated, refreshing view...');
-              setSelectedProject({ ...selectedProject, lastUpdated: Date.now() });
+              setSelectedProject({ ...selectedProject });
             }}
           />
         )}
@@ -208,6 +266,8 @@ export default function TasksPage() {
           <CreateTaskModal
             project={selectedProject}
             currentUser={user!}
+            designers={designers}
+            loadingDesigners={loadingDesigners}
             onClose={() => setShowCreateTask(false)}
             onTaskCreated={() => {
               setShowCreateTask(false);
@@ -225,8 +285,8 @@ export default function TasksPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-black">Task Management</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Task Management</h1>
+        <p className="text-muted-foreground mt-1">
           {user?.role === 'project_manager' 
             ? 'Manage tasks across your projects' 
             : 'View and update your assigned tasks'
@@ -241,90 +301,94 @@ export default function TasksPage() {
           const completionPercentage = taskCount.total > 0 ? Math.round((taskCount.completed / taskCount.total) * 100) : 0;
           
           return (
-            <div
+            <Card
               key={project.id}
               onClick={() => setSelectedProject(project)}
-              className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+              className="hover:shadow-md transition-shadow cursor-pointer"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <FolderIcon size={20} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{project.name}</h3>
-                    <p className="text-sm text-gray-500 truncate max-w-[200px]">
-                      {project.description}
-                    </p>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getProjectStatusColor(project.status)}`}>
-                  {getProjectStatusLabel(project.status)}
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <CalendarIcon size={14} />
-                  <span>{project.timeline}</span>
-                </div>
-                
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <UserIcon size={14} />
-                  <span>{(project.designerIds?.length || 0) + 1} members</span>
-                </div>
-
-                {/* Task Counts */}
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span className="text-gray-600">
-                        Total: <span className="font-medium text-gray-900">{taskCount.total}</span>
-                      </span>
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <FolderIcon size={20} className="text-blue-600" />
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-gray-600">
-                        Done: <span className="font-medium text-green-600">{taskCount.completed}</span>
-                      </span>
+                    <div>
+                      <h3 className="font-semibold text-foreground">{project.name}</h3>
+                      <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                        {project.description}
+                      </p>
                     </div>
                   </div>
-                  <span className="text-xs text-gray-500">
-                    {completionPercentage}%
-                  </span>
+                  <Badge variant="secondary" className="text-xs">
+                    {getProjectStatusLabel(project.status)}
+                  </Badge>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${completionPercentage}%` }}
-                  ></div>
-                </div>
-              </div>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <CalendarIcon size={14} />
+                    <span>{project.timeline}</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <UserIcon size={14} />
+                    <span>{(project.designerIds?.length || 0) + 1} members</span>
+                  </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="text-sm text-blue-600 font-medium hover:text-blue-800">
-                  View Tasks →
+                  {/* Task Counts */}
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-muted-foreground">
+                          Total: <span className="font-medium text-foreground">{taskCount.total}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-muted-foreground">
+                          Done: <span className="font-medium text-green-600">{taskCount.completed}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {completionPercentage}%
+                    </span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${completionPercentage}%` }}
+                    ></div>
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="text-sm text-primary font-medium hover:text-primary/80">
+                    View Tasks →
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
 
       {projects.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <FolderIcon size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Projects Found</h3>
-          <p className="text-gray-500">
-            {user?.role === 'project_manager' 
-              ? 'Create your first project to start managing tasks'
-              : 'You have not been assigned to any projects yet'
-            }
-          </p>
-        </div>
+        <Card>
+          <CardContent className="text-center py-12">
+            <FolderIcon size={48} className="mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No Projects Found</h3>
+            <p className="text-muted-foreground">
+              {(user?.role === 'project_manager' || user?.role === 'admin') 
+                ? 'Create your first project to start managing tasks'
+                : 'You have not been assigned to any projects yet'
+              }
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

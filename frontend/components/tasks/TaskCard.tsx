@@ -4,6 +4,21 @@ import { useState } from 'react';
 import { User } from '@/types';
 import { Task } from './KanbanBoard';
 import { CalendarIcon, UserIcon, MessageSquareIcon, PaperclipIcon, ChevronDownIcon, MoreVerticalIcon, TrashIcon, MessageCircleIcon } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface TaskCardProps {
   task: Task;
@@ -20,23 +35,23 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageText, setMessageText] = useState('');
 
-  const getPriorityColor = (priority: string) => {
-    const colors = {
-      low: 'bg-gray-100 text-gray-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      high: 'bg-red-100 text-red-800',
+  const getPriorityVariant = (priority: string) => {
+    const variants = {
+      low: 'secondary' as const,
+      medium: 'default' as const,
+      high: 'destructive' as const,
     };
-    return colors[priority as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return variants[priority as keyof typeof variants] || 'secondary';
   };
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      todo: 'bg-gray-100 text-gray-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      review: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-green-100 text-green-800',
+  const getStatusVariant = (status: string) => {
+    const variants = {
+      todo: 'secondary' as const,
+      in_progress: 'default' as const,
+      review: 'default' as const,
+      completed: 'default' as const,
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return variants[status as keyof typeof variants] || 'secondary';
   };
 
   const getStatusLabel = (status: string) => {
@@ -61,7 +76,12 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
 
   const getAssigneeInitials = (assigneeId: string) => {
     const name = getAssigneeName(assigneeId);
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(' ')
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const getAssigneeColor = (assigneeId: string) => {
@@ -70,7 +90,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
       'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
     ];
     const name = getAssigneeName(assigneeId);
-    const hash = name.split('').reduce((a, b) => {
+    const hash = name.split('').reduce((a: number, b: string) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
@@ -93,13 +113,13 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   };
 
   const canUpdateStatus = () => {
-    // Managers can update any task, designers can only update their own tasks
-    return currentUser.role === 'project_manager' || task.assigneeId === currentUser.id;
+    // Managers and admins can update any task, designers can only update their own tasks
+    return currentUser.role === 'project_manager' || currentUser.role === 'admin' || task.assigneeId === currentUser.id;
   };
 
   const canShowActions = () => {
-    // Only managers can delete tasks or tag in messages
-    return currentUser.role === 'project_manager';
+    // Only managers and admins can delete tasks or tag in messages
+    return currentUser.role === 'project_manager' || currentUser.role === 'admin';
   };
 
   const handleDelete = () => {
@@ -128,42 +148,47 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-shadow">
-      {/* Task Header */}
-      <div className="flex items-start justify-between mb-3">
-        <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 mr-2">
-          {task.title}
-        </h4>
-        <div className="flex items-center gap-2">
-          <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(task.priority)}`}>
-            {task.priority}
-          </span>
+    <Card className="hover:shadow-sm transition-shadow">
+      <CardContent className="p-4">
+        {/* Task Header */}
+        <div className="flex items-start justify-between mb-3">
+          <h4 className="font-medium text-foreground text-sm leading-tight flex-1 mr-2">
+            {task.title}
+          </h4>
+          <div className="flex items-center gap-2">
+            <Badge variant={getPriorityVariant(task.priority)} className="text-xs">
+              {task.priority}
+            </Badge>
           {canShowActions() && (
             <div className="relative">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setShowActionsMenu(!showActionsMenu)}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                className="h-6 w-6"
                 title="More actions"
               >
-                <MoreVerticalIcon size={14} className="text-gray-500" />
-              </button>
+                <MoreVerticalIcon size={14} className="text-muted-foreground" />
+              </Button>
               
               {showActionsMenu && (
-                <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[160px] whitespace-nowrap">
-                  <button
+                <div className="absolute top-full right-0 mt-1 bg-background border border-border rounded-md shadow-lg z-20 min-w-[160px] whitespace-nowrap">
+                  <Button
+                    variant="ghost"
                     onClick={handleTagInMessage}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors text-gray-700 flex items-center gap-2"
+                    className="w-full justify-start text-xs h-8 px-3"
                   >
-                    <MessageCircleIcon size={12} />
+                    <MessageCircleIcon size={12} className="mr-2" />
                     Tag in Message
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={handleDelete}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-red-50 transition-colors text-red-600 flex items-center gap-2"
+                    className="w-full justify-start text-xs h-8 px-3 text-destructive hover:text-destructive"
                   >
-                    <TrashIcon size={12} />
+                    <TrashIcon size={12} className="mr-2" />
                     Delete Task
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -171,91 +196,93 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
         </div>
       </div>
 
-      {/* Task Description */}
-      {task.description && (
-        <p className="text-xs text-gray-600 mb-3 line-clamp-2">
-          {task.description}
-        </p>
-      )}
+        {/* Task Description */}
+        {task.description && (
+          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+            {task.description}
+          </p>
+        )}
 
-      {/* Task Meta */}
-      <div className="space-y-2 mb-3">
-        {/* Assignee */}
-        <div className="flex items-center space-x-2">
-          <div className={`w-6 h-6 ${getAssigneeColor(task.assigneeId)} rounded-full flex items-center justify-center`}>
-            <span className="text-white font-medium text-xs">
-              {getAssigneeInitials(task.assigneeId)}
+        {/* Task Meta */}
+        <div className="space-y-2 mb-3">
+          {/* Assignee */}
+          <div className="flex items-center space-x-2">
+            <div className={`w-6 h-6 ${getAssigneeColor(task.assigneeId)} rounded-full flex items-center justify-center`}>
+              <span className="text-white font-medium text-xs">
+                {getAssigneeInitials(task.assigneeId)}
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {getAssigneeName(task.assigneeId)}
             </span>
           </div>
-          <span className="text-xs text-gray-600">
-            {getAssigneeName(task.assigneeId)}
-          </span>
+
+          {/* Due Date */}
+          {task.dueDate && (
+            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+              <CalendarIcon size={12} />
+              <span>{formatDate(task.dueDate)}</span>
+            </div>
+          )}
+
+          {/* Attachments & Comments */}
+          <div className="flex items-center space-x-3">
+            {task.attachments && task.attachments.length > 0 && (
+              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                <PaperclipIcon size={12} />
+                <span>{task.attachments.length}</span>
+              </div>
+            )}
+            
+            {task.comments && task.comments.length > 0 && (
+              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                <MessageSquareIcon size={12} />
+                <span>{task.comments.length}</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Due Date */}
-        {task.dueDate && (
-          <div className="flex items-center space-x-2 text-xs text-gray-600">
-            <CalendarIcon size={12} />
-            <span>{formatDate(task.dueDate)}</span>
+        {/* Status Update */}
+        {canUpdateStatus() && (
+          <div className="relative">
+            <Button
+              variant="outline"
+              onClick={() => setShowStatusMenu(!showStatusMenu)}
+              className="w-full flex items-center justify-between text-xs h-8"
+            >
+              <span>{getStatusLabel(task.status)}</span>
+              <ChevronDownIcon size={12} />
+            </Button>
+
+            {showStatusMenu && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg z-10">
+                {getAvailableStatusOptions().map((option) => (
+                  <Button
+                    key={option.value}
+                    variant="ghost"
+                    onClick={() => {
+                      onStatusUpdate(task.id, option.value as Task['status']);
+                      setShowStatusMenu(false);
+                    }}
+                    className={`w-full justify-start text-xs h-8 px-3 ${
+                      task.status === option.value ? 'bg-accent text-accent-foreground font-medium' : ''
+                    }`}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Attachments & Comments */}
-        <div className="flex items-center space-x-3">
-          {task.attachments && task.attachments.length > 0 && (
-            <div className="flex items-center space-x-1 text-xs text-gray-500">
-              <PaperclipIcon size={12} />
-              <span>{task.attachments.length}</span>
-            </div>
-          )}
-          
-          {task.comments && task.comments.length > 0 && (
-            <div className="flex items-center space-x-1 text-xs text-gray-500">
-              <MessageSquareIcon size={12} />
-              <span>{task.comments.length}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Status Update */}
-      {canUpdateStatus() && (
-        <div className="relative">
-          <button
-            onClick={() => setShowStatusMenu(!showStatusMenu)}
-            className={`w-full flex items-center justify-between px-2 py-1 rounded text-xs font-medium ${getStatusColor(task.status)} hover:opacity-80 transition-opacity`}
-          >
-            <span>{getStatusLabel(task.status)}</span>
-            <ChevronDownIcon size={12} />
-          </button>
-
-          {showStatusMenu && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-              {getAvailableStatusOptions().map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => {
-                    onStatusUpdate(task.id, option.value as Task['status']);
-                    setShowStatusMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${
-                    task.status === option.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Read-only status for non-editable tasks */}
-      {!canUpdateStatus() && (
-        <div className={`px-2 py-1 rounded text-xs font-medium text-center ${getStatusColor(task.status)}`}>
-          {getStatusLabel(task.status)}
-        </div>
-      )}
+        {/* Read-only status for non-editable tasks */}
+        {!canUpdateStatus() && (
+          <Badge variant={getStatusVariant(task.status)} className="w-full text-center text-xs">
+            {getStatusLabel(task.status)}
+          </Badge>
+        )}
 
       {/* Click outside to close menus */}
       {(showStatusMenu || showActionsMenu) && (
@@ -268,56 +295,63 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
         />
       )}
 
-      {/* Message Modal */}
-      {showMessageModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Tag Task in Message
-            </h3>
-            
-            <div className="mb-4">
-              <div className="bg-gray-50 p-3 rounded-md mb-3">
-                <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                <p className="text-xs text-gray-600">
-                  Assigned to: {getAssigneeName(task.assigneeId)}
-                </p>
-                <p className="text-xs text-gray-600">
-                  Priority: {task.priority} • Status: {getStatusLabel(task.status)}
-                </p>
+        {/* Message Modal */}
+        <Dialog open={showMessageModal} onOpenChange={setShowMessageModal}>
+          <DialogContent className="max-w-lg sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="text-base">Tag Task in Message</DialogTitle>
+              <DialogDescription className="text-xs">Send a quick note referencing this task.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Task summary */}
+              <div className="bg-muted/50 border border-border rounded-md p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span>Assigned: {getAssigneeName(task.assigneeId)}</span>
+                      <span className="hidden sm:inline">•</span>
+                      <span>Priority: {task.priority}</span>
+                      <span className="hidden sm:inline">•</span>
+                      <span>Status: {getStatusLabel(task.status)}</span>
+                      {task.dueDate && (
+                        <>
+                          <span className="hidden sm:inline">•</span>
+                          <span>Due: {formatDate(task.dueDate)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Message:
-              </label>
-              <textarea
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                placeholder="Enter your message about this task..."
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                rows={4}
-                autoFocus
-              />
+
+              {/* Message field */}
+              <div className="space-y-1.5">
+                <Label htmlFor="message" className="text-xs">Message</Label>
+                <Textarea
+                  id="message"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  placeholder="Type your message..."
+                  rows={5}
+                  className="resize-y"
+                  autoFocus
+                />
+              </div>
             </div>
-            
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={handleCloseModal}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-              >
+
+            <DialogFooter className="gap-2 sm:gap-3 justify-end">
+              <Button onClick={handleCloseModal} variant="outline">
                 Cancel
-              </button>
-              <button
-                onClick={handleSendMessage}
-                disabled={!messageText.trim()}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-md transition-colors"
-              >
+              </Button>
+              <Button onClick={handleSendMessage} disabled={!messageText.trim()}>
                 Send Message
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
   );
 }
