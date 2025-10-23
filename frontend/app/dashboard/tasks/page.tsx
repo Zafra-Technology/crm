@@ -29,6 +29,7 @@ export default function TasksPage() {
     total: 0
   });
   const [projectTaskCounts, setProjectTaskCounts] = useState<Record<string, { total: number; completed: number }>>({});
+  const [loadingTaskCounts, setLoadingTaskCounts] = useState(false);
   const [designers, setDesigners] = useState<any[]>([]);
   const [loadingDesigners, setLoadingDesigners] = useState(true);
 
@@ -116,33 +117,49 @@ export default function TasksPage() {
     const counts: Record<string, { total: number; completed: number }> = {};
     
     try {
-      // Load task counts for each project
-      const countPromises = projectsList.map(async (project) => {
-        try {
-          let tasks;
-          if (user?.role === 'designer') {
-            // For designers, get their tasks and filter by project
-            const userTasks = await tasksApi.getByAssignee(user.id);
-            tasks = userTasks.filter(task => task.projectId === project.id);
-          } else {
-            // For managers, get all project tasks
-            tasks = await tasksApi.getByProject(project.id);
-          }
-          
-          const total = tasks.length;
-          const completed = tasks.filter(task => task.status === 'completed').length;
-          
-          counts[project.id] = { total, completed };
-        } catch (error) {
-          console.error(`Error loading tasks for project ${project.id}:`, error);
-          counts[project.id] = { total: 0, completed: 0 };
+      setLoadingTaskCounts(true);
+      console.log('🚀 Loading task counts using bulk endpoint...');
+      
+      // Use bulk endpoint for much better performance
+      let allTasks;
+      if (user?.role === 'designer') {
+        // For designers, get all their tasks at once
+        allTasks = await tasksApi.getByAssignee(user.id);
+        console.log('📊 Designer tasks loaded:', allTasks.length);
+      } else {
+        // For managers, get all tasks across all projects
+        allTasks = await tasksApi.getByAssignee(user?.id || ''); // This will get all tasks for managers
+        console.log('📊 Manager tasks loaded:', allTasks.length);
+      }
+      
+      // Group tasks by project ID
+      const tasksByProject: Record<string, any[]> = {};
+      allTasks.forEach(task => {
+        if (!tasksByProject[task.projectId]) {
+          tasksByProject[task.projectId] = [];
         }
+        tasksByProject[task.projectId].push(task);
       });
       
-      await Promise.all(countPromises);
+      // Calculate counts for each project
+      projectsList.forEach(project => {
+        const projectTasks = tasksByProject[project.id] || [];
+        const total = projectTasks.length;
+        const completed = projectTasks.filter(task => task.status === 'completed').length;
+        counts[project.id] = { total, completed };
+      });
+      
+      console.log('✅ Task counts calculated:', counts);
       setProjectTaskCounts(counts);
     } catch (error) {
-      console.error('Error loading project task counts:', error);
+      console.error('❌ Error loading project task counts:', error);
+      // Set default counts for all projects
+      projectsList.forEach(project => {
+        counts[project.id] = { total: 0, completed: 0 };
+      });
+      setProjectTaskCounts(counts);
+    } finally {
+      setLoadingTaskCounts(false);
     }
   };
 
@@ -168,8 +185,37 @@ export default function TasksPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading tasks...</div>
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div>
+          <div className="h-8 bg-muted rounded w-48 mb-2"></div>
+          <div className="h-4 bg-muted rounded w-96"></div>
+        </div>
+        
+        {/* Projects Grid Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-muted rounded-lg"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-muted rounded w-32"></div>
+                      <div className="h-3 bg-muted rounded w-48"></div>
+                    </div>
+                  </div>
+                  <div className="h-6 bg-muted rounded w-16"></div>
+                </div>
+                <div className="space-y-3">
+                  <div className="h-4 bg-muted rounded w-24"></div>
+                  <div className="h-4 bg-muted rounded w-20"></div>
+                  <div className="h-2 bg-muted rounded w-full"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -337,22 +383,39 @@ export default function TasksPage() {
 
                   {/* Task Counts */}
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-muted-foreground">
-                          Total: <span className="font-medium text-foreground">{taskCount.total}</span>
-                        </span>
+                    {loadingTaskCounts ? (
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 bg-muted rounded-full animate-pulse"></div>
+                          <span className="text-muted-foreground">
+                            Total: <span className="font-medium text-foreground">-</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 bg-muted rounded-full animate-pulse"></div>
+                          <span className="text-muted-foreground">
+                            Done: <span className="font-medium text-green-600">-</span>
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-muted-foreground">
-                          Done: <span className="font-medium text-green-600">{taskCount.completed}</span>
-                        </span>
+                    ) : (
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <span className="text-muted-foreground">
+                            Total: <span className="font-medium text-foreground">{taskCount.total}</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-muted-foreground">
+                            Done: <span className="font-medium text-green-600">{taskCount.completed}</span>
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <span className="text-xs text-muted-foreground">
-                      {completionPercentage}%
+                      {loadingTaskCounts ? '-' : `${completionPercentage}%`}
                     </span>
                   </div>
 

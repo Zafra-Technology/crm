@@ -57,7 +57,7 @@ export default function KanbanBoard({ project, currentUser, designers, loadingDe
 
   const loadTasks = async () => {
     try {
-      if (currentUser.role === 'designer') {
+      if (['designer', 'senior_designer', 'auto_cad_drafter'].includes(currentUser.role)) {
         // Designers only see tasks assigned to them across all projects
         const userTasks = await tasksApi.getByAssignee(currentUser.id);
         // Filter by current project

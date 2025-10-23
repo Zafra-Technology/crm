@@ -12,9 +12,10 @@ import { BrushIcon, ClockIcon, AlertCircleIcon, TrendingUpIcon } from 'lucide-re
 interface DesignerDashboardProps {
   projects: Project[];
   userId: string;
+  userRole: string;
 }
 
-export default function DesignerDashboard({ projects: initialProjects, userId }: DesignerDashboardProps) {
+export default function DesignerDashboard({ projects: initialProjects, userId, userRole }: DesignerDashboardProps) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recentUpdates, setRecentUpdates] = useState<ProjectUpdate[]>([]);
@@ -41,7 +42,7 @@ export default function DesignerDashboard({ projects: initialProjects, userId }:
 
   const loadProjects = async () => {
     try {
-      const projectsData = await projectsApi.getByUser(userId, 'designer');
+      const projectsData = await projectsApi.getByUser(userId, userRole);
       setProjects(projectsData);
     } catch (error) {
       console.error('Error loading projects:', error);

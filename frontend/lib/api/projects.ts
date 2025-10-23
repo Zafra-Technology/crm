@@ -28,6 +28,12 @@ export const projectsApi = {
         }))
       : [];
 
+    const designerIds = Array.isArray(p.designerIds)
+      ? p.designerIds.map((d: any) => String(d))
+      : Array.isArray(p.designer_ids)
+      ? p.designer_ids.map((d: any) => String(d))
+      : [];
+
     const project: Project = {
       id: String(p.id),
       name: String(p.name || ''),
@@ -42,23 +48,24 @@ export const projectsApi = {
       quotationAccepted: Boolean(p.quotation_accepted || p.quotationAccepted || false),
       clientId: p.clientId ? String(p.clientId) : String(p.client_id ?? ''),
       managerId: p.managerId ? String(p.managerId) : String(p.manager_id ?? ''),
-      designerIds: Array.isArray(p.designerIds)
-        ? p.designerIds.map((d: any) => String(d))
-        : Array.isArray(p.designer_ids)
-        ? p.designer_ids.map((d: any) => String(d))
-        : [],
+      designerIds,
       attachments,
       createdAt: String(p.createdAt || p.created_at || ''),
       updatedAt: String(p.updatedAt || p.updated_at || ''),
     };
+    
     // Pass-through designers array from backend for team rendering
     if (Array.isArray((p as any).designers)) {
       (project as any).designers = (p as any).designers;
     }
-    // attach derived/count for UI cards
-    (project as any).designerCount = Number(
-      p.designerCount ?? p.designer_count ?? (Array.isArray(project.designerIds) ? project.designerIds.length : 0)
+    
+    // Calculate designer count with better logic
+    const designerCount = Number(
+      p.designerCount ?? p.designer_count ?? designerIds.length
     );
+    
+    (project as any).designerCount = designerCount;
+    
     return project;
   },
   // Get all projects
@@ -74,7 +81,7 @@ export const projectsApi = {
         : Array.isArray(data?.projects)
         ? data.projects
         : [];
-      return arr.map(projectsApi._mapApiProject);
+      return arr.map((project: any) => projectsApi._mapApiProject(project));
     } catch (error) {
       console.error('Error fetching projects:', error);
       return [];
@@ -100,7 +107,7 @@ export const projectsApi = {
         : Array.isArray(data?.projects)
         ? data.projects
         : [];
-      return arr.map(projectsApi._mapApiProject);
+      return arr.map((project: any) => projectsApi._mapApiProject(project));
     } catch (error) {
       console.error('Error fetching user projects:', error);
       return [];
@@ -127,9 +134,9 @@ export const projectsApi = {
         ? data.projects
         : [];
       
-      const allProjects = arr.map(projectsApi._mapApiProject);
+      const allProjects = arr.map((project: any) => projectsApi._mapApiProject(project));
       // Filter for inactive projects on the frontend
-      return allProjects.filter(project => project.status === 'inactive');
+      return allProjects.filter((project: any) => project.status === 'inactive');
     } catch (error) {
       console.error('Error fetching pending projects:', error);
       return [];
@@ -149,7 +156,7 @@ export const projectsApi = {
         : Array.isArray(data?.projects)
         ? data.projects
         : [];
-      return arr.map(projectsApi._mapApiProject);
+      return arr.map((project: any) => projectsApi._mapApiProject(project));
     } catch (error) {
       console.error('Error searching projects:', error);
       return [];

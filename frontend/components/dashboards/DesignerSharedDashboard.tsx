@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Project } from '@/types';
 import ProjectCard from '@/components/ProjectCard';
+import { projectsApi } from '@/lib/api/projects';
 import { PlusIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, UsersIcon } from 'lucide-react';
 
 interface DesignerSharedDashboardProps {
@@ -22,8 +23,8 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
   const loadProjects = async () => {
     try {
       setLoading(true);
-      // For now, set empty projects array until projects API is updated to Django
-      const projectsData: Project[] = [];
+      // Fetch projects assigned to this designer
+      const projectsData = await projectsApi.getByUser(userId, userRole);
       setProjects(projectsData);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -32,9 +33,8 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
     }
   };
 
-  const assignedProjects = projects.filter(project => 
-    project.designerIds.includes(userId)
-  );
+  // Since backend already filters projects for designers, we can use all projects
+  const assignedProjects = projects;
 
   const getRoleDisplayName = () => {
     switch (userRole) {

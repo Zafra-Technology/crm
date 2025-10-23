@@ -50,14 +50,19 @@ export const tasksApi = {
     }
   },
 
-  // NOTE: Backend doesn't provide an assignee filter endpoint; callers often filter per-project.
-  // Keep this method for compatibility by aggregating across accessible projects if needed later.
+  // Get all tasks for the current user (optimized bulk endpoint)
   async getByAssignee(assigneeId: string): Promise<Task[]> {
-    console.log('🎯 Loading tasks for assignee (client-side aggregation):', assigneeId);
+    console.log('🎯 Loading tasks for assignee (bulk endpoint):', assigneeId);
     try {
-      // This placeholder returns an empty array; callers should load per project and filter locally.
-      // If needed, implement aggregation using projectsApi.getByUser(userId) → tasksApi.getByProject(projectId).
-      return [];
+      const url = `${API_BASE_URL}/projects/tasks/bulk`;
+      console.log('GET bulk tasks URL:', url);
+      const response = await fetch(url, { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error(`Failed to fetch user tasks: ${response.status}`);
+      const data = await response.json();
+      const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+      const tasks = arr.map(this._mapApiTask);
+      console.log('✅ Found user tasks:', tasks.length);
+      return tasks;
     } catch (error) {
       console.error('❌ Error fetching assignee tasks:', error);
       return [];

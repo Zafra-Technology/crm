@@ -22,6 +22,8 @@ interface AssignDesignersModalProps {
   currentDesignerIds: string[];
   projectName: string;
   loading?: boolean;
+  designers?: Designer[]; // Preloaded designers
+  currentDesigners?: Designer[]; // Current assigned designers (fallback)
 }
 
 export default function AssignDesignersModal({
@@ -30,30 +32,48 @@ export default function AssignDesignersModal({
   onAssign,
   currentDesignerIds,
   projectName,
-  loading = false
+  loading = false,
+  designers: preloadedDesigners = [],
+  currentDesigners = []
 }: AssignDesignersModalProps) {
-  const [designers, setDesigners] = useState<Designer[]>([]);
-  const normalizedCurrentIds = useMemo(() => (currentDesignerIds || []).map(id => String(id)), [currentDesignerIds]);
-  const [selectedDesignerIds, setSelectedDesignerIds] = useState<string[]>(normalizedCurrentIds);
+  const [designers, setDesigners] = useState<Designer[]>(preloadedDesigners);
+  const normalizedCurrentIds = useMemo(() => {
+    // First try currentDesignerIds
+    if (currentDesignerIds && currentDesignerIds.length > 0) {
+      return currentDesignerIds.map(id => String(id));
+    }
+    // Fallback to currentDesigners array
+    if (currentDesigners && currentDesigners.length > 0) {
+      return currentDesigners.map(d => String(d.id));
+    }
+    return [];
+  }, [currentDesignerIds, currentDesigners]);
+  const [selectedDesignerIds, setSelectedDesignerIds] = useState<string[]>([]);
   const [loadingDesigners, setLoadingDesigners] = useState(false);
 
+  // Update designers when preloaded designers change
   useEffect(() => {
-    if (isOpen) {
-      console.log('AssignDesignersModal: Opening modal, loading designers...');
+    if (preloadedDesigners.length > 0) {
+      setDesigners(preloadedDesigners);
+    }
+  }, [preloadedDesigners]);
+
+  // Load designers only if not preloaded
+  useEffect(() => {
+    if (isOpen && preloadedDesigners.length === 0) {
       loadDesigners();
     }
-  }, [isOpen]);
+  }, [isOpen, preloadedDesigners.length]);
 
+  // Set selected designers when modal opens or current designer IDs change
   useEffect(() => {
     if (isOpen) {
-      console.log('AssignDesignersModal: Setting selected designer IDs:', normalizedCurrentIds);
       setSelectedDesignerIds(normalizedCurrentIds);
     }
   }, [isOpen, normalizedCurrentIds]);
 
   const loadDesigners = async () => {
     try {
-      console.log('AssignDesignersModal: Starting to load designers...');
       setLoadingDesigners(true);
       // Fetch designers by role directly from DB via users API
       const [designers, seniorDesigners, drafters] = await Promise.all([

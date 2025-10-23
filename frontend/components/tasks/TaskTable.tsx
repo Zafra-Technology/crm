@@ -30,7 +30,7 @@ export default function TaskTable({ project, currentUser, designers, loadingDesi
 
   const loadTasks = async () => {
     try {
-      if (currentUser.role === 'designer') {
+      if (['designer', 'senior_designer', 'auto_cad_drafter'].includes(currentUser.role)) {
         const userTasks = await tasksApi.getByAssignee(currentUser.id);
         const projectUserTasks = userTasks.filter(task => task.projectId === project.id);
         setTasks(projectUserTasks);

@@ -36,11 +36,32 @@ const statusLabels = {
 
 export default function ProjectCard({ project, showActions = true, onViewFeedback, onQuotationReview }: ProjectCardProps) {
   const anyProject = project as any;
-  const teamCount = (
-    (Array.isArray(project.designerIds) && project.designerIds.length) ||
-    (Array.isArray(anyProject.designer_ids) && anyProject.designer_ids.length) ||
-    Number(anyProject.designerCount || anyProject.designer_count || 0)
-  );
+  
+  // Calculate team count with better logic
+  const teamCount = (() => {
+    // First try to use the designerCount from backend
+    if (anyProject.designerCount && anyProject.designerCount > 0) {
+      return anyProject.designerCount;
+    }
+    if (anyProject.designer_count && anyProject.designer_count > 0) {
+      return anyProject.designer_count;
+    }
+    
+    // Fallback to counting designerIds array
+    if (Array.isArray(project.designerIds) && project.designerIds.length > 0) {
+      return project.designerIds.length;
+    }
+    if (Array.isArray(anyProject.designer_ids) && anyProject.designer_ids.length > 0) {
+      return anyProject.designer_ids.length;
+    }
+    
+    // Fallback to counting designers array
+    if (Array.isArray(anyProject.designers) && anyProject.designers.length > 0) {
+      return anyProject.designers.length;
+    }
+    
+    return 0;
+  })();
   return (
     <Card className="hover:shadow-md transition-shadow h-full flex flex-col">
       <CardHeader className="pb-3">

@@ -726,6 +726,8 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         currentDesignerIds={selectedProject?.designerIds || []}
         projectName={selectedProject?.name || ''}
         loading={loading}
+        designers={designers}
+        currentDesigners={(selectedProject as any)?.designers || []}
       />
 
       {/* Delete Confirmation Modal */}

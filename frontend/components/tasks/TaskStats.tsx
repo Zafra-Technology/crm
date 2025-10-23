@@ -32,7 +32,7 @@ export default function TaskStats({ project, currentUser, onStatsLoaded }: TaskS
     try {
       let tasks: Task[] = [];
       
-      if (currentUser.role === 'designer') {
+      if (['designer', 'senior_designer', 'auto_cad_drafter'].includes(currentUser.role)) {
         // Designers see only their tasks across all projects (but we filter by current project)
         const userTasks = await tasksApi.getByAssignee(currentUser.id);
         tasks = userTasks.filter(task => task.projectId === project.id);
