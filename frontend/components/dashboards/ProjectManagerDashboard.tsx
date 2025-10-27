@@ -89,12 +89,13 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   const loadDesigners = async () => {
     try {
       const { authAPI } = await import('@/lib/api/auth');
-      const [designers, seniorDesigners, drafters] = await Promise.all([
+      const [designers, seniorDesigners, professionalEngineers, drafters] = await Promise.all([
         authAPI.getUsers('designer'),
         authAPI.getUsers('senior_designer'),
+        authAPI.getUsers('professional_engineer'),
         authAPI.getUsers('auto_cad_drafter')
       ]);
-      const merged = [...designers, ...seniorDesigners, ...drafters];
+      const merged = [...designers, ...seniorDesigners, ...professionalEngineers, ...drafters];
       const uniqueById = Array.from(new Map(merged.map(u => [u.id, u])).values());
       const mapped = uniqueById
         .filter(u => u.is_active)

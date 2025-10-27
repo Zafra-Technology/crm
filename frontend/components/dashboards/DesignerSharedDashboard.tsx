@@ -42,6 +42,8 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
         return 'Senior Designer';
       case 'designer':
         return 'Designer';
+      case 'professional_engineer':
+        return 'Professional Engineer';
       case 'auto_cad_drafter':
         return 'Auto CAD Drafter';
       default:

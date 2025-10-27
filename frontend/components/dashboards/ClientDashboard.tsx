@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Project } from '@/types';
 import ProjectCard from '@/components/ProjectCard';
 import { projectsApi } from '@/lib/api/projects';
-import { PlusIcon, MessageSquare } from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 import CreateProjectModal from '@/components/modals/CreateProjectModal';
 import QuotationReviewModal from '@/components/modals/QuotationReviewModal';
 import ViewFeedbackModal from '@/components/modals/ViewFeedbackModal';
@@ -154,8 +154,6 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
           </CardContent>
         </Card>
       </div>
-
-
 
       {/* Projects Grid */}
       <div className="space-y-4">

@@ -51,6 +51,8 @@ export default function DashboardPage() {
     switch (user.role) {
       case 'client':
         return <ClientDashboard projects={projects} userId={user.id} />;
+      case 'client_team_member':
+        return <ClientDashboard projects={projects} userId={user.id} />;
       case 'project_manager':
         return <ProjectManagerDashboard projects={projects} userId={user.id} />;
       case 'assistant_project_manager':
@@ -59,16 +61,18 @@ export default function DashboardPage() {
         return <DesignerSharedDashboard projects={projects} userId={user.id} userRole={user.role} />;
       case 'senior_designer':
         return <DesignerSharedDashboard projects={projects} userId={user.id} userRole={user.role} />;
+      case 'professional_engineer':
+        return <DesignerSharedDashboard projects={projects} userId={user.id} userRole={user.role} />;
       case 'auto_cad_drafter':
         return <DesignerSharedDashboard projects={projects} userId={user.id} userRole={user.role} />;
       case 'admin':
         return <ProjectManagerDashboard projects={projects} userId={user.id} />;
       case 'team_head':
       case 'team_lead':
-      case 'hr':
+      case 'hr_manager':
       case 'accountant':
-      case 'marketing':
-      case 'sales':
+      case 'sales_manager':
+      case 'operation_manager':
         return <WelcomeDashboard user={user} />;
       case 'digital_marketing':
         return <DigitalMarketingDashboard user={user} />;

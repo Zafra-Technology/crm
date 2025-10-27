@@ -78,7 +78,7 @@ export default function DesignersPage() {
       const designersData = await authAPI.getUsers();
       
       // Filter for designer roles
-      const designerRoles = ['designer', 'senior_designer', 'auto_cad_drafter'];
+      const designerRoles = ['designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter'];
       const filteredDesigners = designersData.filter(user => 
         designerRoles.includes(user.role)
       );

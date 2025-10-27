@@ -15,16 +15,16 @@ export default function WelcomeDashboard({ user }: WelcomeDashboardProps) {
         return 'Team Head';
       case 'team_lead':
         return 'Team Lead';
-      case 'hr':
-        return 'HR';
+      case 'hr_manager':
+        return 'HR Manager';
       case 'accountant':
         return 'Accountant';
-      case 'marketing':
-        return 'Marketing';
-      case 'sales':
-        return 'Sales';
+      case 'sales_manager':
+        return 'Sales Manager';
       case 'digital_marketing':
         return 'Digital Marketing';
+      case 'operation_manager':
+        return 'Operation Manager';
       case 'client':
         return 'Client';
       default:
@@ -38,16 +38,16 @@ export default function WelcomeDashboard({ user }: WelcomeDashboardProps) {
         return 'Welcome to your team management dashboard. Manage your team and oversee operations.';
       case 'team_lead':
         return 'Welcome to your team leadership dashboard. Lead your team and track progress.';
-      case 'hr':
+      case 'hr_manager':
         return 'Welcome to your HR dashboard. Manage human resources and employee relations.';
       case 'accountant':
         return 'Welcome to your accounting dashboard. Manage financial records and transactions.';
-      case 'marketing':
-        return 'Welcome to your marketing dashboard. Plan and execute marketing strategies.';
-      case 'sales':
+      case 'sales_manager':
         return 'Welcome to your sales dashboard. Track sales performance and manage leads.';
       case 'digital_marketing':
         return 'Welcome to your digital marketing dashboard. Manage online marketing campaigns.';
+      case 'operation_manager':
+        return 'Welcome to your operations dashboard. Oversee day-to-day operations and workflows.';
       case 'client':
         return 'Welcome to your client dashboard. View your projects and communicate with the team.';
       default:
@@ -65,7 +65,7 @@ export default function WelcomeDashboard({ user }: WelcomeDashboardProps) {
           { name: 'Schedule Meeting', icon: CalendarIcon, color: 'bg-purple-500' },
           { name: 'Time Tracking', icon: ClockIcon, color: 'bg-orange-500' }
         ];
-      case 'hr':
+      case 'hr_manager':
         return [
           { name: 'Employee Records', icon: UserIcon, color: 'bg-blue-500' },
           { name: 'Attendance', icon: ClockIcon, color: 'bg-green-500' },
@@ -79,7 +79,6 @@ export default function WelcomeDashboard({ user }: WelcomeDashboardProps) {
           { name: 'Invoice Management', icon: UserIcon, color: 'bg-purple-500' },
           { name: 'Tax Records', icon: CheckCircleIcon, color: 'bg-orange-500' }
         ];
-      case 'marketing':
       case 'digital_marketing':
         return [
           { name: 'Campaign Analytics', icon: CheckCircleIcon, color: 'bg-blue-500' },
@@ -87,7 +86,7 @@ export default function WelcomeDashboard({ user }: WelcomeDashboardProps) {
           { name: 'Lead Generation', icon: UserIcon, color: 'bg-purple-500' },
           { name: 'Social Media', icon: ClockIcon, color: 'bg-orange-500' }
         ];
-      case 'sales':
+      case 'sales_manager':
         return [
           { name: 'Lead Management', icon: UserIcon, color: 'bg-blue-500' },
           { name: 'Sales Pipeline', icon: CheckCircleIcon, color: 'bg-green-500' },

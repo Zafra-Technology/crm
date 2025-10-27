@@ -23,6 +23,7 @@ export interface RegisterData {
   aadhar_number?: string;
   date_of_joining?: string;
   is_active?: boolean;
+  client_id?: string | number;
 }
 
 export interface User {
@@ -49,6 +50,7 @@ export interface User {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  client_id?: string | number;
 }
 
 export interface LoginResponse {
@@ -294,6 +296,92 @@ class AuthAPI {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'User deletion failed');
+    }
+  }
+
+  async getTeamMembersByClient(clientId: string | number): Promise<User[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/team-members`, {
+        method: 'GET',
+        headers: {
+          ...this.getAuthHeaders(),
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('getTeamMembersByClient API Error:', response.status, errorText);
+        throw new Error(`Failed to get team members: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('getTeamMembersByClient method error:', error);
+      throw error;
+    }
+  }
+
+  async createTeamMember(data: any): Promise<User> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/team-members`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('createTeamMember API Error:', response.status, errorText);
+        throw new Error(`Failed to create team member: ${response.status} - ${errorText}`);
+      }
+
+      const responseData = await response.json();
+      return responseData;
+    } catch (error) {
+      console.error('createTeamMember method error:', error);
+      throw error;
+    }
+  }
+
+  async updateTeamMember(memberId: number, data: any): Promise<User> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/team-members/${memberId}`, {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('updateTeamMember API Error:', response.status, errorText);
+        throw new Error(`Failed to update team member: ${response.status} - ${errorText}`);
+      }
+
+      const responseData = await response.json();
+      return responseData;
+    } catch (error) {
+      console.error('updateTeamMember method error:', error);
+      throw error;
+    }
+  }
+
+  async deleteTeamMember(memberId: number): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/team-members/${memberId}`, {
+        method: 'DELETE',
+        headers: this.getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('deleteTeamMember API Error:', response.status, errorText);
+        throw new Error(`Failed to delete team member: ${response.status} - ${errorText}`);
+      }
+    } catch (error) {
+      console.error('deleteTeamMember method error:', error);
+      throw error;
     }
   }
 

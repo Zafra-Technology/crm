@@ -37,33 +37,33 @@ export default function Sidebar({ userRole }: SidebarProps) {
 
   // Define menu items based on user role
   const allMenuItems = [
-    { 
+    {
       icon: FolderIcon, 
       label: 'Projects', 
       href: '/dashboard',
       active: pathname === '/dashboard',
-      roles: ['client', 'project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'auto_cad_drafter', 'admin']
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'auto_cad_drafter', 'admin']
     },
     { 
       icon: ClockIcon, 
       label: 'Pending Requests', 
       href: '/dashboard/pending-requests',
       active: pathname === '/dashboard/pending-requests',
-      roles: ['project_manager', 'assistant_project_manager', 'admin']
+      roles: ['project_manager', 'assistant_project_manager', 'operation_manager', 'admin']
     },
     { 
       icon: CheckSquareIcon, 
       label: 'Tasks', 
       href: '/dashboard/tasks',
       active: pathname === '/dashboard/tasks',
-      roles: ['project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'auto_cad_drafter', 'admin']
+      roles: ['project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
     },
     { 
       icon: BuildingIcon, 
       label: 'Clients', 
       href: '/dashboard/clients',
       active: pathname === '/dashboard/clients',
-      roles: ['project_manager', 'assistant_project_manager', 'admin']
+      roles: ['project_manager', 'assistant_project_manager', 'operation_manager', 'admin']
     },
     { 
       icon: UserPlusIcon, 
@@ -77,14 +77,14 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Designers', 
       href: '/dashboard/designers',
       active: pathname === '/dashboard/designers',
-      roles: ['project_manager', 'assistant_project_manager', 'admin']
+      roles: ['project_manager', 'assistant_project_manager', 'operation_manager', 'admin']
     },
     { 
       icon: MessageSquareIcon, 
       label: 'Messages', 
       href: '/dashboard/messages',
       active: pathname === '/dashboard/messages',
-      roles: ['project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'auto_cad_drafter', 'admin']
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
     },
     { 
       icon: UserPlus2Icon, 
@@ -94,18 +94,25 @@ export default function Sidebar({ userRole }: SidebarProps) {
       roles: ['admin']
     },
     { 
+      icon: UsersIcon, 
+      label: 'Team Management', 
+      href: '/dashboard/team',
+      active: pathname === '/dashboard/team',
+      roles: ['client']
+    },
+    { 
       icon: UserIcon, 
       label: 'Profile', 
       href: '/dashboard/profile',
       active: pathname === '/dashboard/profile',
-      roles: ['client', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'auto_cad_drafter', 'hr', 'accountant', 'marketing', 'sales', 'digital_marketing', 'admin']
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'hr_manager', 'accountant', 'sales_manager', 'digital_marketing', 'admin', 'operation_manager']
     },
     { 
       icon: SettingsIcon, 
       label: 'Settings', 
       href: '/dashboard/settings',
       active: pathname === '/dashboard/settings',
-      roles: ['client', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'hr', 'accountant', 'marketing', 'sales', 'digital_marketing', 'admin']
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'hr_manager', 'accountant', 'sales_manager', 'digital_marketing', 'admin', 'operation_manager']
     },
   ];
 
