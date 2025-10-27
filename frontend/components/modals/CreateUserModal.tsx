@@ -58,7 +58,7 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
 
       console.log('Creating user with data:', cleanedData);
       
-      const result = await authAPI.createUser(cleanedData);
+      const result = await authAPI.createUser(cleanedData as RegisterData);
       console.log('User created successfully:', result);
       
       onUserCreated();

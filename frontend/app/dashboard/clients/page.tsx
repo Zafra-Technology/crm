@@ -76,6 +76,7 @@ export default function ClientsPage() {
     aadhar_number: '',
     pan_number: '',
     company_name: '',
+    company_code: '',
     profile_pic: null as File | null,
   });
 
@@ -220,7 +221,7 @@ export default function ClientsPage() {
         email: '', password: '', first_name: '', last_name: '', 
         mobile_number: '', address: '', city: '', 
         state: '', country: '', pincode: '', aadhar_number: '', 
-        pan_number: '', company_name: '', profile_pic: null 
+        pan_number: '', company_name: '', company_code: '', profile_pic: null 
       });
       setShowAddForm(false);
     } catch (error) {
@@ -288,7 +289,7 @@ export default function ClientsPage() {
           email: '', password: '', first_name: '', last_name: '', 
           mobile_number: '', address: '', city: '', 
           state: '', country: '', pincode: '', aadhar_number: '', 
-          pan_number: '', company_name: '', profile_pic: null 
+          pan_number: '', company_name: '', company_code: '', profile_pic: null 
         });
         setShowAddForm(false);
       } catch (error) {
@@ -425,7 +426,7 @@ export default function ClientsPage() {
                   email: '', password: '', first_name: '', last_name: '', 
                   mobile_number: '', address: '', city: '', 
                   state: '', country: '', pincode: '', aadhar_number: '', 
-                  pan_number: '', company_name: '', profile_pic: null 
+                  pan_number: '', company_name: '', company_code: '', profile_pic: null 
                 });
                 setShowAddForm(true);
               }}
@@ -681,6 +682,31 @@ export default function ClientsPage() {
                 </div>
               </div>
 
+              {/* Company Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-foreground">Company Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="mb-1">Company Name</Label>
+                    <Input
+                      type="text"
+                      value={formData.company_name}
+                      onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                      placeholder="Enter company name"
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-1">Company Code</Label>
+                    <Input
+                      type="text"
+                      value={formData.company_code}
+                      onChange={(e) => setFormData({ ...formData, company_code: e.target.value })}
+                      placeholder="Enter company code"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Address Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-foreground">Address Information</h3>
@@ -759,20 +785,6 @@ export default function ClientsPage() {
                   </div>
                 </div>
               </div>
-
-              {/* Company Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-foreground">Company Information</h3>
-                <div>
-                  <Label className="mb-1">Company Name</Label>
-                  <Input
-                    type="text"
-                    value={formData.company_name}
-                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                    placeholder="Enter company name"
-                  />
-                </div>
-              </div>
               <DialogFooter className="pt-2">
                 <Button
                   type="button"
@@ -783,7 +795,7 @@ export default function ClientsPage() {
                       email: '', password: '', first_name: '', last_name: '', 
                       mobile_number: '', address: '', city: '', 
                       state: '', country: '', pincode: '', aadhar_number: '', 
-                      pan_number: '', company_name: '', profile_pic: null 
+                      pan_number: '', company_name: '', company_code: '', profile_pic: null 
                     });
                   }}
                   disabled={loading}

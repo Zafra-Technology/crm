@@ -329,19 +329,6 @@ export default function DesignersPage() {
             <h1 className="text-2xl font-bold text-foreground">Designers</h1>
             <p className="text-muted-foreground mt-1">Manage your design team members</p>
           </div>
-          {canManageDesigners && (
-            <Button
-              onClick={() => {
-                setEditingDesigner(null);
-                setFormData({ name: '', email: '', phoneNumber: '', company: '', role: '' });
-                setShowAddForm(true);
-              }}
-              className="flex items-center space-x-2 shadow-md"
-            >
-              <PlusIcon size={20} />
-              <span>Add Designer</span>
-            </Button>
-          )}
         </div>
       </div>
 
@@ -483,93 +470,6 @@ export default function DesignersPage() {
           </Card>
         )}
       </div>
-
-      {/* Add/Edit Designer Modal */}
-      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>
-              {editingDesigner ? 'Edit Designer' : 'Add New Designer'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingDesigner ? 'Update designer information' : 'Add a new designer to the team'}
-            </DialogDescription>
-          </DialogHeader>
-            
-          <form id="designer-form" onSubmit={editingDesigner ? handleUpdateDesigner : handleAddDesigner} className="space-y-6">
-            {/* Two Column Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name *</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter full name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="Enter email address"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  required
-                  value={formData.phoneNumber}
-                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                  placeholder="Enter phone number"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role *</Label>
-                <Input
-                  id="role"
-                  type="text"
-                  required
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  placeholder="e.g., Senior UI/UX Designer"
-                />
-              </div>
-            </div>
-          </form>
-          
-          <DialogFooter className="flex space-x-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setShowAddForm(false);
-                setEditingDesigner(null);
-                setFormData({ name: '', email: '', phoneNumber: '', company: '', role: '' });
-              }}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="designer-form"
-              disabled={loading}
-              className="flex-1"
-            >
-              {loading ? 'Processing...' : (editingDesigner ? 'Update Designer' : 'Add Designer')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

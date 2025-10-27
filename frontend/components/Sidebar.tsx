@@ -46,7 +46,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     },
     { 
       icon: ClockIcon, 
-      label: 'Pending Requests', 
+      label: 'Project Requests', 
       href: '/dashboard/pending-requests',
       active: pathname === '/dashboard/pending-requests',
       roles: ['project_manager', 'assistant_project_manager', 'operation_manager', 'admin']

@@ -43,7 +43,6 @@ interface OnboardedClient {
   company: string;
   status: 'pending' | 'credentials_sent' | 'active';
   createdAt: string;
-  password?: string;
 }
 
 export default function DigitalMarketingDashboard({ user }: DigitalMarketingDashboardProps) {
@@ -65,9 +64,21 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
 
   const loadOnboardedClients = async () => {
     try {
-      // In a real implementation, this would fetch from a dedicated endpoint
-      // For now, we'll simulate with local storage or a mock API
-      const clients = JSON.parse(localStorage.getItem('onboarded_clients') || '[]');
+      // Fetch clients from backend
+      const clientsData = await authAPI.getUsers();
+      
+      // Filter only client role
+      const clients = clientsData
+        .filter(user => user.role === 'client')
+        .map(user => ({
+          id: user.id.toString(),
+          name: user.full_name,
+          email: user.email,
+          company: user.company_name || '',
+          status: (user.credentials_sent ? 'credentials_sent' : 'pending') as 'pending' | 'credentials_sent' | 'active',
+          createdAt: user.created_at,
+        }));
+      
       setOnboardedClients(clients);
     } catch (error) {
       console.error('Error loading onboarded clients:', error);
@@ -93,20 +104,8 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
         company: onboardingForm.company
       });
 
-      // Add to onboarded clients list
-      const onboardedClient: OnboardedClient = {
-        id: result.user.id.toString(),
-        name: onboardingForm.name,
-        email: onboardingForm.email,
-        company: onboardingForm.company,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        password: result.password
-      };
-
-      const updatedClients = [...onboardedClients, onboardedClient];
-      setOnboardedClients(updatedClients);
-      localStorage.setItem('onboarded_clients', JSON.stringify(updatedClients));
+      // Refresh the clients list from backend
+      await loadOnboardedClients();
 
       // Reset form and close modal
       setOnboardingForm({ name: '', email: '', company: '' });
@@ -129,22 +128,17 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
       setErrorMessage('');
 
       // Use the new sendClientCredentials API method
+      // Note: Password is generated on backend and sent via email
       await authAPI.sendClientCredentials(
         parseInt(client.id),
         client.email,
         client.name,
         client.company,
-        client.password || ''
+        undefined // Password is managed by backend
       );
 
-      // Update client status
-      const updatedClients = onboardedClients.map(c => 
-        c.id === client.id 
-          ? { ...c, status: 'credentials_sent' as const }
-          : c
-      );
-      setOnboardedClients(updatedClients);
-      localStorage.setItem('onboarded_clients', JSON.stringify(updatedClients));
+      // Refresh the clients list from backend
+      await loadOnboardedClients();
 
       setSuccessMessage(`Credentials sent successfully to ${client.name}!`);
       setTimeout(() => setSuccessMessage(null), 5000);

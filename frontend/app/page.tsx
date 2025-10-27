@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
-import { authenticateUser, getCurrentUser, setCurrentUser } from '@/lib/auth';
+import { authenticateUser, getCurrentUser } from '@/lib/auth';
 import { User } from '@/types';
 
 export default function LoginPage() {
@@ -14,10 +14,13 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const user = getCurrentUser();
-    if (user) {
-      router.push('/dashboard');
-    }
+    const checkUser = async () => {
+      const user = await getCurrentUser();
+      if (user) {
+        router.push('/dashboard');
+      }
+    };
+    checkUser();
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -27,8 +30,17 @@ export default function LoginPage() {
     try {
       const user = await authenticateUser(email, password);
       if (user) {
-        setCurrentUser(user);
-        router.push('/dashboard');
+        // Debug log to check first login status
+        console.log('Login user data:', { role: user.role, is_first_login: user.is_first_login });
+        
+        // Check if first login for client role
+        if (user.role === 'client' && user.is_first_login === true) {
+          // Show first login modal
+          console.log('Redirecting to first-login page');
+          router.push('/first-login');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         setError('Invalid email or password');
       }

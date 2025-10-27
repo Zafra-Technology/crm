@@ -17,11 +17,14 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-    if (currentUser) {
-      loadProjects(currentUser);
-    }
+    const loadUser = async () => {
+      const currentUser = await getCurrentUser();
+      setUser(currentUser);
+      if (currentUser) {
+        loadProjects(currentUser);
+      }
+    };
+    loadUser();
   }, []);
 
   const loadProjects = async (currentUser: User) => {

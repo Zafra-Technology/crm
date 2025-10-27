@@ -8,7 +8,8 @@ const convertAPIUser = (apiUser: APIUser) => ({
   role: apiUser.role as 'admin' | 'operation_manager' | 'project_manager' | 'assistant_project_manager' | 'team_head' | 'team_lead' | 'senior_designer' | 'designer' | 'professional_engineer' | 'auto_cad_drafter' | 'hr_manager' | 'accountant' | 'sales_manager' | 'digital_marketing' | 'client',
   company_name: apiUser.company_name,
   is_active: apiUser.is_active,
-  role_display: apiUser.role_display
+  role_display: apiUser.role_display,
+  is_first_login: apiUser.is_first_login
 });
 
 export const authenticateUser = async (email: string, password: string) => {
@@ -16,9 +17,14 @@ export const authenticateUser = async (email: string, password: string) => {
     const loginData: LoginData = { email, password };
     const response = await authAPI.login(loginData);
     
-    // Store user data
+    // Don't store user in localStorage - always fetch from API
+    // Store only the auth token for API authentication
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', response.token);
+    }
+    
+    // Return converted user for frontend use
     const user = convertAPIUser(response.user);
-    setCurrentUser(user);
     
     return user;
   } catch (error) {
@@ -27,24 +33,28 @@ export const authenticateUser = async (email: string, password: string) => {
   }
 };
 
-export const getCurrentUser = () => {
+export const getCurrentUser = async (): Promise<any | null> => {
   if (typeof window !== 'undefined') {
-    const userData = localStorage.getItem('current_user');
     const token = localStorage.getItem('auth_token');
     
-    if (userData && token) {
-      const apiUser = JSON.parse(userData);
-      return convertAPIUser(apiUser);
+    if (!token) {
+      return null;
+    }
+    
+    try {
+      // Fetch current user from API instead of localStorage
+      const apiUser = await authAPI.getCurrentUser();
+      const convertedUser = convertAPIUser(apiUser);
+      
+      return convertedUser;
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      return null;
     }
   }
   return null;
 };
 
-export const setCurrentUser = (user: any): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('current_user', JSON.stringify(user));
-  }
-};
 
 export const getAuthToken = (): string | null => {
   if (typeof window !== 'undefined') {
@@ -55,7 +65,6 @@ export const getAuthToken = (): string | null => {
 
 export const logout = (): void => {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('current_user');
     localStorage.removeItem('auth_token');
   }
 };

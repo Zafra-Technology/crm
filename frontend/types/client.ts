@@ -13,6 +13,7 @@ export interface Client {
   aadhar_number?: string;
   pan_number?: string;
   company_name: string;
+  company_code?: string;
   role: string;
   role_display: string;
   is_active: boolean;

@@ -18,13 +18,16 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      router.push('/');
-    } else {
-      setUser(currentUser);
-    }
-    setLoading(false);
+    const loadUser = async () => {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        router.push('/');
+      } else {
+        setUser(currentUser);
+      }
+      setLoading(false);
+    };
+    loadUser();
   }, [router]);
 
   if (loading) {

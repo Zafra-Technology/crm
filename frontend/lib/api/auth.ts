@@ -48,6 +48,8 @@ export interface User {
   date_of_exit?: string;
   profile_pic?: string;
   is_active: boolean;
+  is_first_login?: boolean;
+  credentials_sent: boolean;
   created_at: string;
   updated_at: string;
   client_id?: string | number;
@@ -478,17 +480,22 @@ class AuthAPI {
     return response.json();
   }
 
-  async sendClientCredentials(clientId: number, clientEmail: string, clientName: string, companyName: string, password: string): Promise<{ message: string; success?: boolean }> {
+  async sendClientCredentials(clientId: number, clientEmail: string, clientName: string, companyName: string, password?: string): Promise<{ message: string; success?: boolean }> {
+    const payload: any = {
+      client_id: clientId,
+      client_email: clientEmail,
+      client_name: clientName,
+      company_name: companyName,
+    };
+    
+    if (password) {
+      payload.password = password;
+    }
+    
     const response = await fetch(`${API_BASE_URL}/auth/send-client-credentials`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
-      body: JSON.stringify({
-        client_id: clientId,
-        client_email: clientEmail,
-        client_name: clientName,
-        company_name: companyName,
-        password: password
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

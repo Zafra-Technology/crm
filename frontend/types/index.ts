@@ -6,6 +6,7 @@ export interface User {
   name: string;
   role: UserRole;
   avatar?: string;
+  is_first_login?: boolean;
 }
 
 export interface ProjectAttachment {

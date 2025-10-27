@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getCurrentUser, setCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 import { User } from '@/types';
 import { UserIcon, MailIcon, BriefcaseIcon, EditIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,14 +32,17 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-    if (currentUser) {
-      setEditForm({
-        name: currentUser.name,
-        email: currentUser.email,
-      });
-    }
+    const loadUser = async () => {
+      const currentUser = await getCurrentUser();
+      setUser(currentUser);
+      if (currentUser) {
+        setEditForm({
+          name: currentUser.name,
+          email: currentUser.email,
+        });
+      }
+    };
+    loadUser();
   }, []);
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -47,7 +50,7 @@ export default function ProfilePage() {
     if (user) {
       const updatedUser = { ...user, ...editForm };
       setUser(updatedUser);
-      setCurrentUser(updatedUser);
+      // TODO: Save to backend API
       setIsEditing(false);
     }
   };
