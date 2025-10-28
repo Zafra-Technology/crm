@@ -363,28 +363,49 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
 
   return (
     <div 
-      className={`bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6 h-full flex flex-col relative ${dragOver ? 'ring-2 ring-primary bg-primary/10' : ''}`}
+      className={`card h-full flex flex-col relative ${dragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Drag overlay */}
       {dragOver && (
-        <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-lg flex items-center justify-center z-10">
+        <div className="absolute inset-0 bg-blue-500 bg-opacity-10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center z-10">
           <div className="text-center">
             <div className="text-4xl mb-2">📎</div>
-            <p className="text-primary font-medium">Drop file to share</p>
+            <p className="text-blue-600 font-medium">Drop file to share</p>
           </div>
         </div>
       )}
       
-      <h3 className="text-lg font-semibold text-foreground mb-4 pb-3 border-b border-border flex-shrink-0">
+      <h3 className="text-lg font-semibold text-black mb-4 pb-3 border-b border-gray-200 flex-shrink-0">
         Project Chat
       </h3>
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-0">
-        {chatMessages.map((message) => {
+        {chatMessages.length === 0 ? (
+          /* Empty state placeholder */
+          <div className="flex-1 flex items-center justify-center h-full min-h-[300px]">
+            <div className="text-center max-w-md mx-auto px-4">
+              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                <SendIcon size={32} className="text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Start the conversation
+              </h3>
+              <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                Send a message to begin collaborating with your team. Share updates, ask questions, 
+                or upload files to keep everyone in sync.
+              </p>
+              <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
+                <PaperclipIcon size={14} />
+                <span>You can also drag & drop files or click the attachment icon</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          chatMessages.map((message) => {
           const roleTag = getRoleTag(message.userRole || 'user');
           const isOwnMessage = message.userId === currentUser.id;
           
@@ -400,73 +421,58 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                   {message.userName?.charAt(0).toUpperCase() || 'U'}
                 </span>
               </div>
-              <div className={`flex-1 max-w-xs ${isOwnMessage ? 'text-right' : ''}`}>
+              <div className={`flex-1 max-w-sm ${isOwnMessage ? 'text-right' : ''}`}>
                 <div className={`flex items-center space-x-2 mb-1 ${isOwnMessage ? 'justify-end' : ''}`}>
-                  <span className="text-sm font-medium text-foreground">
-                    {message.userName || 'Unknown User'}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleTag.color}`}>
-                    {roleTag.label}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
+                  {!isOwnMessage && (
+                    <>
+                      <span className="text-sm font-medium text-gray-900">
+                        {message.userName || 'Unknown User'}
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${roleTag.color}`}>
+                        {roleTag.label}
+                      </span>
+                    </>
+                  )}
+                  <span className="text-xs text-gray-500">
                     {formatTime(message.timestamp)}
                   </span>
                 </div>
                 <div
-                  className={`inline-block px-3 py-2 rounded-lg text-sm ${
-                    isOwnMessage
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground'
+                  className={`inline-block text-sm break-all ${
+                    (message.message && 
+                     !message.message.startsWith('📷 Shared an image:') && 
+                     !message.message.startsWith('[Image:')) ? (
+                      isOwnMessage
+                        ? 'bg-gray-300 text-black rounded-l-xl rounded-tr-xl rounded-br-sm px-3 py-2'
+                        : 'bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl rounded-bl-sm px-3 py-2'
+                    ) : ''
                   }`}
                 >
                   {/* Text message */}
-                  <div className="mb-2">
-                    {message.message}
-                  </div>
+                  {message.message && 
+                   !message.message.startsWith('📷 Shared an image:') && 
+                   !message.message.startsWith('[Image:') && (
+                    <div className="mb-2">
+                      {message.message}
+                    </div>
+                  )}
 
                   {/* File attachment */}
                   {message.fileUrl && (
-                    <div className="mt-2">
-                      
+                    <div className={`${(message.message && 
+                     !message.message.startsWith('📷 Shared an image:') && 
+                     !message.message.startsWith('[Image:')) ? 'mt-2' : ''}`}>
                       {/* Image preview */}
-                      {(message.messageType === 'image' || isImageFile(message.fileType)) && (
-                        <div className="mb-2">
+                      {(message.messageType === 'image' || isImageFile(message.fileType)) ? (
+                        <div className="relative group">
                           <img
                             src={message.fileUrl}
-                            alt={message.fileName || 'Shared image'}
-                            className="max-w-xs max-h-48 rounded border"
+                            alt="Shared image"
+                            className="max-w-xs max-h-48 rounded cursor-pointer"
                             onError={(e) => {
                               console.error('Image failed to load:', message.fileName);
-                              console.error('FileURL preview:', message.fileUrl?.substring(0, 100) + '...');
                             }}
                           />
-                        </div>
-                      )}
-
-                      {/* File info */}
-                      <div 
-                        className={`flex items-center space-x-2 p-2 rounded border ${
-                          isOwnMessage 
-                            ? 'bg-muted border-border' 
-                            : 'bg-background border-border'
-                        }`}
-                      >
-                        {getFileIcon(message.fileType)}
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-medium truncate ${
-                            isOwnMessage ? 'text-muted-foreground' : 'text-foreground'
-                          }`}>
-                            {message.fileName || 'Unknown file'}
-                          </p>
-                          {message.fileSize && (
-                            <p className={`text-xs ${
-                              isOwnMessage ? 'text-muted-foreground' : 'text-muted-foreground'
-                            }`}>
-                              {formatFileSize(message.fileSize)}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-1">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -477,28 +483,55 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                               link.click();
                               document.body.removeChild(link);
                             }}
-                            className={`p-1 rounded hover:bg-opacity-80 ${
-                              isOwnMessage 
-                                ? 'text-muted-foreground hover:bg-muted/80' 
-                                : 'text-muted-foreground hover:bg-muted/80'
-                            }`}
+                            className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Download"
                           >
                             <DownloadIcon size={14} />
                           </button>
                         </div>
-                      </div>
+                      ) : (
+                        /* File info for non-images */
+                        <div 
+                          className={`flex items-center space-x-2 p-2 rounded border ${
+                            isOwnMessage 
+                              ? 'bg-gray-200 border-gray-300' 
+                              : 'bg-white border-gray-200'
+                          }`}
+                        >
+                          {getFileIcon(message.fileType)}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate text-gray-700">
+                              {message.fileName || 'Unknown file'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const link = document.createElement('a');
+                              link.href = message.fileUrl!;
+                              link.download = message.fileName || 'download';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="text-gray-600 hover:bg-gray-300 p-1 rounded transition-colors"
+                            title="Download"
+                          >
+                            <DownloadIcon size={14} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             </div>
           );
-        })}
+        }))}
         
-        {/* Typing indicators */}
-        {isTyping.length > 0 && (
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground italic">
+        {/* Typing indicators - only show when there are messages or when someone is typing */}
+        {(chatMessages.length > 0 || isTyping.length > 0) && isTyping.length > 0 && (
+          <div className="flex items-center space-x-2 text-sm text-gray-500 italic">
             <span>{isTyping.map(u => u.userName || 'Someone').join(', ')} {isTyping.length === 1 ? 'is' : 'are'} typing...</span>
           </div>
         )}
@@ -517,7 +550,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
           accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.xls,.ppt,.pptx"
         />
         
-        <div className="flex-1 flex items-center space-x-2 px-3 py-2 border border-input rounded-md focus-within:ring-ring focus-within:border-ring">
+        <div className="flex-1 flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-md focus-within:ring-black focus-within:border-black">
           <input
             type="text"
             value={newMessage}
@@ -531,7 +564,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingFile}
-            className="text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+            className="text-gray-500 hover:text-gray-700 disabled:opacity-50 transition-colors"
             title="Attach file"
           >
             <PaperclipIcon size={16} />
@@ -541,7 +574,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         <button
           type="submit"
           disabled={!newMessage.trim() || !currentUser || uploadingFile}
-          className="btn-primary px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
         >
           {uploadingFile ? (
             <>

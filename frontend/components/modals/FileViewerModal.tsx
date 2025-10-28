@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { XIcon, DownloadIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
 import { ProjectAttachment } from '@/types';
+import { resolveMediaUrl } from '@/lib/api/auth';
 
 interface FileViewerModalProps {
   isOpen: boolean;
@@ -23,9 +24,27 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
                      attachment.type.includes('spreadsheet') ||
                      attachment.type.includes('presentation');
 
+  // Validate base64 URL
+  const isValidBase64Url = (url: string) => {
+    if (!url) return false;
+    if (url.startsWith('data:')) {
+      const base64Part = url.split(',')[1];
+      if (!base64Part) return false;
+      // Check if it's valid base64
+      try {
+        atob(base64Part);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    return true; // Assume other URLs are valid
+  };
+
   const handleDownload = () => {
+    const validUrl = getValidImageUrl(attachment.url);
     const link = document.createElement('a');
-    link.href = attachment.url;
+    link.href = validUrl;
     link.download = attachment.name;
     document.body.appendChild(link);
     link.click();
@@ -40,24 +59,99 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
     setZoom(prev => Math.max(prev - 25, 50));
   };
 
+  // Use the existing media URL resolution function but ensure it points to Django media
+  const getValidImageUrl = (url: string) => {
+    if (!url) return url;
+    
+    // If it's already a full URL or base64, return as is
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      return url;
+    }
+    
+    // For media files, we need to point directly to Django backend
+    // Django serves media files at http://localhost:8000/media/...
+    const djangoBaseUrl = 'http://localhost:8000';
+    const resolvedUrl = url.startsWith('/') ? `${djangoBaseUrl}${url}` : `${djangoBaseUrl}/${url}`;
+    
+    console.log('Resolving media URL:', {
+      originalUrl: url,
+      resolvedUrl: resolvedUrl,
+      djangoBaseUrl: djangoBaseUrl
+    });
+    
+    return resolvedUrl;
+  };
+
   const renderFileContent = () => {
     if (isImage) {
+      const validUrl = getValidImageUrl(attachment.url);
+      
+      // Check if the URL is valid
+      if (!isValidBase64Url(validUrl) && !validUrl.startsWith('http')) {
+        return (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🖼️</div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Invalid Image URL</h3>
+              <p className="text-gray-600 mb-4">
+                The image URL appears to be invalid or inaccessible.
+              </p>
+              <p className="text-sm text-gray-500 mb-4">
+                URL: {attachment.url}
+              </p>
+              <button
+                onClick={handleDownload}
+                className="btn-primary flex items-center space-x-2 mx-auto"
+              >
+                <DownloadIcon size={16} />
+                <span>Download File</span>
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="flex items-center justify-center h-full overflow-auto">
           <img
-            src={attachment.url}
+            src={validUrl}
             alt={attachment.name}
             style={{ transform: `scale(${zoom / 100})` }}
             className="max-w-full max-h-full object-contain transition-transform"
+            onError={(e) => {
+              // Hide the image and show error message
+              const img = e.currentTarget;
+              img.style.display = 'none';
+              const parent = img.parentElement;
+              if (parent) {
+                parent.innerHTML = `
+                  <div class="flex items-center justify-center h-full">
+                    <div class="text-center">
+                      <div class="text-6xl mb-4">🖼️</div>
+                      <h3 class="text-lg font-semibold text-gray-800 mb-2">Image Failed to Load</h3>
+                      <p class="text-gray-600 mb-4">The image could not be displayed.</p>
+                      <button onclick="this.parentElement.parentElement.parentElement.querySelector('button[onclick*=\"handleDownload\"]').click()" class="btn-primary flex items-center space-x-2 mx-auto">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span>Download File</span>
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }
+            }}
+            onLoad={() => {
+              // Image loaded successfully
+            }}
           />
         </div>
       );
     }
 
     if (isPdf) {
+      const validUrl = getValidImageUrl(attachment.url);
       return (
         <iframe
-          src={attachment.url}
+          src={validUrl}
           className="w-full h-full border-0"
           title={attachment.name}
         />

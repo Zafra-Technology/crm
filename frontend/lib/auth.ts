@@ -52,5 +52,5 @@ export const isAdmin = (user: any): boolean => {
 };
 
 export const isProjectManager = (user: any): boolean => {
-  return user?.role === 'project_manager';
+  return user?.role === 'project_manager' || user?.role === 'assistant_project_manager';
 };

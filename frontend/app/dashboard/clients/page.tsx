@@ -33,7 +33,8 @@ import {
   TrashIcon,
   SearchIcon,
   EyeIcon,
-  EyeOffIcon
+  EyeOffIcon,
+  FolderIcon
 } from 'lucide-react';
 // use existing authAPI import above
 
@@ -100,9 +101,16 @@ export default function ClientsPage() {
   };
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-    loadClientsAndProjects(currentUser);
+    const loadUser = async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+        loadClientsAndProjects(currentUser);
+      } catch (error) {
+        console.error('Error loading user:', error);
+      }
+    };
+    loadUser();
   }, []);
 
   const loadClientsAndProjects = async (currentUser?: User | null) => {
@@ -248,6 +256,7 @@ export default function ClientsPage() {
       aadhar_number: client.aadhar_number || '',
       pan_number: (client as any).pan_number || '',
       company_name: client.company_name || '',
+      company_code: (client as any).company_code || '',
       profile_pic: null,
     });
     setShowAddForm(true);
@@ -404,9 +413,9 @@ export default function ClientsPage() {
     );
   }
 
-  // Allow project managers and admins to manage clients (edit/delete)
-  const canManageClients = user.role === 'project_manager' || user.role === 'admin';
-  // Allow project managers and admins to create clients
+  // Allow project managers, assistant project managers, and admins to manage clients (edit/delete)
+  const canManageClients = user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin';
+  // Allow project managers, assistant project managers, and admins to create clients
   const canCreateClients = canManageClients;
 
   return (
@@ -539,6 +548,37 @@ export default function ClientsPage() {
                         title="Change Password"
                       >
                         <KeyIcon size={16} />
+                      </button>
+                    )}
+                    {/* Send Mail: admins/PMs */}
+                    {canManageClients && (
+                      <button
+                        onClick={() => {
+                          setSelectedClient(client);
+                          setMailForm({ 
+                            to: client.email, 
+                            subject: '', 
+                            message: '' 
+                          });
+                          setShowSendMailModal(true);
+                        }}
+                        className="p-1 text-muted-foreground hover:text-blue-600"
+                        title="Send Email"
+                      >
+                        <MailIcon size={16} />
+                      </button>
+                    )}
+                    {/* View Projects: admins/PMs */}
+                    {canManageClients && (
+                      <button
+                        onClick={() => {
+                          // Navigate to projects page with client filter
+                          window.location.href = `/dashboard?client=${client.id}`;
+                        }}
+                        className="p-1 text-muted-foreground hover:text-green-600"
+                        title="View Client Projects"
+                      >
+                        <FolderIcon size={16} />
                       </button>
                     )}
                     {/* Delete: only admins/PMs */}

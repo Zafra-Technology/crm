@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { projectsApi } from '@/lib/api/projects';
-import { authAPI } from '@/lib/api/auth';
+import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
+import { getCookie } from '@/lib/cookies';
 import { mockChatMessages } from '@/lib/data/mockData';
 import { User, Project, ProjectUpdate, ChatMessage } from '@/types';
 import { Client } from '@/types/client';
@@ -13,6 +14,21 @@ import ProjectChat from '@/components/chat/ProjectChat';
 import ProjectUpdates from '@/components/ProjectUpdates';
 import ProjectAttachments from '@/components/ProjectAttachments';
 import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function ProjectDetailsPage() {
   const params = useParams();
@@ -57,8 +73,6 @@ export default function ProjectDetailsPage() {
           timeline: foundProject.timeline,
           status: foundProject.status
         });
-        
-        console.log('Project attachments:', foundProject.attachments); // Debug log
 
         try {
           // Fetch all users once and derive client, designers, and manager
@@ -157,29 +171,6 @@ export default function ProjectDetailsPage() {
             }
           }
 
-          // Load project manager dynamically
-          if (foundProject.managerId) {
-            const pmUser = allUsers.find(user => user.id.toString() === foundProject.managerId.toString());
-            if (pmUser) {
-              setProjectManager({
-                id: pmUser.id.toString(),
-                name: pmUser.full_name,
-                email: pmUser.email
-              });
-            } else {
-              setProjectManager(null);
-            }
-          } else {
-            setProjectManager(null);
-          }
-          if (typeof window !== 'undefined') {
-            // eslint-disable-next-line no-console
-            console.log('Debug IDs', {
-              managerId: foundProject.managerId,
-              designerIds: foundProject.designerIds,
-              usersCount: allUsers.length
-            });
-          }
         } catch (error) {
           console.error('Error loading users for client/designers/manager:', error);
         }
@@ -234,7 +225,7 @@ export default function ProjectDetailsPage() {
     if (!project) return;
     
     try {
-      // Convert files to base64 for demo storage
+      // Convert files to base64 for storage (fallback approach)
       const newAttachments = await Promise.all(files.map(async (file) => {
         const base64 = await convertFileToBase64(file);
         return {
@@ -248,31 +239,35 @@ export default function ProjectDetailsPage() {
         };
       }));
 
+      // Add new attachments to existing ones
       const updatedAttachments = [...(project.attachments || []), ...newAttachments];
+      
+      // Update project with new attachments using existing API
       const updatedProject = await projectsApi.update(project.id, { attachments: updatedAttachments });
       
       if (updatedProject) {
-        setProject(updatedProject);
+        // Check if the updated project has the attachments
+        if (updatedProject.attachments && updatedProject.attachments.length > 0) {
+          setProject(updatedProject);
+        } else {
+          // If the backend didn't return attachments, manually update the local state
+          const projectWithAttachments = {
+            ...updatedProject,
+            attachments: updatedAttachments
+          };
+          setProject(projectWithAttachments);
+        }
+      } else {
+        // Fallback: update local state directly
+        const projectWithAttachments = {
+          ...project,
+          attachments: updatedAttachments
+        };
+        setProject(projectWithAttachments);
       }
     } catch (error) {
       console.error('Error adding attachments:', error);
       alert('Failed to add attachments. Please try again.');
-    }
-  };
-
-  const handleRemoveAttachment = async (attachmentId: string) => {
-    if (!project) return;
-    
-    try {
-      const updatedAttachments = (project.attachments || []).filter(a => a.id !== attachmentId);
-      const updatedProject = await projectsApi.update(project.id, { attachments: updatedAttachments });
-      
-      if (updatedProject) {
-        setProject(updatedProject);
-      }
-    } catch (error) {
-      console.error('Error removing attachment:', error);
-      alert('Failed to remove attachment. Please try again.');
     }
   };
 
@@ -285,10 +280,31 @@ export default function ProjectDetailsPage() {
     });
   };
 
+  const handleRemoveAttachment = async (attachmentId: string) => {
+    if (!project) return;
+    
+    try {
+      // Remove attachment from existing list
+      const updatedAttachments = (project.attachments || []).filter(a => a.id !== attachmentId);
+      
+      // Update project with filtered attachments using existing API
+      const updatedProject = await projectsApi.update(project.id, { attachments: updatedAttachments });
+      
+      if (updatedProject) {
+        setProject(updatedProject);
+        console.log('Attachment removed successfully');
+      }
+    } catch (error) {
+      console.error('Error removing attachment:', error);
+      alert('Failed to remove attachment. Please try again.');
+    }
+  };
+
+
   if (!user || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="text-gray-600">Loading...</div>
       </div>
     );
   }
@@ -296,13 +312,13 @@ export default function ProjectDetailsPage() {
   if (!project) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Project not found</div>
+        <div className="text-gray-600">Project not found</div>
       </div>
     );
   }
 
-  const canEdit = user.role === 'project_manager';
-  const canAddUpdates = user.role === 'designer' || user.role === 'project_manager';
+  const canEdit = user.role === 'project_manager' || user.role === 'admin' || user.role === 'designer';
+  const canAddUpdates = user.role === 'designer' || user.role === 'project_manager' || user.role === 'admin' || user.role === 'client';
   const isClient = user.role === 'client';
   const isDesigner = user.role === 'designer';
 
@@ -331,17 +347,18 @@ export default function ProjectDetailsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{project.name}</h1>
-          <p className="text-muted-foreground mt-1">Project management and team collaboration</p>
+          <h1 className="text-2xl font-bold text-black">{project.name}</h1>
+          <p className="text-gray-600 mt-1">Project management and team collaboration</p>
         </div>
         {canEdit && !isClient && !isDesigner && (
-          <button
+          <Button
             onClick={() => setIsEditing(true)}
-            className="btn-secondary flex items-center space-x-2"
+            variant="outline"
+            className="flex items-center space-x-2"
           >
             <EditIcon size={16} />
             <span>Edit Project</span>
-          </button>
+          </Button>
         )}
       </div>
 
@@ -349,22 +366,23 @@ export default function ProjectDetailsPage() {
         {/* Left Column - Project Content */}
         <div className="lg:col-span-1 space-y-6">
           {/* Project Details */}
-          <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6 space-y-6">
-            {/* Project Overview */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">Project Overview</h3>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[project.status]}`}>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Project Overview</CardTitle>
+                <Badge variant="outline" className={`${statusColors[project.status]}`}>
                   {statusLabels[project.status]}
-                </span>
+                </Badge>
               </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
               
               <div className="space-y-4">
                 <div>
                   <p className="text-muted-foreground leading-relaxed">{project.description}</p>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-border">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
                   <div>
                     <h4 className="font-medium text-foreground mb-2">Client</h4>
                     <div className="flex items-center space-x-2 text-muted-foreground">
@@ -372,7 +390,7 @@ export default function ProjectDetailsPage() {
                       <div className="flex flex-col">
                         <span className="font-medium">{client?.full_name || 'Unknown Client'}</span>
                         {client?.company_name && (
-                          <span className="text-sm text-muted-foreground">{client.company_name}</span>
+                          <span className="text-sm text-muted-foreground/70">{client.company_name}</span>
                         )}
                       </div>
                     </div>
@@ -393,58 +411,90 @@ export default function ProjectDetailsPage() {
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Project Requirements */}
-            <div className="pt-6 border-t border-border">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Project Requirements</h3>
-              <div className="prose prose-sm max-w-none">
-                <p className="text-muted-foreground leading-relaxed">{project.requirements}</p>
+              {/* Project Requirements */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Project Requirements</h3>
+                <div className="prose prose-sm max-w-none">
+                  <p className="text-muted-foreground leading-relaxed">{project.requirements}</p>
+                </div>
               </div>
-            </div>
 
-            {/* Project Attachments */}
-            <div className="pt-6 border-t border-border">
-              <ProjectAttachments
-                attachments={project.attachments || []}
-                canEdit={!isDesigner} // Allow both clients and managers to upload files
-                onAddAttachment={handleAddAttachment}
-                onRemoveAttachment={!isClient ? handleRemoveAttachment : undefined} // Only managers can remove files
-              />
-            </div>
-          </div>
+              {/* Project Attachments */}
+              <div className="pt-6 border-t">
+                <ProjectAttachments
+                  attachments={project.attachments || []}
+                  canEdit={true} // Allow all roles to upload files
+                  canRemove={user.role !== 'client' && user.role !== 'client_team_member'} // Hide remove for clients and client team members
+                  onAddAttachment={handleAddAttachment}
+                  onRemoveAttachment={handleRemoveAttachment}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Project Updates - Hidden for clients, visible for designers */}
-          {!isClient && (
-            <ProjectUpdates 
-              projectId={projectId}
-              updates={updates}
-              currentUser={user}
-              canEdit={canAddUpdates}
-              onUpdateAdded={loadProjectData}
-            />
-          )}
+          {/* Project Updates - All roles can add updates */}
+          <ProjectUpdates
+            projectId={projectId}
+            updates={updates}
+            currentUser={user}
+            canEdit={canAddUpdates}
+            onUpdateAdded={loadProjectData}
+          />
 
-          {/* 5. Team Members */}
-          <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Team Members</h3>
-            <div className="space-y-3">
-
-              {/* Designers */}
-              {designers.map((designer) => (
-                <div key={designer.id} className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
-                  <div className="w-10 h-10 bg-secondary/20 rounded-full flex items-center justify-center">
-                    <UserIcon size={20} className="text-secondary-foreground" />
+          {/* Team Members */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Team Members</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {/* Designers */}
+                {designers.map((designer) => (
+                  <div key={designer.id} className="flex items-center space-x-3 p-3 bg-accent/50 rounded-lg">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                      {designer.avatar ? (
+                        <img 
+                          src={resolveMediaUrl(designer.avatar)} 
+                          alt={designer.name} 
+                          className="w-10 h-10 rounded-full object-cover"
+                          onError={(e) => {
+                            console.log('Avatar failed to load:', {
+                              originalUrl: designer.avatar,
+                              resolvedUrl: resolveMediaUrl(designer.avatar),
+                              designerName: designer.name
+                            });
+                            // Hide the image and show the fallback icon
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                              parent.innerHTML = '<svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>';
+                            }
+                          }}
+                        />
+                      ) : (
+                        <UserIcon size={20} className="text-primary" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-foreground">{designer.name}</div>
+                      <div className="text-sm text-muted-foreground">{designer.role}</div>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {designer.role === 'designer' ? 'Designer' : 
+                       designer.role === 'senior_designer' ? 'Senior Designer' : 
+                       designer.role === 'team_lead' ? 'Team Lead' : 
+                       designer.role === 'team_head' ? 'Team Head' : 
+                       designer.role === 'project_manager' ? 'Project Manager' : 
+                       designer.role === 'assistant_project_manager' ? 'Assistant Project Manager' : 
+                       designer.role === 'professional_engineer' ? 'Professional Engineer' : 
+                       designer.role === 'auto_cad_drafter' ? 'Auto CAD Drafter' : 
+                       designer.role}
+                    </Badge>
                   </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-foreground">{designer.name}</div>
-                    <div className="text-sm text-muted-foreground">{designer.role}</div>
-                  </div>
-                  <div className="text-xs text-primary bg-primary/10 px-2 py-1 rounded">{designer.role === 'designer' ? 'Designer' : designer.role === 'senior_designer' ? 'Senior Designer' : designer.role === 'team_lead' ? 'Team Lead' : designer.role === 'team_head' ? 'Team Head' : designer.role === 'project_manager' ? 'Project Manager' : designer.role === 'assistant_project_manager' ? 'Assistant Project Manager' : designer.role === 'professional_engineer' ? 'Professional Engineer' : designer.role === 'auto_cad_drafter' ? 'Auto CAD Drafter' : ''}</div>
-               </div>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column - Team Chat */}
@@ -459,70 +509,79 @@ export default function ProjectDetailsPage() {
         </div>
       </div>
 
-      {/* Edit Modal */}
-      {isEditing && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
-          <div className="bg-background rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Edit Project</h3>
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Project Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-ring focus:border-ring"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Description
-                </label>
-                <textarea
-                  required
-                  value={editForm.description}
-                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-ring focus:border-ring"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Status
-                </label>
-                <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as Project['status'] })}
-                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-ring focus:border-ring"
-                >
-                  <option value="planning">Planning</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="review">In Review</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary flex-1"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Edit Project Modal */}
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>
+              Update the project details below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form id="edit-project-form" onSubmit={handleSaveEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="project-name">Project Name</Label>
+              <Input
+                id="project-name"
+                type="text"
+                required
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder="Enter project name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="project-description">Description</Label>
+              <Textarea
+                id="project-description"
+                required
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                placeholder="Enter project description"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="project-status">Status</Label>
+              <Select
+                value={editForm.status}
+                onValueChange={(value) => setEditForm({ ...editForm, status: value as Project['status'] })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planning">Planning</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="review">In Review</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </form>
+
+          <DialogFooter className="flex space-x-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEditing(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="edit-project-form"
+              className="flex-1"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

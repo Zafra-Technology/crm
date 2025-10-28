@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { CalendarIcon, UsersIcon, ClockIcon, MessageSquare } from 'lucide-react';
 import { Project } from '@/types';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -18,10 +18,20 @@ const statusVariants = {
   inactive: 'secondary',
   rejected: 'destructive',
   quotation_submitted: 'default',
-  planning: 'default',
+  planning: 'outline',
   in_progress: 'secondary',
-  review: 'secondary',
+  review: 'destructive',
   completed: 'default',
+} as const;
+
+const statusStyles = {
+  inactive: 'bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-300',
+  rejected: 'bg-red-100 text-red-800 hover:bg-red-100 border-red-300',
+  quotation_submitted: 'bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-300',
+  planning: 'bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-300',
+  in_progress: 'bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-300',
+  review: 'bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-300',
+  completed: 'bg-green-100 text-green-800 hover:bg-green-100 border-green-300',
 } as const;
 
 const statusLabels = {
@@ -66,21 +76,21 @@ export default function ProjectCard({ project, showActions = true, onViewFeedbac
     <Card className="hover:shadow-md transition-shadow h-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <h3 className="text-lg font-semibold text-foreground line-clamp-2 flex-1 mr-2">{project.name}</h3>
-          <Badge variant={statusVariants[project.status]} className="whitespace-nowrap">
+          <CardTitle className="text-lg line-clamp-2 flex-1 mr-2">{project.name}</CardTitle>
+          <Badge variant="outline" className={`whitespace-nowrap ${statusStyles[project.status]}`}>
             {statusLabels[project.status]}
           </Badge>
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 flex flex-col">
+      <CardContent className="flex-1 pt-0">
         {/* Description - fixed height */}
         <div className="mb-4 flex-1">
           <p className="text-muted-foreground text-sm line-clamp-3 leading-relaxed">{project.description}</p>
         </div>
         
         {/* Project info - consistent spacing */}
-        <div className="flex items-center justify-between text-sm text-muted-foreground mb-4 py-2 border-t border-border">
+        <div className="flex items-center justify-between text-sm text-muted-foreground mb-4 py-2 border-t">
           <div className="flex items-center space-x-1">
             <CalendarIcon size={14} />
             <span className="truncate">{project.timeline}</span>
@@ -138,7 +148,7 @@ export default function ProjectCard({ project, showActions = true, onViewFeedbac
                 ) : project.status !== 'inactive' && project.status !== 'rejected' && project.status !== 'quotation_submitted' ? (
                   <Link 
                     href={`/dashboard/project/${project.id}`}
-                    className="text-foreground hover:underline font-medium whitespace-nowrap ml-2 flex-shrink-0"
+                    className="text-primary hover:underline font-medium whitespace-nowrap ml-2 flex-shrink-0"
                   >
                     View Details
                   </Link>

@@ -171,15 +171,7 @@ export const projectsApi = {
       const response = await fetch(`${API_BASE}${id}`, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) return null;
       const data = await response.json();
-      if (typeof window !== 'undefined') {
-        // eslint-disable-next-line no-console
-        console.log('Projects API getById raw:', data);
-      }
       const mapped = projectsApi._mapApiProject(data);
-      if (typeof window !== 'undefined') {
-        // eslint-disable-next-line no-console
-        console.log('Projects API getById mapped:', mapped);
-      }
       return mapped;
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -306,7 +298,8 @@ export const projectsApi = {
       }
 
       const data = await response.json();
-      return projectsApi._mapApiProject(data);
+      const mapped = projectsApi._mapApiProject(data);
+      return mapped;
     } catch (error) {
       console.error('Error updating project:', error);
       throw error;
