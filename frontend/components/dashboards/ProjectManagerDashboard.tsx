@@ -488,7 +488,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                 <button
                   onClick={() => openAssignModal(project)}
                   className="p-2 bg-background rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-border"
-                  title="Assign Designers"
+                  title="Assign Team Members"
                 >
                   <UsersIcon size={16} className="text-blue-600" />
                 </button>
@@ -606,9 +606,9 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                 />
               </div>
               
-              {/* Designer Selection */}
+              {/* Team Member Selection */}
               <div className="space-y-2">
-                <Label>Assign Designers (Optional)</Label>
+                <Label>Assign Team Members (Optional)</Label>
                 <div className="space-y-2 max-h-32 overflow-y-auto border border-border rounded-md p-2">
                   {designers.map((designer) => (
                     <label key={designer.id} className="flex items-center space-x-2 cursor-pointer">
@@ -634,7 +634,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                     </label>
                   ))}
                   {designers.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-2">No active designers available</p>
+                    <p className="text-sm text-muted-foreground text-center py-2">No active team members available</p>
                   )}
                 </div>
               </div>

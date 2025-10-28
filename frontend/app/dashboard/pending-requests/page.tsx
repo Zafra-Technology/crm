@@ -35,13 +35,26 @@ export default function PendingRequestsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      router.push('/');
-      return;
-    }
-    setUser(currentUser);
-    loadPendingProjects();
+    let isMounted = true;
+    (async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+          router.push('/');
+          return;
+        }
+        if (isMounted) {
+          setUser(currentUser);
+          loadPendingProjects();
+        }
+      } catch (e) {
+        console.error('Failed to load current user', e);
+        router.push('/');
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   const loadPendingProjects = async () => {

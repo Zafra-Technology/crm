@@ -1,4 +1,5 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+import { getCookie, setCookie, deleteCookie } from '@/lib/cookies';
 
 export interface LoginData {
   email: string;
@@ -81,16 +82,17 @@ export function resolveMediaUrl(url?: string | null): string {
 
 class AuthAPI {
   private getAuthHeaders() {
-    const token = localStorage.getItem('auth_token');
+    const token = getCookie('auth_token');
     return {
       'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` })
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     };
   }
 
   async login(data: LoginData): Promise<LoginResponse> {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -103,17 +105,16 @@ class AuthAPI {
     }
 
     const result = await response.json();
-    
-    // Store token in localStorage
-    localStorage.setItem('auth_token', result.token);
-    localStorage.setItem('current_user', JSON.stringify(result.user));
-    
+    if (result?.token) {
+      setCookie('auth_token', result.token);
+    }
     return result;
   }
 
   async register(data: RegisterData): Promise<User> {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -131,6 +132,7 @@ class AuthAPI {
   async getCurrentUser(): Promise<User> {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       headers: this.getAuthHeaders(),
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -144,6 +146,7 @@ class AuthAPI {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(data),
     });
 
@@ -153,7 +156,6 @@ class AuthAPI {
     }
 
     const user = await response.json();
-    localStorage.setItem('current_user', JSON.stringify(user));
     return user;
   }
 
@@ -161,6 +163,7 @@ class AuthAPI {
     const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify({
         old_password: oldPassword,
         new_password: newPassword,
@@ -204,6 +207,7 @@ class AuthAPI {
           ...this.getAuthHeaders(),
           'Accept': 'application/json',
         },
+        credentials: 'include',
       });
 
       console.log('Response status:', response.status);
@@ -230,6 +234,7 @@ class AuthAPI {
     const response = await fetch(`${API_BASE_URL}/auth/users`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(data),
     });
 
@@ -256,6 +261,7 @@ class AuthAPI {
     const response = await fetch(`${API_BASE_URL}/auth/users/${userId}`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(data),
     });
 
@@ -271,12 +277,13 @@ class AuthAPI {
     const formData = new FormData();
     formData.append('profile_pic', file);
 
-    const token = localStorage.getItem('auth_token');
+    const token = getCookie('auth_token');
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/upload-profile-pic`, {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: formData,
     });
@@ -293,6 +300,7 @@ class AuthAPI {
     const response = await fetch(`${API_BASE_URL}/auth/users/${userId}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -309,6 +317,7 @@ class AuthAPI {
           ...this.getAuthHeaders(),
           'Accept': 'application/json',
         },
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -330,6 +339,7 @@ class AuthAPI {
       const response = await fetch(`${API_BASE_URL}/auth/team-members`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -352,6 +362,7 @@ class AuthAPI {
       const response = await fetch(`${API_BASE_URL}/auth/team-members/${memberId}`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -374,6 +385,7 @@ class AuthAPI {
       const response = await fetch(`${API_BASE_URL}/auth/team-members/${memberId}`, {
         method: 'DELETE',
         headers: this.getAuthHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -391,6 +403,7 @@ class AuthAPI {
     const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/set-password`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify({ new_password: newPassword }),
     });
 
@@ -407,7 +420,7 @@ class AuthAPI {
   }
 
   async getRoleChoices(): Promise<Array<{value: string, label: string}>> {
-    const response = await fetch(`${API_BASE_URL}/auth/roles`);
+    const response = await fetch(`${API_BASE_URL}/auth/roles`, { credentials: 'include' });
     
     if (!response.ok) {
       throw new Error('Failed to get role choices');
@@ -417,7 +430,7 @@ class AuthAPI {
   }
 
   async checkEmailExists(email: string): Promise<{exists: boolean, email: string}> {
-    const response = await fetch(`${API_BASE_URL}/auth/check-email/${encodeURIComponent(email)}`);
+    const response = await fetch(`${API_BASE_URL}/auth/check-email/${encodeURIComponent(email)}`, { credentials: 'include' });
     
     if (!response.ok) {
       throw new Error('Failed to check email existence');
@@ -427,23 +440,15 @@ class AuthAPI {
   }
 
   logout(): void {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('current_user');
+    deleteCookie('auth_token');
   }
 
   getCurrentUserFromStorage(): User | null {
-    if (typeof window !== 'undefined') {
-      const userData = localStorage.getItem('current_user');
-      return userData ? JSON.parse(userData) : null;
-    }
     return null;
   }
 
   getToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth_token');
-    }
-    return null;
+    return getCookie('auth_token');
   }
 
   isAuthenticated(): boolean {
@@ -454,6 +459,7 @@ class AuthAPI {
     const response = await fetch(`${API_BASE_URL}/auth/send-mail`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
 
@@ -469,6 +475,7 @@ class AuthAPI {
     const response = await fetch(`${API_BASE_URL}/auth/onboard-client`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(data),
     });
 
@@ -495,6 +502,7 @@ class AuthAPI {
     const response = await fetch(`${API_BASE_URL}/auth/send-client-credentials`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
 
@@ -512,6 +520,7 @@ class AuthAPI {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ email, password }),
     });
 

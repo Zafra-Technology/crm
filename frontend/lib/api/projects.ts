@@ -1,15 +1,16 @@
 import { Project, ProjectAttachment } from '@/types';
+import { getCookie } from '@/lib/cookies';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 // Django with APPEND_SLASH expects trailing slash for POST/collection routes
 const API_BASE = `${API_BASE_URL}/projects/`;
 
 const getAuthHeaders = () => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  const token = getCookie('auth_token');
   return {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
   } as Record<string, string>;
 };
 
@@ -71,7 +72,7 @@ export const projectsApi = {
   // Get all projects
   getAll: async (): Promise<Project[]> => {
     try {
-      const response = await fetch(API_BASE, { headers: getAuthHeaders() });
+      const response = await fetch(API_BASE, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) throw new Error(`Failed to fetch projects: ${response.status}`);
       const data = await response.json();
       const arr = Array.isArray(data)
@@ -93,7 +94,7 @@ export const projectsApi = {
     try {
       // Backend uses authentication to determine user and role automatically
       // No need to pass user_id and user_role as query parameters
-      const response = await fetch(API_BASE, { headers: getAuthHeaders() });
+      const response = await fetch(API_BASE, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Projects API error response:', errorText);
@@ -119,7 +120,7 @@ export const projectsApi = {
     try {
       // Get all projects and filter for inactive ones on the frontend
       // This ensures we get the correct filtering even if backend filtering isn't working
-      const response = await fetch(API_BASE, { headers: getAuthHeaders() });
+      const response = await fetch(API_BASE, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Projects API error response:', errorText);
@@ -146,7 +147,7 @@ export const projectsApi = {
   // Search projects
   search: async (searchTerm: string): Promise<Project[]> => {
     try {
-      const response = await fetch(`${API_BASE}?search=${encodeURIComponent(searchTerm)}`, { headers: getAuthHeaders() });
+      const response = await fetch(`${API_BASE}?search=${encodeURIComponent(searchTerm)}`, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) throw new Error(`Failed to search projects: ${response.status}`);
       const data = await response.json();
       const arr = Array.isArray(data)
@@ -167,7 +168,7 @@ export const projectsApi = {
   getById: async (id: string): Promise<Project | null> => {
     try {
       // Detail routes in Django Ninja here are defined without trailing slash
-      const response = await fetch(`${API_BASE}${id}`, { headers: getAuthHeaders() });
+      const response = await fetch(`${API_BASE}${id}`, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) return null;
       const data = await response.json();
       if (typeof window !== 'undefined') {
@@ -224,6 +225,7 @@ export const projectsApi = {
       const response = await fetch(API_BASE, {
         method: 'POST',
         headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       
@@ -284,6 +286,7 @@ export const projectsApi = {
       const response = await fetch(`${API_BASE}${id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -316,6 +319,7 @@ export const projectsApi = {
       const response = await fetch(`${API_BASE}${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
+        credentials: 'include',
       });
       
       return response.ok;
@@ -359,6 +363,7 @@ export const projectsApi = {
       const response = await fetch(`${API_BASE_URL}/projects/${projectId}/approve`, {
         method: 'POST',
         headers: getAuthHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -382,6 +387,7 @@ export const projectsApi = {
           ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ feedback_message: feedbackMessage }),
       });
 
@@ -400,8 +406,6 @@ export const projectsApi = {
 
   submitQuotation: async (projectId: string, quotationMessage: string, quotationFile?: File): Promise<Project> => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-      
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('quotation_message', quotationMessage);
@@ -414,9 +418,8 @@ export const projectsApi = {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          // Don't set Content-Type for FormData - let browser set it with boundary
         },
+        credentials: 'include',
         body: formData,
       });
 
@@ -445,6 +448,7 @@ export const projectsApi = {
       const response = await fetch(`${API_BASE_URL}/projects/${projectId}/accept-quotation`, {
         method: 'POST',
         headers: getAuthHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -468,6 +472,7 @@ export const projectsApi = {
           ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ feedback_message: feedbackMessage }),
       });
 

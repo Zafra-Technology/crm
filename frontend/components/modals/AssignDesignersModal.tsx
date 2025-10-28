@@ -58,12 +58,12 @@ export default function AssignDesignersModal({
     }
   }, [preloadedDesigners]);
 
-  // Load designers only if not preloaded
+  // Always load team members when the modal opens; merge with any preloaded
   useEffect(() => {
-    if (isOpen && preloadedDesigners.length === 0) {
+    if (isOpen) {
       loadDesigners();
     }
-  }, [isOpen, preloadedDesigners.length]);
+  }, [isOpen]);
 
   // Set selected designers when modal opens or current designer IDs change
   useEffect(() => {
@@ -75,18 +75,32 @@ export default function AssignDesignersModal({
   const loadDesigners = async () => {
     try {
       setLoadingDesigners(true);
-      // Fetch designers by role directly from DB via users API
-      const [designers, seniorDesigners, drafters] = await Promise.all([
+      // Fetch team members by role directly from DB via users API
+      const [designers, seniorDesigners, teamLeads, teamHeads, projectManagers, assistantProjectManagers, professionalEngineers, drafters] = await Promise.all([
         authAPI.getUsers('designer'),
         authAPI.getUsers('senior_designer'),
+        authAPI.getUsers('team_lead'),
+        authAPI.getUsers('team_head'),
+        authAPI.getUsers('project_manager'),
+        authAPI.getUsers('assistant_project_manager'),
+        authAPI.getUsers('professional_engineer'),
         authAPI.getUsers('auto_cad_drafter')
       ]);
 
-      // Merge and de-duplicate by id
-      const merged = [...designers, ...seniorDesigners, ...drafters];
+      // Merge backend results and preloaded designers, then de-duplicate by id
+      const merged = [
+        ...designers,
+        ...seniorDesigners,
+        ...teamLeads,
+        ...teamHeads,
+        ...projectManagers,
+        ...assistantProjectManagers,
+        ...professionalEngineers,
+        ...drafters
+      ];
       const uniqueById = Array.from(new Map(merged.map(u => [u.id, u])).values());
 
-      const activeDesigners: Designer[] = uniqueById
+      const fetchedDesigners: Designer[] = uniqueById
         .filter(u => u.is_active)
         .map(u => ({
           id: u.id.toString(),
@@ -99,7 +113,11 @@ export default function AssignDesignersModal({
           joinedDate: u.date_of_joining || u.created_at || '',
           projectsCount: 0
         }));
-      setDesigners(activeDesigners);
+
+      // Merge with any preloaded designers already in state
+      const combined = [...fetchedDesigners, ...preloadedDesigners];
+      const deduped = Array.from(new Map(combined.map(d => [d.id, d])).values());
+      setDesigners(deduped);
     } catch (error) {
       console.error('Error loading designers:', error);
     } finally {
@@ -123,18 +141,18 @@ export default function AssignDesignersModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Assign Designers</DialogTitle>
+          <DialogTitle>Assign Team Members</DialogTitle>
           <DialogDescription>
-            Select designers to assign to <strong>{projectName}</strong>
+            Select team members to assign to <strong>{projectName}</strong>
           </DialogDescription>
         </DialogHeader>
 
         {/* Designers List */}
         <div className="flex-1 overflow-y-auto mb-4">
           {loadingDesigners ? (
-            <div className="text-center py-8 text-muted-foreground">Loading designers...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading team members...</div>
           ) : designers.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No active designers available</div>
+            <div className="text-center py-8 text-muted-foreground">No active team members available</div>
           ) : (
             <div className="space-y-2">
               {designers.map((designer) => {
@@ -183,7 +201,7 @@ export default function AssignDesignersModal({
         {/* Selected Count */}
         <div className="mb-4 p-3 bg-muted rounded-lg">
           <div className="text-sm text-muted-foreground">
-            Selected: <span className="font-medium text-foreground">{selectedDesignerIds.length}</span> designer{selectedDesignerIds.length !== 1 ? 's' : ''}
+            Selected: <span className="font-medium text-foreground">{selectedDesignerIds.length}</span> member{selectedDesignerIds.length !== 1 ? 's' : ''}
           </div>
         </div>
 
@@ -202,7 +220,7 @@ export default function AssignDesignersModal({
             disabled={loading || loadingDesigners}
             className="flex-1"
           >
-            {loading ? 'Assigning...' : 'Assign Designers'}
+            {loading ? 'Assigning...' : 'Assign Team Members'}
           </Button>
         </DialogFooter>
       </DialogContent>

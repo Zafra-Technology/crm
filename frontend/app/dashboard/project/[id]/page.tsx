@@ -22,7 +22,6 @@ export default function ProjectDetailsPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [designers, setDesigners] = useState<Designer[]>([]);
-  const [projectManager, setProjectManager] = useState<any>(null);
   const [updates, setUpdates] = useState<ProjectUpdate[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -36,9 +35,11 @@ export default function ProjectDetailsPage() {
   });
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-    loadProjectData();
+    (async () => {
+      const currentUser = await getCurrentUser();
+      setUser(currentUser);
+      await loadProjectData();
+    })();
   }, [projectId]);
 
   const loadProjectData = async () => {
@@ -104,6 +105,7 @@ export default function ProjectDetailsPage() {
               name: String(d.full_name || d.name || ''),
               email: String(d.email || ''),
               phoneNumber: '',
+              company: '',
               role: String(d.role || ''),
               status: 'active' as const,
               joinedDate: '',
@@ -118,7 +120,16 @@ export default function ProjectDetailsPage() {
           } else if (foundProject.designerIds && foundProject.designerIds.length > 0) {
             const wantedIds = foundProject.designerIds.map(id => id.toString());
             const designerUsers = allUsers.filter(user => 
-              ['designer', 'senior_designer', 'auto_cad_drafter'].includes(user.role) &&
+              [
+                'designer',
+                'senior_designer',
+                'team_lead',
+                'team_head',
+                'project_manager',
+                'assistant_project_manager',
+                'professional_engineer',
+                'auto_cad_drafter'
+              ].includes(user.role) &&
               wantedIds.includes(user.id.toString())
             );
             const assignedDesigners = designerUsers.map(user => ({
@@ -126,6 +137,7 @@ export default function ProjectDetailsPage() {
               name: user.full_name,
               email: user.email,
               phoneNumber: user.mobile_number || '',
+              company: user.company_name || '',
               role: user.role_display || user.role,
               status: (user.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
               joinedDate: user.date_of_joining || user.created_at || '',
@@ -294,18 +306,24 @@ export default function ProjectDetailsPage() {
   const isClient = user.role === 'client';
   const isDesigner = user.role === 'designer';
 
-  const statusColors = {
+  const statusColors: Record<Project['status'] | 'inactive' | 'rejected' | 'quotation_submitted', string> = {
     planning: 'bg-blue-100 text-blue-800',
     in_progress: 'bg-yellow-100 text-yellow-800',
     review: 'bg-purple-100 text-purple-800',
     completed: 'bg-green-100 text-green-800',
+    inactive: 'bg-gray-100 text-gray-800',
+    rejected: 'bg-red-100 text-red-800',
+    quotation_submitted: 'bg-slate-100 text-slate-800',
   };
 
-  const statusLabels = {
+  const statusLabels: Record<Project['status'] | 'inactive' | 'rejected' | 'quotation_submitted', string> = {
     planning: 'Planning',
     in_progress: 'In Progress',
     review: 'In Review',
     completed: 'Completed',
+    inactive: 'Pending',
+    rejected: 'Rejected',
+    quotation_submitted: 'Quotation Submitted',
   };
 
   return (
@@ -370,7 +388,7 @@ export default function ProjectDetailsPage() {
                     <h4 className="font-medium text-foreground mb-2">Team Size</h4>
                     <div className="flex items-center space-x-2 text-muted-foreground">
                       <UsersIcon size={16} />
-                      <span>{designers.length + 1} members</span>
+                      <span>{designers.length} member{designers.length !== 1 ? 's' : ''}</span>
                     </div>
                   </div>
                 </div>
@@ -411,19 +429,6 @@ export default function ProjectDetailsPage() {
           <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">Team Members</h3>
             <div className="space-y-3">
-              {/* Project Manager */}
-              {projectManager && (
-                <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <UserIcon size={20} className="text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-foreground">{projectManager.name}</div>
-                    <div className="text-sm text-muted-foreground">Project Manager</div>
-                  </div>
-                  <div className="text-xs text-primary bg-primary/10 px-2 py-1 rounded">Manager</div>
-                </div>
-              )}
 
               {/* Designers */}
               {designers.map((designer) => (
@@ -435,8 +440,8 @@ export default function ProjectDetailsPage() {
                     <div className="font-medium text-foreground">{designer.name}</div>
                     <div className="text-sm text-muted-foreground">{designer.role}</div>
                   </div>
-                  <div className="text-xs text-secondary-foreground bg-secondary/20 px-2 py-1 rounded">Designer</div>
-                </div>
+                  <div className="text-xs text-primary bg-primary/10 px-2 py-1 rounded">{designer.role === 'designer' ? 'Designer' : designer.role === 'senior_designer' ? 'Senior Designer' : designer.role === 'team_lead' ? 'Team Lead' : designer.role === 'team_head' ? 'Team Head' : designer.role === 'project_manager' ? 'Project Manager' : designer.role === 'assistant_project_manager' ? 'Assistant Project Manager' : designer.role === 'professional_engineer' ? 'Professional Engineer' : designer.role === 'auto_cad_drafter' ? 'Auto CAD Drafter' : ''}</div>
+               </div>
               ))}
             </div>
           </div>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
-import { User } from '@/lib/api/auth';
+import { User } from '@/types';
 import AdminDashboard from '@/components/dashboards/AdminDashboard';
 
 export default function AdminUsersPage() {
@@ -12,20 +12,20 @@ export default function AdminUsersPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    
-    if (!currentUser) {
-      router.push('/');
-      return;
-    }
-
-    if (!isAdmin(currentUser)) {
-      router.push('/dashboard');
-      return;
-    }
-
-    setUser(currentUser);
-    setLoading(false);
+    const init = async () => {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        router.push('/');
+        return;
+      }
+      if (!isAdmin(currentUser)) {
+        router.push('/dashboard');
+        return;
+      }
+      setUser(currentUser);
+      setLoading(false);
+    };
+    init();
   }, [router]);
 
   if (loading) {

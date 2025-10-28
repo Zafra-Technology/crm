@@ -1,13 +1,14 @@
 import { Task } from '@/components/tasks/KanbanBoard';
+import { getCookie } from '@/lib/cookies';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 // Django with APPEND_SLASH expects trailing slash for collection routes
 const getAuthHeaders = () => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  const token = getCookie('auth_token');
   return {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
   } as Record<string, string>;
 };
 
@@ -37,7 +38,7 @@ export const tasksApi = {
     try {
       const url = `${API_BASE_URL}/projects/${projectId}/tasks`;
       console.log('GET tasks URL:', url);
-      const response = await fetch(url, { headers: getAuthHeaders() });
+      const response = await fetch(url, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) throw new Error(`Failed to fetch project tasks: ${response.status}`);
       const data = await response.json();
       const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
@@ -56,7 +57,7 @@ export const tasksApi = {
     try {
       const url = `${API_BASE_URL}/projects/tasks/bulk`;
       console.log('GET bulk tasks URL:', url);
-      const response = await fetch(url, { headers: getAuthHeaders() });
+      const response = await fetch(url, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) throw new Error(`Failed to fetch user tasks: ${response.status}`);
       const data = await response.json();
       const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
@@ -77,6 +78,7 @@ export const tasksApi = {
       const response = await fetch(url, {
         method: 'PUT',
         headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({ status })
       });
       if (!response.ok) throw new Error(`Failed to update task status: ${response.status}`);
@@ -106,6 +108,7 @@ export const tasksApi = {
       const response = await fetch(url, {
         method: 'POST',
         headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
@@ -123,6 +126,7 @@ export const tasksApi = {
           const assignRes = await fetch(assignUrl, {
             method: 'PUT',
             headers: getAuthHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ assignee_id: Number(taskData.assigneeId) })
           });
           if (assignRes.ok) {
@@ -157,6 +161,7 @@ export const tasksApi = {
     const response = await fetch(url, {
       method: 'PUT',
       headers: getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     if (!response.ok) {

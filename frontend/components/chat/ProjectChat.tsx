@@ -151,16 +151,13 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       const apiUrl = `${API_BASE_URL}/chat/project/${projectId}/messages`;
       console.log('Calling API:', apiUrl);
       
-      // Get auth token
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-      
       // Save message to database
       const response = await fetch(apiUrl, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify(messageData),
       });
@@ -310,9 +307,9 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       console.log('File dropped:', file.name);
       
       // Simulate file input change event
-      const fakeEvent = {
+      const fakeEvent = ({
         target: { files: [file] }
-      } as React.ChangeEvent<HTMLInputElement>;
+      } as unknown) as React.ChangeEvent<HTMLInputElement>;
       
       handleFileUpload(fakeEvent);
     }

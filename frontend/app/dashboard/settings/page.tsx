@@ -67,9 +67,7 @@ export default function SettingsPage() {
   const loadCompanyDetails = async () => {
     try {
       const response = await fetch('http://localhost:8000/api/auth/company-details', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
+        credentials: 'include',
       });
       if (response.ok) {
         const data = await response.json();
@@ -104,9 +102,9 @@ export default function SettingsPage() {
     try {
       const response = await fetch('http://localhost:8000/api/auth/company-details', {
         method: 'PUT',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify(companyDetails),
       });

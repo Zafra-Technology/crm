@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
-import { User as APIUser } from '@/lib/api/auth';
 import FirstLoginModal from '@/components/modals/FirstLoginModal';
 
 export default function FirstLoginPage() {
-  const [user, setUser] = useState<APIUser | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -26,24 +25,13 @@ export default function FirstLoginPage() {
         return;
       }
 
-      // Fetch user data from API to get is_first_login
-      try {
-        const apiUser = await fetch('http://localhost:8000/api/auth/me', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        }).then(res => res.json());
-        
-        if (apiUser.is_first_login) {
-          setUser(apiUser);
-        } else {
-          router.push('/dashboard');
-        }
-      } catch (error) {
+      if (currentUser.is_first_login) {
+        setUser(currentUser);
+      } else {
         router.push('/dashboard');
-      } finally {
-        setLoading(false);
       }
+
+      setLoading(false);
     };
 
     checkUser();

@@ -36,6 +36,7 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleChoices, setRoleChoices] = useState<Array<{value: string, label: string}>>([]);
   const [emailError, setEmailError] = useState('');
+  const [roleError, setRoleError] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
@@ -146,6 +147,13 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
     
     // Clear previous email error
     setEmailError('');
+    setRoleError('');
+    
+    // Require role selection
+    if (!formData.role || formData.role === 'none') {
+      setRoleError('Please select a role.');
+      return;
+    }
     
     try {
       setLoading(true);
@@ -565,19 +573,22 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                     </div>
                     <div>
                       <Label className="mb-1">Role *</Label>
-                      <Select value={formData.role || 'none'} onValueChange={(v) => setFormData({ ...formData, role: v === 'none' ? '' : v })}>
-                        <SelectTrigger>
+                      <Select value={formData.role || 'none'} onValueChange={(v) => { setFormData({ ...formData, role: v === 'none' ? '' : v }); if (roleError) setRoleError(''); }}>
+                        <SelectTrigger className={roleError ? 'border-red-500' : ''}>
                           <SelectValue placeholder="Select Role" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Select Role</SelectItem>
                           {roleChoices.map((role) => (
                             <SelectItem key={role.value} value={role.value}>
-                              {role.label}
+                              {role.label} *
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {roleError && (
+                        <p className="mt-1 text-sm text-red-600">{roleError}</p>
+                      )}
                     </div>
                   </div>
                 </div>
