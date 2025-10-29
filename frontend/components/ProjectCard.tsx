@@ -12,6 +12,7 @@ interface ProjectCardProps {
   showActions?: boolean;
   onViewFeedback?: (project: Project) => void;
   onQuotationReview?: (project: Project) => void;
+  onAgreementReview?: (project: Project) => void;
 }
 
 const statusVariants = {
@@ -44,7 +45,7 @@ const statusLabels = {
   completed: 'Completed',
 };
 
-export default function ProjectCard({ project, showActions = true, onViewFeedback, onQuotationReview }: ProjectCardProps) {
+export default function ProjectCard({ project, showActions = true, onViewFeedback, onQuotationReview, onAgreementReview }: ProjectCardProps) {
   const anyProject = project as any;
   
   // Calculate team count with better logic
@@ -144,6 +145,20 @@ export default function ProjectCard({ project, showActions = true, onViewFeedbac
                   >
                     <MessageSquare size={12} />
                     Review Quotation
+                  </Button>
+                ) : project.status === 'inactive' && onAgreementReview &&
+                  // Show client "Review Agreement" only if agreement exists and signed not yet uploaded
+                  Array.isArray((project as any).attachments) &&
+                  (project as any).attachments.some((a: any) => (a.name || '').toLowerCase().startsWith('agreement')) &&
+                  !(project as any).attachments.some((a: any) => (a.name || '').toLowerCase().startsWith('signed agreement')) ? (
+                  <Button
+                    onClick={() => onAgreementReview(project)}
+                    variant="ghost"
+                    size="sm"
+                    className="text-green-700 hover:text-green-800 font-medium whitespace-nowrap ml-2 flex-shrink-0"
+                  >
+                    <MessageSquare size={12} />
+                    Review Agreement
                   </Button>
                 ) : project.status !== 'inactive' && project.status !== 'rejected' && project.status !== 'quotation_submitted' ? (
                   <Link 
