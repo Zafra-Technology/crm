@@ -5,11 +5,12 @@ const convertAPIUser = (apiUser: APIUser) => ({
   id: apiUser.id.toString(),
   email: apiUser.email,
   name: apiUser.full_name,
-  role: (apiUser.role || '').toLowerCase() as 'admin' | 'operation_manager' | 'project_manager' | 'assistant_project_manager' | 'team_head' | 'team_lead' | 'senior_designer' | 'designer' | 'professional_engineer' | 'auto_cad_drafter' | 'hr_manager' | 'accountant' | 'sales_manager' | 'digital_marketing' | 'client',
+  role: (apiUser.role || '').toLowerCase() as 'admin' | 'operation_manager' | 'project_manager' | 'assistant_project_manager' | 'team_head' | 'team_lead' | 'senior_designer' | 'designer' | 'professional_engineer' | 'auto_cad_drafter' | 'hr_manager' | 'accountant' | 'sales_manager' | 'digital_marketing' | 'client' | 'client_team_member',
   company_name: apiUser.company_name,
   is_active: apiUser.is_active,
   role_display: apiUser.role_display,
-  is_first_login: apiUser.is_first_login
+  is_first_login: apiUser.is_first_login,
+  client_id: apiUser.client_id
 });
 
 export const authenticateUser = async (email: string, password: string) => {
