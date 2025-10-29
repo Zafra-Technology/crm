@@ -135,6 +135,8 @@ export default function KanbanBoard({ project, currentUser, designers, loadingDe
       setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
       
       console.log('Task deleted successfully');
+      // Notify parent to refresh stats
+      onTaskCreated();
     } catch (error) {
       console.error('Error deleting task:', error);
       alert('Failed to delete task. Please try again.');

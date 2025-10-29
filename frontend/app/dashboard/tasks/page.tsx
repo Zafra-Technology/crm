@@ -28,6 +28,7 @@ export default function TasksPage() {
     pending: 0,
     total: 0
   });
+  const [statsRefresh, setStatsRefresh] = useState(0);
   const [projectTaskCounts, setProjectTaskCounts] = useState<Record<string, { total: number; completed: number }>>({});
   const [loadingTaskCounts, setLoadingTaskCounts] = useState(false);
   const [designers, setDesigners] = useState<any[]>([]);
@@ -263,7 +264,7 @@ export default function TasksPage() {
               </Button>
             </div>
 
-          {(user?.role === 'project_manager' || user?.role === 'admin' || user?.role === 'team_head' || user?.role === 'team_lead') && (
+          {(user?.role === 'project_manager' || user?.role === 'assistant_project_manager' || user?.role === 'admin' || user?.role === 'team_head' || user?.role === 'team_lead') && (
               <Button
                 onClick={() => setShowCreateTask(true)}
                 className="flex items-center space-x-2"
@@ -277,6 +278,7 @@ export default function TasksPage() {
 
         {/* Task Statistics */}
         <TaskStats 
+          key={`stats-${selectedProject.id}-${statsRefresh}`}
           project={selectedProject}
           currentUser={user!}
           onStatsLoaded={setTaskStats}
@@ -293,6 +295,7 @@ export default function TasksPage() {
             onTaskCreated={() => {
               console.log('🔄 Task created, refreshing view...');
               setSelectedProject({ ...selectedProject });
+              setStatsRefresh((v) => v + 1);
             }}
           />
         ) : (
@@ -305,26 +308,34 @@ export default function TasksPage() {
             onTaskUpdated={() => {
               console.log('🔄 Task updated, refreshing view...');
               setSelectedProject({ ...selectedProject });
+              setStatsRefresh((v) => v + 1);
             }}
           />
         )}
 
         {/* Create Task Modal */}
-        {showCreateTask && (
-          <CreateTaskModal
-            project={selectedProject}
-            currentUser={user!}
-            designers={designers}
-            loadingDesigners={loadingDesigners}
-            onClose={() => setShowCreateTask(false)}
-            onTaskCreated={() => {
-              setShowCreateTask(false);
-              console.log('🔄 Task created, refreshing Kanban board...');
-              // Force re-render by updating the project state
-              setSelectedProject({ ...selectedProject });
-            }}
-          />
-        )}
+        {showCreateTask && (() => {
+          const assignedDesignerIds: string[] = Array.isArray((selectedProject as any).designers)
+            ? ((selectedProject as any).designers || []).map((d: any) => String(d.id))
+            : (selectedProject.designerIds || []);
+          const assignedDesigners = designers.filter(d => assignedDesignerIds.includes(d.id));
+          return (
+            <CreateTaskModal
+              project={selectedProject}
+              currentUser={user!}
+              designers={assignedDesigners}
+              loadingDesigners={loadingDesigners}
+              onClose={() => setShowCreateTask(false)}
+              onTaskCreated={() => {
+                setShowCreateTask(false);
+                console.log('🔄 Task created, refreshing Kanban board...');
+                // Force re-render by updating the project state
+                setSelectedProject({ ...selectedProject });
+                setStatsRefresh((v) => v + 1);
+              }}
+            />
+          );
+        })()}
       </div>
     );
   }
@@ -447,7 +458,7 @@ export default function TasksPage() {
             <FolderIcon size={48} className="mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">No Projects Found</h3>
             <p className="text-muted-foreground">
-              {(user?.role === 'project_manager' || user?.role === 'admin') 
+              {(user?.role === 'project_manager' || user?.role === 'assistant_project_manager' || user?.role === 'admin') 
                 ? 'Create your first project to start managing tasks'
                 : 'You have not been assigned to any projects yet'
               }

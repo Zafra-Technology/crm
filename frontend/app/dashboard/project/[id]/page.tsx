@@ -345,12 +345,13 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  const canEdit = user.role === 'project_manager' || user.role === 'admin' || user.role === 'designer';
+  const canEdit = user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin' || user.role === 'designer';
   const canAddUpdates =
     user.role === 'designer' ||
     user.role === 'senior_designer' ||
     user.role === 'auto_cad_drafter' ||
     user.role === 'project_manager' ||
+    user.role === 'assistant_project_manager' ||
     user.role === 'admin' ||
     user.role === 'client' ||
     user.role === 'team_head' ||
@@ -479,7 +480,7 @@ export default function ProjectDetailsPage() {
                       <ProjectAttachments
                         attachments={otherAttachments}
                         canEdit={true}
-                        canRemove={user.role === 'project_manager' || user.role === 'admin'}
+                        canRemove={user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin'}
                         onAddAttachment={handleAddAttachment}
                         onRemoveAttachment={handleRemoveAttachment}
                       />

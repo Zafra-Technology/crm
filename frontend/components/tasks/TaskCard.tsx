@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import ConfirmModal from '@/components/modals/ConfirmModal';
 
 interface TaskCardProps {
   task: Task;
@@ -34,6 +35,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageText, setMessageText] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const getPriorityVariant = (priority: string) => {
     const variants = {
@@ -107,6 +109,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
     // Allow managers, admins, team head and team lead to set tasks to completed
     if (
       currentUser.role === 'project_manager' ||
+      currentUser.role === 'assistant_project_manager' ||
       currentUser.role === 'admin' ||
       currentUser.role === 'team_head' ||
       currentUser.role === 'team_lead'
@@ -119,7 +122,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
 
   const canUpdateStatus = () => {
     // Managers/admins/team leads/heads can update any task; designers only their own
-    if (currentUser.role === 'project_manager' || currentUser.role === 'admin' || currentUser.role === 'team_head' || currentUser.role === 'team_lead') {
+    if (currentUser.role === 'project_manager' || currentUser.role === 'assistant_project_manager' || currentUser.role === 'admin' || currentUser.role === 'team_head' || currentUser.role === 'team_lead') {
       return true;
     }
     return task.assigneeId === currentUser.id;
@@ -129,6 +132,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
     // Show actions menu for managers, admins, team head and team lead (for tagging)
     return (
       currentUser.role === 'project_manager' ||
+      currentUser.role === 'assistant_project_manager' ||
       currentUser.role === 'admin' ||
       currentUser.role === 'team_head' ||
       currentUser.role === 'team_lead'
@@ -136,15 +140,19 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   };
 
   const canDeleteTask = () => {
-    // Deletion restricted to managers and admins (matches backend)
-    return currentUser.role === 'project_manager' || currentUser.role === 'admin';
+    // Deletion allowed for PM, Assistant PM, Team Head, Team Lead, Admin (matches backend)
+    return (
+      currentUser.role === 'project_manager' ||
+      currentUser.role === 'assistant_project_manager' ||
+      currentUser.role === 'team_head' ||
+      currentUser.role === 'team_lead' ||
+      currentUser.role === 'admin'
+    );
   };
 
   const handleDelete = () => {
-    if (onDelete && window.confirm('Are you sure you want to delete this task?')) {
-      onDelete(task.id);
-    }
     setShowActionsMenu(false);
+    setShowDeleteModal(true);
   };
 
   const handleTagInMessage = () => {
@@ -166,6 +174,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   };
 
   return (
+    <>
     <Card className="hover:shadow-sm transition-shadow">
       <CardContent className="p-4">
         {/* Task Header */}
@@ -371,5 +380,21 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
         </Dialog>
       </CardContent>
     </Card>
+
+    {/* Delete Confirmation Modal */}
+    <ConfirmModal
+      isOpen={showDeleteModal}
+      onClose={() => setShowDeleteModal(false)}
+      onConfirm={() => {
+        if (onDelete) onDelete(task.id);
+        setShowDeleteModal(false);
+      }}
+      title="Delete Task"
+      message={`Are you sure you want to delete "${task.title}"? This action cannot be undone.`}
+      confirmText="Delete Task"
+      type="danger"
+      loading={false}
+    />
+  </>
   );
 }

@@ -173,7 +173,16 @@ export const tasksApi = {
   },
 
   async delete(taskId: string): Promise<void> {
-    console.log('Deleting task (legacy placeholder):', taskId);
-    throw new Error('Not implemented');
+    console.log('🗑️ Deleting task:', taskId);
+    const url = `${API_BASE_URL}/projects/tasks/${taskId}`;
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const txt = await response.text().catch(() => '');
+      throw new Error(`Failed to delete task: ${response.status} ${txt}`);
+    }
   }
 };

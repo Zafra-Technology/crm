@@ -6,45 +6,23 @@ import { authAPI } from '@/lib/api/auth';
 import { User } from '@/types';
 import { Designer } from '@/types/designer';
 import { 
-  PlusIcon, 
   UserIcon, 
   MailIcon, 
   PhoneIcon, 
   BriefcaseIcon,
-  EditIcon,
-  TrashIcon,
   SearchIcon
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { projectsApi } from '@/lib/api/projects';
 
 export default function DesignersPage() {
   const [user, setUser] = useState<User | null>(null);
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
-  const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingDesigner, setEditingDesigner] = useState<Designer | null>(null);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phoneNumber: '',
-    company: '',
-    role: '',
-  });
 
   // Generate colorful avatar background
   const getAvatarColor = (name: string) => {
@@ -66,8 +44,7 @@ export default function DesignersPage() {
   };
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
+    getCurrentUser().then(setUser);
     loadDesignersAndProjects();
   }, []);
 
@@ -76,6 +53,8 @@ export default function DesignersPage() {
       setLoading(true);
       // Load designers from user management system
       const designersData = await authAPI.getUsers();
+      // Load projects from backend to compute counts
+      const allProjects = await projectsApi.getAll();
       
       // Filter for designer roles
       const designerRoles = ['designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter'];
@@ -83,175 +62,43 @@ export default function DesignersPage() {
         designerRoles.includes(user.role)
       );
       
-      // Convert to Designer format and add project count
-      const designersWithCounts = filteredDesigners.map(designer => ({
-        id: designer.id.toString(),
-        name: designer.full_name,
-        email: designer.email,
-        phoneNumber: designer.mobile_number,
-        company: designer.company_name || '',
-        role: designer.role || 'designer',
-        status: (designer.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
-        joinedDate: designer.date_of_joining || designer.created_at,
-        projectsCount: 0 // TODO: Update when projects API is available
-      }));
+      // Precompute per-designer project counts
+      const designerIdToCount: Record<string, number> = {};
+      for (const p of allProjects) {
+        const ids = ((p as any).designerIds && (p as any).designerIds.length > 0)
+          ? (p as any).designerIds
+          : Array.isArray((p as any).designers)
+            ? (p as any).designers.map((d: any) => String(d.id))
+            : [];
+        for (const did of ids) {
+          const key = String(did);
+          designerIdToCount[key] = (designerIdToCount[key] || 0) + 1;
+        }
+      }
+
+      // Convert to Designer format and add project count from backend
+      const designersWithCounts = filteredDesigners.map(designer => {
+        const idStr = designer.id.toString();
+        const projectsCount = designerIdToCount[idStr] || 0;
+        return {
+          id: idStr,
+          name: designer.full_name,
+          email: designer.email,
+          phoneNumber: designer.mobile_number,
+          company: designer.company_name || '',
+          role: designer.role || 'designer',
+          status: (designer.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
+          joinedDate: designer.date_of_joining || designer.created_at,
+          projectsCount
+        };
+      });
       
       setDesigners(designersWithCounts);
-      setProjects([]); // Empty projects array for now
+      setProjects(allProjects as any[]);
     } catch (error) {
       console.error('Error loading designers and projects:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAddDesigner = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      
-      // Create designer using authAPI
-      const designerData = {
-        email: formData.email,
-        password: 'temp123', // Temporary password - should be changed by user
-        first_name: formData.name.split(' ')[0] || '',
-        last_name: formData.name.split(' ').slice(1).join(' ') || '',
-        mobile_number: formData.phoneNumber,
-        company_name: formData.company,
-        role: 'designer' // Default role
-      };
-      
-      const newDesigner = await authAPI.createUser(designerData);
-      if (newDesigner) {
-        // Convert to Designer format and add with project count of 0
-        const designerWithCount = {
-          id: newDesigner.id.toString(),
-          name: newDesigner.full_name,
-          email: newDesigner.email,
-          phoneNumber: newDesigner.mobile_number,
-          company: newDesigner.company_name || '',
-          role: newDesigner.role || 'designer',
-          status: (newDesigner.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
-          joinedDate: newDesigner.date_of_joining || newDesigner.created_at,
-          projectsCount: 0
-        };
-        setDesigners([...designers, designerWithCount]);
-        setFormData({ name: '', email: '', phoneNumber: '', company: '', role: '' });
-        setShowAddForm(false);
-      }
-    } catch (error) {
-      console.error('Error adding designer:', error);
-      alert('Failed to add designer. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditDesigner = (designer: Designer) => {
-    setEditingDesigner(designer);
-    setFormData({
-      name: designer.name,
-      email: designer.email,
-      phoneNumber: designer.phoneNumber,
-      company: designer.company,
-      role: designer.role,
-    });
-    setShowAddForm(true);
-  };
-
-  const handleUpdateDesigner = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingDesigner) {
-      try {
-        setLoading(true);
-        
-        // Update designer using authAPI
-        const designerData = {
-          first_name: formData.name.split(' ')[0] || '',
-          last_name: formData.name.split(' ').slice(1).join(' ') || '',
-          mobile_number: formData.phoneNumber,
-          company_name: formData.company
-        };
-        
-        const updatedDesigner = await authAPI.updateUser(parseInt(editingDesigner.id), designerData);
-        if (updatedDesigner) {
-          // Convert to Designer format and preserve project count
-          const designerWithCount = {
-            id: updatedDesigner.id.toString(),
-            name: updatedDesigner.full_name,
-            email: updatedDesigner.email,
-            phoneNumber: updatedDesigner.mobile_number,
-            company: updatedDesigner.company_name || '',
-            role: updatedDesigner.role || editingDesigner.role || 'designer',
-            status: (updatedDesigner.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
-            joinedDate: updatedDesigner.date_of_joining || updatedDesigner.created_at,
-            projectsCount: editingDesigner.projectsCount
-          };
-          setDesigners(designers.map(d => 
-            d.id === editingDesigner.id ? designerWithCount : d
-          ));
-          setEditingDesigner(null);
-          setFormData({ name: '', email: '', phoneNumber: '', company: '', role: '' });
-          setShowAddForm(false);
-        }
-      } catch (error) {
-        console.error('Error updating designer:', error);
-        alert('Failed to update designer. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleDeleteDesigner = async (id: string) => {
-    if (confirm('Are you sure you want to delete this designer?')) {
-      try {
-        setLoading(true);
-        await authAPI.deleteUser(parseInt(id));
-        setDesigners(designers.filter(d => d.id !== id));
-      } catch (error) {
-        console.error('Error deleting designer:', error);
-        alert('Failed to delete designer. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const toggleDesignerStatus = async (id: string) => {
-    const designer = designers.find(d => d.id === id);
-    if (designer) {
-      try {
-        setLoading(true);
-        
-        // Toggle status using authAPI
-        const updatedDesigner = await authAPI.updateUser(parseInt(id), {
-          is_active: designer.status === 'active' ? false : true
-        });
-        
-        if (updatedDesigner) {
-          // Convert to Designer format and preserve project count
-          const designerWithCount = {
-            id: updatedDesigner.id.toString(),
-            name: updatedDesigner.full_name,
-            email: updatedDesigner.email,
-            phoneNumber: updatedDesigner.mobile_number,
-            company: updatedDesigner.company_name || '',
-            role: updatedDesigner.role || designer.role || 'designer',
-            status: (updatedDesigner.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
-            joinedDate: updatedDesigner.date_of_joining || updatedDesigner.created_at,
-            projectsCount: designer.projectsCount
-          };
-          setDesigners(designers.map(d => 
-            d.id === id ? designerWithCount : d
-          ));
-        }
-      } catch (error) {
-        console.error('Error toggling designer status:', error);
-        alert('Failed to update designer status. Please try again.');
-      } finally {
-        setLoading(false);
-      }
     }
   };
 
@@ -285,18 +132,36 @@ export default function DesignersPage() {
             designerRoles.includes(user.role)
           );
           
-          // Convert to Designer format
-          const searchWithCounts = filteredResults.map(designer => ({
-            id: designer.id.toString(),
-            name: designer.full_name,
-            email: designer.email,
-            phoneNumber: designer.mobile_number,
-            company: designer.company_name || '',
-            role: designer.role || 'designer',
-            status: (designer.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
-            joinedDate: designer.date_of_joining || designer.created_at,
-            projectsCount: 0 // TODO: Update when projects API is available
-          }));
+          // Recompute counts from current projects state
+          const designerIdToCount: Record<string, number> = {};
+          for (const p of projects) {
+            const ids = ((p as any).designerIds && (p as any).designerIds.length > 0)
+              ? (p as any).designerIds
+              : Array.isArray((p as any).designers)
+                ? (p as any).designers.map((d: any) => String(d.id))
+                : [];
+            for (const did of ids) {
+              const key = String(did);
+              designerIdToCount[key] = (designerIdToCount[key] || 0) + 1;
+            }
+          }
+
+          // Convert to Designer format with counts
+          const searchWithCounts = filteredResults.map(designer => {
+            const idStr = designer.id.toString();
+            const projectsCount = designerIdToCount[idStr] || 0;
+            return {
+              id: idStr,
+              name: designer.full_name,
+              email: designer.email,
+              phoneNumber: designer.mobile_number,
+              company: designer.company_name || '',
+              role: designer.role || 'designer',
+              status: (designer.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
+              joinedDate: designer.date_of_joining || designer.created_at,
+              projectsCount
+            };
+          });
           setDesigners(searchWithCounts);
         } catch (error) {
           console.error('Error searching designers:', error);
@@ -317,8 +182,8 @@ export default function DesignersPage() {
     );
   }
 
-  // Only allow project managers to manage designers
-  const canManageDesigners = user.role === 'project_manager';
+  // Designers page is view-only; no edit/delete/activate/deactivate controls
+  const canManageDesigners = false;
 
   return (
     <div className="space-y-6">
@@ -401,26 +266,7 @@ export default function DesignersPage() {
                       </Badge>
                     </div>
                   </div>
-                  {canManageDesigners && (
-                    <div className="flex space-x-1">
-                      <Button
-                        onClick={() => handleEditDesigner(designer)}
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                      >
-                        <EditIcon size={16} />
-                      </Button>
-                      <Button
-                        onClick={() => handleDeleteDesigner(designer.id)}
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                      >
-                        <TrashIcon size={16} />
-                      </Button>
-                    </div>
-                  )}
+                  {/* actions removed */}
                 </div>
 
                 <div className="space-y-2 text-sm">
@@ -442,16 +288,7 @@ export default function DesignersPage() {
                   <div className="text-muted-foreground">
                     {designer.projectsCount} project{designer.projectsCount !== 1 ? 's' : ''}
                   </div>
-                  {canManageDesigners && (
-                    <Button
-                      onClick={() => toggleDesignerStatus(designer.id)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary hover:text-primary/80 font-medium"
-                    >
-                      {designer.status === 'active' ? 'Deactivate' : 'Activate'}
-                    </Button>
-                  )}
+                  {/* activate/deactivate removed */}
                 </div>
               </CardContent>
             </Card>
