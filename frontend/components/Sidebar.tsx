@@ -42,7 +42,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Projects', 
       href: '/dashboard',
       active: pathname === '/dashboard',
-      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'auto_cad_drafter', 'admin']
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'auto_cad_drafter', 'admin']
     },
     { 
       icon: ClockIcon, 
@@ -56,7 +56,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Tasks', 
       href: '/dashboard/tasks',
       active: pathname === '/dashboard/tasks',
-      roles: ['project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
+      roles: ['project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
     },
     { 
       icon: BuildingIcon, 
@@ -84,7 +84,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Messages', 
       href: '/dashboard/messages',
       active: pathname === '/dashboard/messages',
-      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
     },
     { 
       icon: UserPlus2Icon, 

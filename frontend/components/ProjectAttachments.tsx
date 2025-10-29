@@ -130,7 +130,7 @@ export default function ProjectAttachments({
         )}
 
         {/* Attachments List */}
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
           {attachments && attachments.length > 0 ? (
             attachments.map((attachment) => (
               <div key={attachment.id} className="flex items-center justify-between p-3 bg-accent/50 rounded-lg hover:bg-accent transition-colors">

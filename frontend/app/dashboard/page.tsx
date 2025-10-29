@@ -71,7 +71,9 @@ export default function DashboardPage() {
       case 'admin':
         return <ProjectManagerDashboard projects={projects} userId={user.id} />;
       case 'team_head':
+        return <ProjectManagerDashboard projects={projects} userId={user.id} userRole={user.role} />;
       case 'team_lead':
+        return <ProjectManagerDashboard projects={projects} userId={user.id} userRole={user.role} />;
       case 'hr_manager':
       case 'accountant':
       case 'sales_manager':

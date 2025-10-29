@@ -108,6 +108,34 @@ export default function ProjectDetailsPage() {
                 updated_at: clientUser.updated_at,
                 projectsCount: 0
               });
+            } else if ((foundProject as any).clientName) {
+              // Fallback: build client from backend-provided display fields
+              setClient({
+                id: foundProject.clientId.toString(),
+                full_name: (foundProject as any).clientName,
+                email: (foundProject as any).clientEmail || '',
+                first_name: '',
+                last_name: '',
+                mobile_number: '',
+                address: '',
+                city: '',
+                state: '',
+                country: '',
+                pincode: '',
+                aadhar_number: undefined,
+                pan_number: undefined,
+                company_name: (foundProject as any).clientCompany || '',
+                role: 'client',
+                role_display: 'Client',
+                is_active: true,
+                date_of_birth: undefined,
+                profile_pic: undefined,
+                date_of_joining: undefined,
+                date_of_exit: undefined,
+                created_at: '',
+                updated_at: '',
+                projectsCount: 0
+              });
             }
           }
 
@@ -318,7 +346,15 @@ export default function ProjectDetailsPage() {
   }
 
   const canEdit = user.role === 'project_manager' || user.role === 'admin' || user.role === 'designer';
-  const canAddUpdates = user.role === 'designer' || user.role === 'project_manager' || user.role === 'admin' || user.role === 'client';
+  const canAddUpdates =
+    user.role === 'designer' ||
+    user.role === 'senior_designer' ||
+    user.role === 'auto_cad_drafter' ||
+    user.role === 'project_manager' ||
+    user.role === 'admin' ||
+    user.role === 'client' ||
+    user.role === 'team_head' ||
+    user.role === 'team_lead';
   const isClient = user.role === 'client';
   const isDesigner = user.role === 'designer';
 
@@ -388,9 +424,9 @@ export default function ProjectDetailsPage() {
                     <div className="flex items-center space-x-2 text-muted-foreground">
                       <BuildingIcon size={16} />
                       <div className="flex flex-col">
-                        <span className="font-medium">{client?.full_name || 'Unknown Client'}</span>
-                        {client?.company_name && (
-                          <span className="text-sm text-muted-foreground/70">{client.company_name}</span>
+                        <span className="font-medium">{client?.full_name || (project as any).clientName || 'Unknown Client'}</span>
+                        {(client?.company_name || (project as any).clientCompany) && (
+                          <span className="text-sm text-muted-foreground/70">{client?.company_name || (project as any).clientCompany}</span>
                         )}
                       </div>
                     </div>
@@ -425,7 +461,7 @@ export default function ProjectDetailsPage() {
                 <ProjectAttachments
                   attachments={project.attachments || []}
                   canEdit={true} // Allow all roles to upload files
-                  canRemove={user.role !== 'client' && user.role !== 'client_team_member'} // Hide remove for clients and client team members
+                  canRemove={user.role === 'project_manager' || user.role === 'admin'} // Only PM/Admin can remove
                   onAddAttachment={handleAddAttachment}
                   onRemoveAttachment={handleRemoveAttachment}
                 />

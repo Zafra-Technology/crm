@@ -33,6 +33,7 @@ import {
 interface ProjectManagerDashboardProps {
   projects: Project[];
   userId: string;
+  userRole?: string;
 }
 
 interface CreateProjectForm {
@@ -45,7 +46,7 @@ interface CreateProjectForm {
   attachments: File[];
 }
 
-export default function ProjectManagerDashboard({ projects: initialProjects, userId }: ProjectManagerDashboardProps) {
+export default function ProjectManagerDashboard({ projects: initialProjects, userId, userRole }: ProjectManagerDashboardProps) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -145,7 +146,15 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     }
   };
 
-  const managedProjects = projects;
+  const isTeamRole = userRole === 'team_head' || userRole === 'team_lead';
+  const canManage = !userRole || ['project_manager', 'assistant_project_manager', 'admin'].includes(userRole);
+  const canCreate = canManage; // Team roles cannot create
+  const canDelete = canManage; // Team roles cannot delete
+
+  const visibleStatusesForTeam = ['planning', 'in_progress', 'review', 'completed'];
+  const managedProjects = isTeamRole
+    ? projects.filter(p => visibleStatusesForTeam.includes(p.status as any))
+    : projects;
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -405,13 +414,15 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
             <h1 className="text-2xl font-bold text-foreground">Project Management</h1>
             <p className="text-muted-foreground mt-1">Manage and oversee all active projects</p>
           </div>
-          <Button
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center space-x-2 shadow-md"
-          >
-            <PlusIcon size={20} />
-            <span>Create Project</span>
-          </Button>
+          {canCreate && (
+            <Button
+              onClick={() => setShowCreateForm(true)}
+              className="flex items-center space-x-2 shadow-md"
+            >
+              <PlusIcon size={20} />
+              <span>Create Project</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -492,13 +503,15 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                 >
                   <UsersIcon size={16} className="text-blue-600" />
                 </button>
-                <button
-                  onClick={() => openDeleteModal(project)}
-                  className="p-2 bg-background rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-border"
-                  title="Delete Project"
-                >
-                  <XIcon size={16} className="text-red-600" />
-                </button>
+                {canDelete && (
+                  <button
+                    onClick={() => openDeleteModal(project)}
+                    className="p-2 bg-background rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-border"
+                    title="Delete Project"
+                  >
+                    <XIcon size={16} className="text-red-600" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -511,13 +524,18 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                 <PlusIcon size={48} className="mx-auto" />
               </div>
               <h3 className="text-lg font-medium text-muted-foreground mb-2">No projects yet</h3>
-              <p className="text-muted-foreground">Create your first project to get started.</p>
+              {canCreate ? (
+                <p className="text-muted-foreground">Create your first project to get started.</p>
+              ) : (
+                <p className="text-muted-foreground">You'll see projects here once they enter Planning.</p>
+              )}
             </CardContent>
           </Card>
         )}
       </div>
 
       {/* Create Project Modal */}
+      {canCreate && (
       <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -715,6 +733,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
             </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
 
       {/* Assign Designers Modal */}
       <AssignDesignersModal
@@ -732,19 +751,21 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       />
 
       {/* Delete Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setSelectedProject(null);
-        }}
-        onConfirm={handleDeleteProject}
-        title="Delete Project"
-        message={`Are you sure you want to delete "${selectedProject?.name}"? This action cannot be undone.`}
-        confirmText="Delete Project"
-        type="danger"
-        loading={loading}
-      />
+      {canDelete && (
+        <ConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setSelectedProject(null);
+          }}
+          onConfirm={handleDeleteProject}
+          title="Delete Project"
+          message={`Are you sure you want to delete "${selectedProject?.name}"? This action cannot be undone.`}
+          confirmText="Delete Project"
+          type="danger"
+          loading={loading}
+        />
+      )}
 
       {/* Feedback Modal */}
       <FeedbackModal

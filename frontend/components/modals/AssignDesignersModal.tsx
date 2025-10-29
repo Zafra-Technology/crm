@@ -75,14 +75,13 @@ export default function AssignDesignersModal({
   const loadDesigners = async () => {
     try {
       setLoadingDesigners(true);
-      // Fetch team members by role directly from DB via users API
-      const [designers, seniorDesigners, teamLeads, teamHeads, projectManagers, assistantProjectManagers, professionalEngineers, drafters] = await Promise.all([
+      // Allowed designer roles only
+      const allowedRoles = new Set(['designer', 'senior_designer', 'auto_cad_drafter', 'professional_engineer']);
+
+      // Fetch only designer roles
+      const [designers, seniorDesigners, professionalEngineers, drafters] = await Promise.all([
         authAPI.getUsers('designer'),
         authAPI.getUsers('senior_designer'),
-        authAPI.getUsers('team_lead'),
-        authAPI.getUsers('team_head'),
-        authAPI.getUsers('project_manager'),
-        authAPI.getUsers('assistant_project_manager'),
         authAPI.getUsers('professional_engineer'),
         authAPI.getUsers('auto_cad_drafter')
       ]);
@@ -91,17 +90,13 @@ export default function AssignDesignersModal({
       const merged = [
         ...designers,
         ...seniorDesigners,
-        ...teamLeads,
-        ...teamHeads,
-        ...projectManagers,
-        ...assistantProjectManagers,
         ...professionalEngineers,
         ...drafters
       ];
       const uniqueById = Array.from(new Map(merged.map(u => [u.id, u])).values());
 
       const fetchedDesigners: Designer[] = uniqueById
-        .filter(u => u.is_active)
+        .filter(u => u.is_active && allowedRoles.has(u.role))
         .map(u => ({
           id: u.id.toString(),
           name: u.full_name,
@@ -115,7 +110,12 @@ export default function AssignDesignersModal({
         }));
 
       // Merge with any preloaded designers already in state
-      const combined = [...fetchedDesigners, ...preloadedDesigners];
+      // Ensure any preloaded designers also satisfy the role constraint
+      const preloadedFiltered = preloadedDesigners.filter(d => {
+        const r = String(d.role || '').toLowerCase();
+        return allowedRoles.has(r);
+      });
+      const combined = [...fetchedDesigners, ...preloadedFiltered];
       const deduped = Array.from(new Map(combined.map(d => [d.id, d])).values());
       setDesigners(deduped);
     } catch (error) {

@@ -48,7 +48,12 @@ export const projectsApi = {
       quotationFile: p.quotation_file || p.quotationFile || undefined,
       quotationAccepted: Boolean(p.quotation_accepted || p.quotationAccepted || false),
       clientId: p.clientId ? String(p.clientId) : String(p.client_id ?? ''),
+      // Backend may include helpful display fields
+      ...(p.client_name ? { clientName: String(p.client_name) } : {}),
+      ...(p.client_company ? { clientCompany: String(p.client_company) } : {}),
+      ...(p.client_email ? { clientEmail: String(p.client_email) } : {}),
       managerId: p.managerId ? String(p.managerId) : String(p.manager_id ?? ''),
+      ...(p.manager_name ? { managerName: String(p.manager_name) } : {}),
       designerIds,
       attachments,
       createdAt: String(p.createdAt || p.created_at || ''),

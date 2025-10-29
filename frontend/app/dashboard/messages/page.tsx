@@ -31,7 +31,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
 
   // Define role groups
-  const designerRoles = ['designer', 'senior_designer', 'auto_cad_drafter'];
+  const designerRoles = ['designer', 'senior_designer', 'auto_cad_drafter', 'team_head', 'team_lead'];
 
   useEffect(() => {
     getCurrentUser().then(setUser);

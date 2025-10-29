@@ -34,9 +34,11 @@ export default function TasksPage() {
   const [loadingDesigners, setLoadingDesigners] = useState(true);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    console.log('Tasks page - Current user:', currentUser);
-    setUser(currentUser);
+    (async () => {
+      const currentUser = await getCurrentUser();
+      console.log('Tasks page - Current user:', currentUser);
+      setUser(currentUser);
+    })();
   }, []);
 
   // Load designers when page loads
@@ -261,7 +263,7 @@ export default function TasksPage() {
               </Button>
             </div>
 
-          {(user?.role === 'project_manager' || user?.role === 'admin') && (
+          {(user?.role === 'project_manager' || user?.role === 'admin' || user?.role === 'team_head' || user?.role === 'team_lead') && (
               <Button
                 onClick={() => setShowCreateTask(true)}
                 className="flex items-center space-x-2"
