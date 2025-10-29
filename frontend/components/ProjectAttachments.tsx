@@ -14,6 +14,7 @@ interface ProjectAttachmentsProps {
   canRemove?: boolean; // Separate permission for removing files
   onAddAttachment?: (files: File[]) => void;
   onRemoveAttachment?: (attachmentId: string) => void;
+  title?: string;
 }
 
 export default function ProjectAttachments({ 
@@ -21,7 +22,8 @@ export default function ProjectAttachments({
   canEdit, 
   canRemove = true, // Default to true for backward compatibility
   onAddAttachment, 
-  onRemoveAttachment 
+  onRemoveAttachment,
+  title = 'Project Attachments',
 }: ProjectAttachmentsProps) {
   const [showUpload, setShowUpload] = useState(false);
   const [showViewer, setShowViewer] = useState(false);
@@ -95,7 +97,7 @@ export default function ProjectAttachments({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Project Attachments</CardTitle>
+          <CardTitle>{title}</CardTitle>
           {canEdit && (
             <Button
               onClick={() => setShowUpload(!showUpload)}

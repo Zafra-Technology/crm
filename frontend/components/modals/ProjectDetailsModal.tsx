@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import ProjectAttachments from '@/components/ProjectAttachments';
 
 interface ProjectDetailsModalProps {
   isOpen: boolean;
@@ -132,7 +133,9 @@ export default function ProjectDetailsModal({
                       </div>
                     </div>
                   ) : (
-                    <p className="text-muted-foreground">Client ID: {project.clientId || 'N/A'}</p>
+                    <p className="text-muted-foreground">
+                      Client: {(project as any).clientName || (project as any).clientCompany || (project as any).clientEmail || `#${project.clientId}`}
+                    </p>
                   )}
                 </CardContent>
               </Card>
@@ -197,43 +200,31 @@ export default function ProjectDetailsModal({
           )}
 
           {/* Attachments */}
-          {project.attachments && project.attachments.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Project Attachments</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-2">
-                  {project.attachments.map((attachment, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-md">
-                      <div className="flex items-center gap-3">
-                        <FileText size={16} className="text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">{attachment.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatFileSize(attachment.size)} • Uploaded {formatDate(attachment.uploadedAt)}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                      >
-                        <a
-                          href={attachment.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          View
-                        </a>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {project.attachments && project.attachments.length > 0 && (() => {
+            const isAgreement = (name: string | undefined) => !!name && (name.toLowerCase().startsWith('agreement') || name.toLowerCase().startsWith('signed agreement'));
+            const agreementAttachments = project.attachments.filter(a => isAgreement(a.name));
+            const otherAttachments = project.attachments.filter(a => !isAgreement(a.name));
+            return (
+              <>
+                {agreementAttachments.length > 0 && (
+                  <ProjectAttachments
+                    attachments={agreementAttachments}
+                    canEdit={false}
+                    canRemove={false}
+                    title="Agreement Attachments"
+                  />
+                )}
+                {otherAttachments.length > 0 && (
+                  <ProjectAttachments
+                    attachments={otherAttachments}
+                    canEdit={false}
+                    canRemove={false}
+                    title="Project Attachments"
+                  />
+                )}
+              </>
+            )
+          })()}
         </div>
       </DialogContent>
     </Dialog>

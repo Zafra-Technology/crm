@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 interface AgreementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (agreementMessage: string, agreementFile?: File) => void;
+  onSubmit: (agreementFile?: File) => void;
   loading?: boolean;
 }
 
@@ -27,21 +27,16 @@ export default function AgreementModal({
   onSubmit, 
   loading = false 
 }: AgreementModalProps) {
-  const [agreementMessage, setAgreementMessage] = useState('');
   const [agreementFile, setAgreementFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (agreementMessage.trim()) {
-      onSubmit(agreementMessage.trim(), agreementFile || undefined);
-      setAgreementMessage('');
-      setAgreementFile(null);
-    }
+    onSubmit(agreementFile || undefined);
+    setAgreementFile(null);
   };
 
   const handleClose = () => {
-    setAgreementMessage('');
     setAgreementFile(null);
     onClose();
   };
@@ -78,24 +73,11 @@ export default function AgreementModal({
         <DialogHeader>
           <DialogTitle>Send Agreement</DialogTitle>
           <DialogDescription>
-            Upload the agreement document and include a brief message for the client.
+            Upload the agreement document (message not required).
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="agreement-message">Agreement Message *</Label>
-            <Textarea
-              id="agreement-message"
-              value={agreementMessage}
-              onChange={(e) => setAgreementMessage(e.target.value)}
-              required
-              rows={4}
-              placeholder="Please provide a brief agreement note..."
-              className="resize-none"
-            />
-          </div>
-
           <div className="space-y-2">
             <Label>Agreement File (Optional)</Label>
             <div className="space-y-3">
@@ -150,7 +132,7 @@ export default function AgreementModal({
             </Button>
             <Button
               type="submit"
-              disabled={loading || !agreementMessage.trim()}
+              disabled={loading}
             >
               {loading ? 'Sending...' : 'Send Agreement'}
             </Button>

@@ -88,11 +88,11 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
     }
   };
 
-  const handleAcceptAgreement = async (acceptMessage: string, signedFile?: File) => {
+  const handleAcceptAgreement = async (signedFile?: File) => {
     if (!selectedAgreementProject) return;
     setLoading(true);
     try {
-      await projectsApi.clientAcceptAgreement(selectedAgreementProject.id, acceptMessage, signedFile);
+      await projectsApi.clientAcceptAgreement(selectedAgreementProject.id, '', signedFile);
       await loadProjects();
       setShowAgreementModal(false);
       setSelectedAgreementProject(null);
@@ -107,11 +107,11 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
     }
   };
 
-  const handleRejectAgreement = async (feedback: string) => {
+  const handleRejectAgreement = async () => {
     if (!selectedAgreementProject) return;
     setLoading(true);
     try {
-      await projectsApi.clientRejectAgreement(selectedAgreementProject.id, feedback);
+      await projectsApi.clientRejectAgreement(selectedAgreementProject.id, '');
       await loadProjects();
       setShowAgreementModal(false);
       setSelectedAgreementProject(null);

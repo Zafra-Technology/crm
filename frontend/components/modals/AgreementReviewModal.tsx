@@ -17,8 +17,8 @@ import { Textarea } from '@/components/ui/textarea';
 interface AgreementReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAccept: (acceptMessage: string, signedFile?: File) => void;
-  onReject: (feedback: string) => void;
+  onAccept: (signedFile: File) => void;
+  onReject: () => void;
   agreementFiles: { name: string; url: string }[];
   agreementMessage?: string;
   loading?: boolean;
@@ -34,20 +34,19 @@ export default function AgreementReviewModal({
   loading = false,
 }: AgreementReviewModalProps) {
   // Reject does not require message per requirement
-  const [acceptMessage, setAcceptMessage] = useState('');
   const [signedFile, setSignedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAccept = (e: React.FormEvent) => {
     e.preventDefault();
-    onAccept(acceptMessage.trim(), signedFile || undefined);
-    setAcceptMessage('');
+    if (!signedFile) return;
+    onAccept(signedFile);
     setSignedFile(null);
     onClose();
   };
 
   const handleReject = () => {
-    onReject('');
+    onReject();
     onClose();
   };
 
@@ -132,18 +131,6 @@ export default function AgreementReviewModal({
 
             {/* Accept form */}
             <form onSubmit={handleAccept} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="accept-message">Message (optional)</Label>
-                <Textarea
-                  id="accept-message"
-                  value={acceptMessage}
-                  onChange={(e) => setAcceptMessage(e.target.value)}
-                  rows={3}
-                  placeholder="Add a note for the manager (optional)"
-                  className="resize-none"
-                />
-              </div>
-
               <div className="space-y-2">
                 <Label>Upload Signed Agreement (required to accept)</Label>
                 {!signedFile ? (

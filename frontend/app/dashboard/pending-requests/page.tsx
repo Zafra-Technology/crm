@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrentUser } from '@/lib/auth';
+import { authAPI } from '@/lib/api/auth';
 import { User, Project } from '@/types';
 import { projectsApi } from '@/lib/api/projects';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,7 +65,47 @@ export default function PendingRequestsPage() {
   const loadPendingProjects = async () => {
     try {
       setLoading(true);
-      const pending = await projectsApi.getPending();
+      let pending = await projectsApi.getPending();
+      // Debug: verify client display fields coming from backend
+      if (typeof window !== 'undefined') {
+        const missingClientName = pending.filter((p: any) => !p.clientName && !p.clientCompany && !p.clientEmail);
+        if (missingClientName.length > 0) {
+          // eslint-disable-next-line no-console
+          console.warn('[PendingRequests] Missing client display fields for project ids:', missingClientName.map((p: any) => p.id));
+        }
+      }
+      // Fetch details for items missing client display fields and merge
+      const toFix = pending.filter((p: any) => !p.clientName && !p.clientCompany && !p.clientEmail);
+      if (toFix.length > 0) {
+        const details = await Promise.all(
+          toFix.map(async (p) => {
+            try { return await projectsApi.getById(p.id); } catch { return null; }
+          })
+        );
+        const byId: Record<string, any> = {};
+        details.filter(Boolean).forEach((d: any) => { byId[d.id] = d; });
+        pending = pending.map((p: any) => byId[p.id] ? { ...p, ...byId[p.id] } : p);
+      }
+
+      // Final fallback: resolve client names via users API
+      const stillMissing = pending.filter((p: any) => !p.clientName && !p.clientCompany && !p.clientEmail && p.clientId);
+      if (stillMissing.length > 0) {
+        try {
+          const users = await authAPI.getUsers();
+          const userById: Record<string, any> = {};
+          users.forEach((u: any) => { userById[String(u.id)] = u; });
+          pending = pending.map((p: any) => {
+            if (!p.clientName && p.clientId && userById[String(p.clientId)]) {
+              const u = userById[String(p.clientId)];
+              const fullName = u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim();
+              return { ...p, clientName: fullName || u.company_name || u.email || undefined };
+            }
+            return p;
+          });
+        } catch (e) {
+          // ignore failure; UI will fallback to #id
+        }
+      }
       setPendingProjects(pending);
     } catch (error) {
       console.error('Error loading pending projects:', error);
@@ -140,13 +181,13 @@ export default function PendingRequestsPage() {
     }
   };
 
-  const handleSendAgreement = async (agreementMessage: string, agreementFile?: File) => {
+  const handleSendAgreement = async (agreementFile?: File) => {
     if (!selectedProject) return;
 
     try {
       setLoading(true);
       // Use backend endpoint so server tracks the event
-      await projectsApi.sendAgreement(selectedProject.id, agreementMessage, agreementFile);
+      await projectsApi.sendAgreement(selectedProject.id, '', agreementFile);
 
       toast({
         title: 'Agreement sent',
@@ -406,7 +447,7 @@ export default function PendingRequestsPage() {
                 <div className="flex items-center justify-between text-sm text-muted-foreground mb-4 py-2 border-t border-border">
                   <div className="flex items-center space-x-1">
                     <UserIcon className="h-4 w-4" />
-                    <span className="truncate">Client ID: {project.clientId}</span>
+                    <span className="truncate">Client: {((project as any).clientName || (project as any).clientCompany || (project as any).clientEmail || `#${project.clientId}`)}</span>
                   </div>
                 </div>
 
