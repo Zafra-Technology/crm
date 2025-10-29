@@ -33,8 +33,7 @@ export default function AgreementReviewModal({
   agreementMessage,
   loading = false,
 }: AgreementReviewModalProps) {
-  const [showRejectForm, setShowRejectForm] = useState(false);
-  const [rejectFeedback, setRejectFeedback] = useState('');
+  // Reject does not require message per requirement
   const [acceptMessage, setAcceptMessage] = useState('');
   const [signedFile, setSignedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,14 +46,9 @@ export default function AgreementReviewModal({
     onClose();
   };
 
-  const handleReject = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (rejectFeedback.trim()) {
-      onReject(rejectFeedback.trim());
-      setRejectFeedback('');
-      setShowRejectForm(false);
-      onClose();
-    }
+  const handleReject = () => {
+    onReject('');
+    onClose();
   };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,8 +77,7 @@ export default function AgreementReviewModal({
           </DialogDescription>
         </DialogHeader>
 
-        {!showRejectForm ? (
-          <div className="space-y-6">
+        <div className="space-y-6">
             {agreementMessage && (
               <div className="p-3 bg-muted rounded-md text-sm whitespace-pre-wrap">
                 {agreementMessage}
@@ -152,7 +145,7 @@ export default function AgreementReviewModal({
               </div>
 
               <div className="space-y-2">
-                <Label>Upload Signed Agreement (optional)</Label>
+                <Label>Upload Signed Agreement (required to accept)</Label>
                 {!signedFile ? (
                   <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-3 pb-4">
@@ -177,40 +170,17 @@ export default function AgreementReviewModal({
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
-                <Button type="button" variant="destructive" onClick={() => setShowRejectForm(true)} disabled={loading}>
+                <Button type="button" variant="destructive" onClick={handleReject} disabled={loading}>
                   <XCircle size={16} className="mr-2" />
                   Reject
                 </Button>
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading || !signedFile}>
                   <Check size={16} className="mr-2" />
                   Accept
                 </Button>
               </DialogFooter>
             </form>
           </div>
-        ) : (
-          <form onSubmit={handleReject} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="reject-feedback">Rejection Feedback *</Label>
-              <Textarea
-                id="reject-feedback"
-                value={rejectFeedback}
-                onChange={(e) => setRejectFeedback(e.target.value)}
-                required
-                rows={4}
-                placeholder="Please provide your feedback for rejecting this agreement..."
-                className="resize-none"
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowRejectForm(false)} disabled={loading}>Back</Button>
-              <Button type="submit" variant="destructive" disabled={loading || !rejectFeedback.trim()}>
-                {loading ? 'Submitting...' : 'Submit Feedback'}
-              </Button>
-            </DialogFooter>
-          </form>
-        )}
       </DialogContent>
     </Dialog>
   );
