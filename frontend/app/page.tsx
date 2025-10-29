@@ -30,17 +30,7 @@ export default function LoginPage() {
     try {
       const user = await authenticateUser(email, password);
       if (user) {
-        // Debug log to check first login status
-        console.log('Login user data:', { role: user.role, is_first_login: user.is_first_login });
-        
-        // Check if first login for client role
-        if (user.role === 'client' && user.is_first_login === true) {
-          // Show first login modal
-          console.log('Redirecting to first-login page');
-          router.push('/first-login');
-        } else {
-          router.push('/dashboard');
-        }
+        router.push('/dashboard');
       } else {
         setError('Invalid email or password');
       }

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   MoreVertical, 
   Edit, 
@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { authAPI } from '@/lib/api/auth';
+import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import ConfirmModal from '@/components/modals/ConfirmModal';
 
 interface TeamMember {
@@ -39,6 +39,9 @@ interface TeamMember {
   role: string;
   is_active: boolean;
   created_at: string;
+  date_of_joining?: string;
+  date_of_exit?: string;
+  profile_pic?: string | null;
   client_id: string | number;
 }
 
@@ -46,12 +49,14 @@ interface TeamMemberListProps {
   clientId: string;
   onEditMember: (member: TeamMember) => void;
   onDeleteMember: (memberId: number) => void;
+  reloadKey?: number;
 }
 
 export default function TeamMemberList({ 
   clientId, 
   onEditMember, 
-  onDeleteMember 
+  onDeleteMember,
+  reloadKey
 }: TeamMemberListProps) {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +67,7 @@ export default function TeamMemberList({
 
   useEffect(() => {
     loadTeamMembers();
-  }, [clientId]);
+  }, [clientId, reloadKey]);
 
   const loadTeamMembers = async () => {
     try {
@@ -177,6 +182,9 @@ export default function TeamMemberList({
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-10 w-10">
+                      {member.profile_pic ? (
+                        <AvatarImage src={resolveMediaUrl(member.profile_pic)} alt={`${member.first_name} ${member.last_name}`} />
+                      ) : null}
                       <AvatarFallback>
                         {getInitials(member.first_name, member.last_name)}
                       </AvatarFallback>
@@ -259,7 +267,10 @@ export default function TeamMemberList({
                   
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    <span>Joined {formatDate(member.created_at)}</span>
+                    <span>
+                      Joined {formatDate(member.date_of_joining ||'')}
+                      {member.date_of_exit ? ` · Exit ${formatDate(member.date_of_exit)}` : ''}
+                    </span>
                   </div>
                 </div>
               </CardContent>

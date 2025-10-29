@@ -6,7 +6,6 @@ export interface User {
   name: string;
   role: UserRole;
   avatar?: string;
-  is_first_login?: boolean;
   client_id?: string | number;
 }
 

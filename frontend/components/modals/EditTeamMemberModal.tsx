@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { X, UserPlus, Loader2 } from 'lucide-react';
-import { authAPI } from '@/lib/api/auth';
+import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
+import { useRef, useMemo } from 'react';
 
 interface TeamMember {
   id: number;
@@ -48,10 +49,22 @@ export default function EditTeamMemberModal({
     state: '',
     country: '',
     pincode: '',
+    date_of_birth: '',
+    aadhar_number: '',
+    pan_number: '',
+    date_of_joining: '',
+    date_of_exit: '',
   });
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const previewUrl = useMemo(() => {
+    if (profilePicFile) return URL.createObjectURL(profilePicFile);
+    if (member && (member as any).profile_pic) return resolveMediaUrl((member as any).profile_pic);
+    return '';
+  }, [profilePicFile, member]);
 
   useEffect(() => {
     if (isOpen && member) {
@@ -64,8 +77,14 @@ export default function EditTeamMemberModal({
         state: member.state || '',
         country: member.country || '',
         pincode: member.pincode || '',
+        date_of_birth: (member as any).date_of_birth || '',
+        aadhar_number: (member as any).aadhar_number || '',
+        pan_number: (member as any).pan_number || '',
+        date_of_joining: (member as any).date_of_joining || '',
+        date_of_exit: (member as any).date_of_exit || '',
       });
       setError('');
+      setProfilePicFile(null);
     }
   }, [isOpen, member]);
 
@@ -79,7 +98,14 @@ export default function EditTeamMemberModal({
     try {
       setLoading(true);
       
-      await authAPI.updateTeamMember(member.id, formData);
+      const payload: any = { ...formData };
+      if (!payload.date_of_birth) delete payload.date_of_birth;
+      if (!payload.date_of_joining) delete payload.date_of_joining;
+      if (!payload.date_of_exit) delete payload.date_of_exit;
+      await authAPI.updateTeamMember(member.id, payload);
+      if (profilePicFile) {
+        try { await authAPI.uploadUserProfilePic(member.id, profilePicFile); } catch (_) {}
+      }
       onTeamMemberUpdated();
       onClose();
     } catch (error) {
@@ -163,6 +189,17 @@ export default function EditTeamMemberModal({
                   placeholder="Enter mobile number"
                 />
               </div>
+
+              <div>
+                <Label htmlFor="date_of_birth">Date of Birth</Label>
+                <Input
+                  id="date_of_birth"
+                  name="date_of_birth"
+                  type="date"
+                  value={formData.date_of_birth}
+                  onChange={handleChange}
+                />
+              </div>
             </div>
 
             {/* Address Information */}
@@ -224,6 +261,80 @@ export default function EditTeamMemberModal({
                   value={formData.pincode}
                   onChange={handleChange}
                   placeholder="Enter pincode"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="aadhar_number">Aadhar Number</Label>
+                  <Input
+                    id="aadhar_number"
+                    name="aadhar_number"
+                    value={formData.aadhar_number}
+                    onChange={handleChange}
+                    placeholder="123456789012"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="pan_number">PAN Number</Label>
+                  <Input
+                    id="pan_number"
+                    name="pan_number"
+                    value={formData.pan_number}
+                    onChange={handleChange}
+                    placeholder="ABCDE1234F"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="date_of_joining">Date of Joining</Label>
+                  <Input
+                    id="date_of_joining"
+                    name="date_of_joining"
+                    type="date"
+                    value={formData.date_of_joining}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="date_of_exit">Date of Exit</Label>
+                  <Input
+                    id="date_of_exit"
+                    name="date_of_exit"
+                    type="date"
+                    value={formData.date_of_exit}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Picture */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium">Profile Picture</h3>
+              <div className="border rounded-md p-4 bg-muted/20">
+                {previewUrl ? (
+                  <div className="flex items-center gap-4">
+                    <img src={previewUrl} alt="Profile preview" className="w-16 h-16 rounded-full object-cover border" />
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>Change</Button>
+                      <Button type="button" variant="outline" onClick={() => setProfilePicFile(null)}>Remove</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">No image selected</div>
+                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>Choose File</Button>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setProfilePicFile(e.target.files?.[0] || null)}
                 />
               </div>
             </div>

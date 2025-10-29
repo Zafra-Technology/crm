@@ -104,8 +104,13 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
       { value: 'review', label: 'Review' },
     ];
 
-    // Only managers can set tasks to completed
-    if (currentUser.role === 'project_manager') {
+    // Allow managers, admins, team head and team lead to set tasks to completed
+    if (
+      currentUser.role === 'project_manager' ||
+      currentUser.role === 'admin' ||
+      currentUser.role === 'team_head' ||
+      currentUser.role === 'team_lead'
+    ) {
       baseOptions.push({ value: 'completed', label: 'Completed' });
     }
 
@@ -113,12 +118,25 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
   };
 
   const canUpdateStatus = () => {
-    // Managers and admins can update any task, designers can only update their own tasks
-    return currentUser.role === 'project_manager' || currentUser.role === 'admin' || task.assigneeId === currentUser.id;
+    // Managers/admins/team leads/heads can update any task; designers only their own
+    if (currentUser.role === 'project_manager' || currentUser.role === 'admin' || currentUser.role === 'team_head' || currentUser.role === 'team_lead') {
+      return true;
+    }
+    return task.assigneeId === currentUser.id;
   };
 
   const canShowActions = () => {
-    // Only managers and admins can delete tasks or tag in messages
+    // Show actions menu for managers, admins, team head and team lead (for tagging)
+    return (
+      currentUser.role === 'project_manager' ||
+      currentUser.role === 'admin' ||
+      currentUser.role === 'team_head' ||
+      currentUser.role === 'team_lead'
+    );
+  };
+
+  const canDeleteTask = () => {
+    // Deletion restricted to managers and admins (matches backend)
     return currentUser.role === 'project_manager' || currentUser.role === 'admin';
   };
 
@@ -172,23 +190,23 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
               </Button>
               
               {showActionsMenu && (
-                <div className="absolute top-full right-0 mt-1 bg-background border border-border rounded-md shadow-lg z-20 min-w-[160px] whitespace-nowrap">
-                  <Button
-                    variant="ghost"
+                <div className="absolute top-full right-0 mt-1 bg-white border border-border rounded-lg shadow-lg z-20 min-w-[200px] py-1 whitespace-nowrap">
+                  <button
                     onClick={handleTagInMessage}
-                    className="w-full justify-start text-xs h-8 px-3"
+                    className="w-full flex items-center gap-2 text-sm px-3 py-2 hover:bg-accent text-foreground"
                   >
-                    <MessageCircleIcon size={12} className="mr-2" />
-                    Tag in Message
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={handleDelete}
-                    className="w-full justify-start text-xs h-8 px-3 text-destructive hover:text-destructive"
-                  >
-                    <TrashIcon size={12} className="mr-2" />
-                    Delete Task
-                  </Button>
+                    <MessageCircleIcon size={16} className="text-muted-foreground" />
+                    <span>Tag in Message</span>
+                  </button>
+                  {canDeleteTask() && (
+                    <button
+                      onClick={handleDelete}
+                      className="w-full flex items-center gap-2 text-sm px-3 py-2 hover:bg-accent text-red-600"
+                    >
+                      <TrashIcon size={16} className="text-red-600" />
+                      <span>Delete Task</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

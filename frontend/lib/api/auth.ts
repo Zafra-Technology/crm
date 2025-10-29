@@ -13,6 +13,7 @@ export interface RegisterData {
   last_name?: string;
   mobile_number?: string;
   company_name?: string;
+  company_code?: string;
   pan_number?: string;
   role?: string;
   date_of_birth?: string;
@@ -49,7 +50,6 @@ export interface User {
   date_of_exit?: string;
   profile_pic?: string;
   is_active: boolean;
-  is_first_login?: boolean;
   credentials_sent: boolean;
   created_at: string;
   updated_at: string;

@@ -9,7 +9,6 @@ const convertAPIUser = (apiUser: APIUser) => ({
   company_name: apiUser.company_name,
   is_active: apiUser.is_active,
   role_display: apiUser.role_display,
-  is_first_login: apiUser.is_first_login,
   client_id: apiUser.client_id
 });
 

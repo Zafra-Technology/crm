@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { X, UserPlus, Loader2 } from 'lucide-react';
-import { authAPI } from '@/lib/api/auth';
+import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
+import { useRef, useMemo } from 'react';
 
 interface ClientTeamMemberModalProps {
   isOpen: boolean;
@@ -23,11 +24,15 @@ interface TeamMemberFormData {
   first_name: string;
   last_name: string;
   mobile_number: string;
+  date_of_birth: string;
   address: string;
   city: string;
   state: string;
   country: string;
   pincode: string;
+  aadhar_number: string;
+  pan_number: string;
+  date_of_joining: string;
   role: string;
 }
 
@@ -43,17 +48,27 @@ export default function ClientTeamMemberModal({
     first_name: '',
     last_name: '',
     mobile_number: '',
+    date_of_birth: '',
     address: '',
     city: '',
     state: '',
     country: '',
     pincode: '',
+    aadhar_number: '',
+    pan_number: '',
+    date_of_joining: '',
     role: 'client_team_member'
   });
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const previewUrl = useMemo(() => {
+    if (profilePicFile) return URL.createObjectURL(profilePicFile);
+    return '';
+  }, [profilePicFile]);
 
   useEffect(() => {
     if (isOpen) {
@@ -64,15 +79,20 @@ export default function ClientTeamMemberModal({
         first_name: '',
         last_name: '',
         mobile_number: '',
+        date_of_birth: '',
         address: '',
         city: '',
         state: '',
         country: '',
         pincode: '',
+        aadhar_number: '',
+        pan_number: '',
+        date_of_joining: '',
         role: 'client_team_member'
       });
       setError('');
       setEmailError('');
+      setProfilePicFile(null);
     }
   }, [isOpen]);
 
@@ -115,7 +135,7 @@ export default function ClientTeamMemberModal({
         return;
       }
       
-      const userData = {
+      const userData: any = {
         email: formData.email,
         password: formData.password,
         first_name: formData.first_name,
@@ -128,10 +148,19 @@ export default function ClientTeamMemberModal({
         pincode: formData.pincode,
         role: formData.role,
         client_id: clientId, // Associate with the client
-        date_of_joining: new Date().toISOString().split('T')[0]
+        date_of_joining: formData.date_of_joining || new Date().toISOString().split('T')[0]
       };
+      if (formData.date_of_birth) userData.date_of_birth = formData.date_of_birth;
+      if (formData.aadhar_number) userData.aadhar_number = formData.aadhar_number;
+      if (formData.pan_number) userData.pan_number = formData.pan_number;
 
-      await authAPI.createTeamMember(userData);
+      // Only include date_of_joining if the user selected it
+      if (formData.date_of_joining) userData.date_of_joining = formData.date_of_joining;
+
+      const created = await authAPI.createTeamMember(userData);
+      if (profilePicFile && created?.id) {
+        try { await authAPI.uploadUserProfilePic(created.id, profilePicFile); } catch (_) {}
+      }
       onTeamMemberCreated();
       onClose();
       
@@ -142,13 +171,18 @@ export default function ClientTeamMemberModal({
         first_name: '',
         last_name: '',
         mobile_number: '',
+        date_of_birth: '',
         address: '',
         city: '',
         state: '',
         country: '',
         pincode: '',
+        aadhar_number: '',
+        pan_number: '',
+        date_of_joining: '',
         role: 'client_team_member'
       });
+      setProfilePicFile(null);
     } catch (error) {
       console.error('Failed to create team member:', error);
       setError('Failed to create team member. Please try again.');
@@ -192,11 +226,7 @@ export default function ClientTeamMemberModal({
 
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Basic Information</h3>
-              <p className="text-sm text-muted-foreground">
-                This team member will have full access to your projects and can perform all the same actions as you.
-              </p>
-              
+              <h3 className="text-lg font-medium">Basic Information</h3>          
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="first_name">First Name *</Label>
@@ -263,6 +293,28 @@ export default function ClientTeamMemberModal({
                   placeholder="Enter mobile number"
                 />
               </div>
+
+              <div>
+                <Label htmlFor="date_of_birth">Date of Birth</Label>
+                <Input
+                  id="date_of_birth"
+                  name="date_of_birth"
+                  type="date"
+                  value={formData.date_of_birth}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="date_of_joining">Date of Joining</Label>
+                <Input
+                  id="date_of_joining"
+                  name="date_of_joining"
+                  type="date"
+                  value={formData.date_of_joining}
+                  onChange={handleChange}
+                />
+              </div>
+              
             </div>
 
             {/* Address Information */}
@@ -324,6 +376,57 @@ export default function ClientTeamMemberModal({
                   value={formData.pincode}
                   onChange={handleChange}
                   placeholder="Enter pincode"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="aadhar_number">Aadhar Number</Label>
+                  <Input
+                    id="aadhar_number"
+                    name="aadhar_number"
+                    value={formData.aadhar_number}
+                    onChange={handleChange}
+                    placeholder="123456789012"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="pan_number">PAN Number</Label>
+                  <Input
+                    id="pan_number"
+                    name="pan_number"
+                    value={formData.pan_number}
+                    onChange={handleChange}
+                    placeholder="ABCDE1234F"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Picture */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium">Profile Picture</h3>
+              <div className="border rounded-md p-4 bg-muted/20">
+                {previewUrl ? (
+                  <div className="flex items-center gap-4">
+                    <img src={previewUrl} alt="Profile preview" className="w-16 h-16 rounded-full object-cover border" />
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>Change</Button>
+                      <Button type="button" variant="outline" onClick={() => setProfilePicFile(null)}>Remove</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">No image selected</div>
+                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>Choose File</Button>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setProfilePicFile(e.target.files?.[0] || null)}
                 />
               </div>
             </div>

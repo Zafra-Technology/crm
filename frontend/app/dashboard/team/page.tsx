@@ -19,6 +19,7 @@ export default function TeamManagementPage() {
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [listReloadKey, setListReloadKey] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function TeamManagementPage() {
   const handleTeamMemberCreated = () => {
     setSuccessMessage('Team member created successfully!');
     setTimeout(() => setSuccessMessage(null), 5000);
+    setListReloadKey((v) => v + 1);
   };
 
   const handleEditTeamMember = (member: any) => {
@@ -53,6 +55,7 @@ export default function TeamManagementPage() {
   const handleTeamMemberUpdated = () => {
     setSuccessMessage('Team member updated successfully!');
     setTimeout(() => setSuccessMessage(null), 5000);
+    setListReloadKey((v) => v + 1);
   };
 
   const handleDeleteTeamMember = async (memberId: number) => {
@@ -125,6 +128,7 @@ export default function TeamManagementPage() {
             clientId={user.id.toString()}
             onEditMember={handleEditTeamMember}
             onDeleteMember={handleDeleteTeamMember}
+            reloadKey={listReloadKey}
           />
         </CardContent>
       </Card>
