@@ -1,0 +1,735 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { SendIcon, PaperclipIcon, DownloadIcon, EyeIcon, UserMinus } from 'lucide-react';
+import { User } from '@/types';
+import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
+import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
+import ChatFilePreviewModal from '@/components/modals/ChatFilePreviewModal';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+
+interface GroupChatProps {
+  groupId: string;
+  groupName: string;
+  groupImage?: string;
+  members?: Array<{ id: string; name: string }>;
+  currentUser: User;
+}
+
+interface GroupMessage {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole?: string;
+  userAvatar?: string;
+  message: string;
+  messageType?: 'text' | 'file' | 'image';
+  timestamp: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+}
+
+export default function GroupChat({ groupId, groupName, groupImage, members = [], currentUser }: GroupChatProps) {
+  const [messages, setMessages] = useState<GroupMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<{open: boolean; url: string; name: string; type: string; size?: number}>({ open: false, url: '', name: '', type: '', size: undefined });
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [groupMembers, setGroupMembers] = useState<Array<{ id: string; name: string }>>(members);
+  const [memberOptions, setMemberOptions] = useState<Array<{ id: string; name: string; role: string; avatar?: string }>>([]);
+  const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [userMeta, setUserMeta] = useState<Record<string, { name: string; role: string; avatar?: string }>>({});
+  const [confirmRemove, setConfirmRemove] = useState<{ open: boolean; userId?: string; userName?: string }>({ open: false });
+
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+  const { isConnected, send } = useChatWebSocket(
+    groupId ? `group-${groupId}` : undefined,
+    async (payload) => {
+      // On any event, refresh member list (covers servers that only emit generic messages)
+      try {
+        const token = authAPI.getToken();
+        const res = await fetch(`${API_BASE_URL}/chat/groups/${groupId}/`, {
+          headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const g = await res.json();
+          if (Array.isArray(g.members) && g.members.length) {
+            const meta: Record<string, { name: string; role: string; avatar?: string }> = {};
+            const members = g.members.map((u:any) => {
+              const id = String(u.id);
+              meta[id] = { name: u.name, role: u.role || 'user', avatar: resolveMediaUrl(u.avatar) || undefined };
+              return { id, name: u.name };
+            });
+            setUserMeta(prev => ({ ...prev, ...meta }));
+            setGroupMembers(members);
+          }
+        }
+      } catch (_) {}
+      if (payload?.type === 'chat_message' || payload?.type === 'connection_established') {
+        // If this event came from self, skip refetch to avoid flicker
+        if (payload?.sender && String(payload.sender) === String(currentUser?.id)) {
+          return;
+        }
+        try {
+          const token = authAPI.getToken();
+          const res = await fetch(`${API_BASE_URL}/chat/groups/${groupId}/messages/`, {
+            headers: {
+              'Accept': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+            credentials: 'include',
+          });
+          if (res.ok) {
+          const latest = await res.json();
+            const mapped: GroupMessage[] = (latest || []).map((m: any) => ({
+              id: String(m.id),
+              userId: String(m.user_id),
+              userName: m.user_name,
+              userRole: m.user_role,
+              userAvatar: m.user_avatar ? resolveMediaUrl(m.user_avatar) : undefined,
+              message: m.message,
+              messageType: m.message_type,
+              timestamp: m.timestamp,
+            fileUrl: resolveMediaUrl(m.file_url) || undefined,
+              fileName: m.file_name || undefined,
+              fileSize: m.file_size || undefined,
+              fileType: m.file_type || undefined,
+            }));
+            // Merge only new messages
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map(p => String(p.id)));
+              const additions = mapped.filter((m:any) => !existingIds.has(String(m.id)));
+              return additions.length ? [...prev, ...additions] : prev;
+            });
+            setUserMeta(prev => {
+              const next = { ...prev } as Record<string, { name: string; role: string; avatar?: string }>;
+              for (const m of mapped) {
+                const id = String(m.userId);
+                if (!next[id]) next[id] = { name: m.userName, role: m.userRole || 'user', avatar: m.userAvatar };
+                else {
+                  if (!next[id].name) next[id].name = m.userName;
+                  if (!next[id].role) next[id].role = m.userRole || 'user';
+                  if (!next[id].avatar && m.userAvatar) next[id].avatar = m.userAvatar;
+                }
+              }
+              return next;
+            });
+            scrollToBottom();
+          }
+        } catch (_) {}
+      }
+    }
+  );
+
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const token = authAPI.getToken();
+        const res = await fetch(`${API_BASE_URL}/chat/groups/${groupId}/messages/`, {
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const mapped: GroupMessage[] = (data || []).map((m: any) => ({
+            id: String(m.id),
+            userId: String(m.user_id),
+            userName: m.user_name,
+            userRole: m.user_role,
+            userAvatar: m.user_avatar ? resolveMediaUrl(m.user_avatar) : undefined,
+            message: m.message,
+            messageType: m.message_type,
+            timestamp: m.timestamp,
+            fileUrl: resolveMediaUrl(m.file_url) || undefined,
+            fileName: m.file_name || undefined,
+            fileSize: m.file_size || undefined,
+            fileType: m.file_type || undefined,
+          }));
+          setMessages(mapped);
+          // Build name map from messages so clients show actual names
+          setUserMeta(prev => {
+            const next = { ...prev } as Record<string, { name: string; role: string; avatar?: string }>;
+            for (const m of mapped) {
+              const id = String(m.userId);
+              if (!next[id]) next[id] = { name: m.userName, role: m.userRole || 'user', avatar: m.userAvatar };
+              else {
+                if (!next[id].name) next[id].name = m.userName;
+                if (!next[id].role) next[id].role = m.userRole || 'user';
+                if (!next[id].avatar && m.userAvatar) next[id].avatar = m.userAvatar;
+              }
+            }
+            return next;
+          });
+          scrollToBottom();
+        }
+      } catch (e) {
+        // silent
+      }
+    };
+    load();
+  }, [groupId]);
+
+  useEffect(() => { scrollToBottom(); }, [messages]);
+
+  // Ensure header shows member names immediately and cache user meta
+  useEffect(() => {
+    const ensureMemberNames = async () => {
+      try {
+        const token = authAPI.getToken();
+        const res = await fetch(`${API_BASE_URL}/chat/groups/${groupId}/`, {
+          headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const g = await res.json();
+          // Prefer enriched members from backend if available
+          if (Array.isArray(g.members) && g.members.length) {
+            const meta: Record<string, { name: string; role: string; avatar?: string }> = {};
+            const members = g.members.map((u:any) => {
+              const id = String(u.id);
+              meta[id] = { name: u.name, role: u.role || 'user', avatar: resolveMediaUrl(u.avatar) || undefined };
+              return { id, name: u.name };
+            });
+            setUserMeta(prev => ({ ...meta, ...prev }));
+            setGroupMembers(members);
+          } else {
+            // Fallback: use global users
+            const allUsers = await authAPI.getUsers();
+            const idToName = new Map(allUsers.map((u:any) => [String(u.id), u.full_name]));
+            const meta: Record<string, { name: string; role: string; avatar?: string }> = {};
+            for (const u of allUsers) {
+              meta[String(u.id)] = { name: u.full_name, role: u.role, avatar: resolveMediaUrl(u.profile_pic) || undefined };
+            }
+            setUserMeta(prev => ({ ...meta, ...prev }));
+            setGroupMembers((g.member_ids || []).map((id: number) => ({ id: String(id), name: idToName.get(String(id)) || 'User' })));
+          }
+        }
+      } catch (_) {}
+    };
+    ensureMemberNames();
+  }, [groupId]);
+
+  // Load latest members when opening info sheet or add modal
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!infoOpen && !addModalOpen) return;
+      try {
+        setLoadingMembers(true);
+        const token = authAPI.getToken();
+        const res = await fetch(`${API_BASE_URL}/chat/groups/${groupId}/`, {
+          headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const g = await res.json();
+          // We need names; fetch users as needed and map ids to names
+          const existing = new Set((g.member_ids || []).map((i:number)=>String(i)));
+
+          if (currentUser.role === 'client') {
+            // Clients can only add their team members
+            const teamMembers = await authAPI.getTeamMembersByClient(currentUser.id);
+            // Map group members with names
+            const idToName = new Map(teamMembers.map((u:any) => [String(u.id), u.full_name]));
+            setGroupMembers((g.member_ids || []).map((id: number) => ({ id: String(id), name: idToName.get(String(id)) || String(id) })));
+            const options = (teamMembers || [])
+              .filter((u:any) => u.is_active)
+              .filter((u:any) => !existing.has(String(u.id)))
+              .map((u:any) => ({ id: String(u.id), name: u.full_name, role: 'client_team_member', avatar: resolveMediaUrl(u.profile_pic) || undefined }));
+            setMemberOptions(options);
+          } else {
+            const allUsers = await authAPI.getUsers();
+            const idToName = new Map(allUsers.map((u:any) => [String(u.id), u.full_name]));
+            setGroupMembers((g.member_ids || []).map((id: number) => ({ id: String(id), name: idToName.get(String(id)) || 'User' })));
+            const options = (allUsers || [])
+              .filter((u:any) => u.is_active)
+              .filter((u:any) => u.role !== 'client_team_member')
+              .filter((u:any) => !existing.has(String(u.id)))
+              .map((u:any) => ({ id: String(u.id), name: u.full_name, role: u.role, avatar: resolveMediaUrl(u.profile_pic) || undefined }));
+            setMemberOptions(options);
+          }
+        }
+      } finally {
+        setLoadingMembers(false);
+        setSelectedToAdd([]);
+      }
+    };
+    fetchMembers();
+  }, [infoOpen, addModalOpen, groupId]);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+    await sendMessage(newMessage.trim(), 'text');
+  };
+
+  const sendMessage = async (content: string, messageType: 'text' | 'file' | 'image', fileData?: any) => {
+    const optimistic: GroupMessage = {
+      id: `temp-${Date.now()}`,
+      userId: String(currentUser.id),
+      userName: currentUser.name,
+      userRole: currentUser.role,
+      message: content,
+      messageType,
+      timestamp: new Date().toISOString(),
+      ...fileData,
+    };
+    setMessages(prev => [...prev, optimistic]);
+    setNewMessage('');
+
+    try {
+      const token = authAPI.getToken();
+      const res = await fetch(`${API_BASE_URL}/chat/groups/${groupId}/messages/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          message: content,
+          message_type: messageType,
+          file_name: fileData?.fileName || null,
+          file_size: fileData?.fileSize || null,
+          file_type: fileData?.fileType || null,
+          file_url: fileData?.fileUrl || null,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        const mapped: GroupMessage = {
+          id: String(saved.id),
+          userId: String(saved.user_id),
+          userName: saved.user_name,
+          userRole: saved.user_role,
+          message: saved.message,
+          messageType: saved.message_type,
+          timestamp: saved.timestamp,
+          fileUrl: resolveMediaUrl(saved.file_url) || undefined,
+          fileName: saved.file_name || undefined,
+          fileSize: saved.file_size || undefined,
+          fileType: saved.file_type || undefined,
+        };
+        setMessages(prev => prev.map(m => m.id === optimistic.id ? mapped : m));
+        if (isConnected) {
+          send({ message: saved.message, sender: String(saved.user_id) });
+        }
+      } else {
+        setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+        if (messageType === 'text') setNewMessage(content);
+      }
+    } catch (_) {
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+      if (messageType === 'text') setNewMessage(content);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { alert('File too large'); return; }
+    setUploadingFile(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const fileUrl = event.target?.result as string;
+      const messageType = file.type.startsWith('image/') ? 'image' : 'file';
+      const fileData = { fileUrl, fileName: file.name, fileSize: file.size, fileType: file.type };
+      const msgText = messageType === 'image' ? `📷 Shared an image: ${file.name}` : `📎 Shared a file: ${file.name}`;
+      await sendMessage(msgText, messageType, fileData);
+      setUploadingFile(false);
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Drag & drop like ProjectChat
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      const fakeEvent = ({ target: { files: [file] } } as unknown) as React.ChangeEvent<HTMLInputElement>;
+      handleFileUpload(fakeEvent);
+    }
+  };
+
+  const formatTime = (ts: string) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const openPreview = (url?: string, name?: string, type?: string, size?: number) => {
+    if (!url) return; setPreview({ open: true, url, name: name || 'file', type: type || 'application/octet-stream', size });
+  };
+  const closePreview = () => setPreview(prev => ({ ...prev, open: false }));
+
+  const downloadViaBlob = async (url?: string, name?: string) => {
+    if (!url) return;
+    // If the URL is a data URL (base64), download directly without fetch
+    if (url.startsWith('data:')) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+    try {
+      const response = await fetch(url, { credentials: 'include' });
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch (_) {
+      // Fallback navigation
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  return (
+    <div 
+      className={`card h-full flex flex-col relative ${dragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {dragOver && (
+        <div className="absolute inset-0 bg-blue-500 bg-opacity-10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center z-10">
+          <div className="text-center">
+            <div className="text-4xl mb-2">📎</div>
+            <p className="text-blue-600 font-medium">Drop file to share</p>
+          </div>
+        </div>
+      )}
+      <div className="flex items-center space-x-3 p-4 border-b border-gray-200 cursor-pointer" onClick={() => setInfoOpen(true)}>
+        {groupImage ? (
+          <img src={resolveMediaUrl(groupImage)} className="w-10 h-10 rounded-full object-cover" />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold">{groupName?.charAt(0)?.toUpperCase() || 'G'}</div>
+        )}
+        <div className="flex-1">
+          <h3 className="font-semibold text-gray-900">{groupName}</h3>
+          <p className="text-xs text-gray-500">{groupMembers.map(m => (userMeta[String(m.id)]?.name || m.name)).slice(0,3).join(', ')}{groupMembers.length > 3 ? ', ...' : ''}</p>
+        </div>
+      </div>
+
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.map((m) => {
+          const own = String(m.userId) === String(currentUser.id);
+          const meta = userMeta[String(m.userId)] || { name: m.userName, role: m.userRole || 'user', avatar: undefined };
+          return (
+            <div key={m.id} className={`flex items-start space-x-3 ${own ? 'flex-row-reverse space-x-reverse' : ''}`}>
+              {meta.avatar ? (
+                <img src={meta.avatar} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className={`w-8 h-8 ${own ? 'bg-gray-400' : 'bg-gray-300'} rounded-full flex items-center justify-center flex-shrink-0`}>
+                  <span className="text-white font-medium text-xs">{(meta.name || 'U').charAt(0).toUpperCase()}</span>
+                </div>
+              )}
+              <div className={`flex-1 max-w-sm ${own ? 'text-right' : ''}`}>
+                <div className={`flex items-center space-x-2 mb-1 ${own ? 'justify-end' : ''}`}>
+                  {!own && (
+                    <>
+                      <span className="text-sm font-medium text-gray-900 truncate max-w-[160px]">{meta.name}</span>
+                      <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                        {(meta.role || 'user').replace(/_/g,' ').replace(/\b\w/g, (c)=>c.toUpperCase())}
+                      </span>
+                    </>
+                  )}
+                  <span className="text-xs text-gray-500">{formatTime(m.timestamp)}</span>
+                </div>
+                <div className={`inline-block text-sm break-all ${own ? 'bg-gray-300 text-black rounded-l-xl rounded-tr-xl rounded-br-sm px-3 py-2' : 'bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl rounded-bl-sm px-3 py-2'}`}>
+                {m.message && <div className="text-sm whitespace-pre-line">{m.message}</div>}
+                {m.fileUrl && (
+                  <div className="mt-2">
+                    {m.messageType === 'image' ? (
+                      <div className="relative group inline-block">
+                        <img
+                          src={m.fileUrl}
+                          alt={m.fileName || 'image'}
+                          className="max-w-xs max-h-48 rounded cursor-pointer"
+                          onClick={() => openPreview(m.fileUrl, m.fileName, m.fileType, m.fileSize)}
+                        />
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openPreview(m.fileUrl, m.fileName, m.fileType, m.fileSize); }}
+                            className="bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full"
+                            title="View"
+                          >
+                            <EyeIcon size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); downloadViaBlob(m.fileUrl, m.fileName); }}
+                            className="bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full"
+                            title="Download"
+                          >
+                            <DownloadIcon size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                        <div className={`flex items-center space-x-2 p-2 rounded border ${own ? 'bg-gray-200 border-gray-300' : 'bg-white border-gray-200'}`}>
+                        <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-medium truncate text-gray-700`}>{m.fileName || 'Attachment'}</p>
+                        </div>
+                          <button className="text-gray-600 hover:bg-gray-300 p-1 rounded" onClick={() => openPreview(m.fileUrl, m.fileName, m.fileType, m.fileSize)} title="View"><EyeIcon size={14} /></button>
+                          <button className="text-gray-600 hover:bg-gray-300 p-1 rounded" onClick={() => downloadViaBlob(m.fileUrl, m.fileName)} title="Download"><DownloadIcon size={14} /></button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <form onSubmit={handleSend} className="p-4 border-t border-gray-200">
+        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.xls,.ppt,.pptx" />
+        <div className="flex space-x-2">
+          <div className="flex-1 flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg focus-within:ring-blue-500 focus-within:border-blue-500">
+            <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type your message..." className="flex-1 outline-none text-sm" disabled={uploadingFile} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="text-gray-500 hover:text-gray-700 disabled:opacity-50"><PaperclipIcon size={16} /></button>
+          </div>
+          <button type="submit" disabled={!newMessage.trim() || uploadingFile} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50">
+            {uploadingFile ? 'Uploading...' : <SendIcon size={16} />}
+          </button>
+        </div>
+      </form>
+
+      <ChatFilePreviewModal isOpen={preview.open} onClose={closePreview} fileUrl={preview.url} fileName={preview.name} fileType={preview.type} fileSize={preview.size} />
+
+      {/* In-chat right panel (non-portal) */}
+      {infoOpen && (
+        <>
+          <div className="absolute inset-0 bg-black/10" onClick={() => setInfoOpen(false)}></div>
+          <div className="absolute right-0 top-0 h-full w-[360px] sm:w-[420px] bg-white border-l shadow-lg p-0 overflow-y-auto">
+            <div className="p-5 border-b bg-gradient-to-r from-gray-50 to-white">
+              <div className="flex flex-col items-center">
+                {groupImage ? (
+                  <img src={resolveMediaUrl(groupImage)} className="w-20 h-20 rounded-full object-cover ring-2 ring-gray-200" />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-white text-xl font-bold ring-2 ring-gray-200">{groupName?.charAt(0)?.toUpperCase() || 'G'}</div>
+                )}
+                <div className="font-semibold text-gray-900 mt-3 text-center truncate w-full px-4">{groupName}</div>
+                <div className="text-xs text-gray-500 mt-1">{groupMembers.length} member{groupMembers.length !== 1 ? 's' : ''}</div>
+                <div className="mt-3">
+                  <Button size="sm" onClick={() => setAddModalOpen(true)}>Add members</Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Members</div>
+              <div className="space-y-2">
+                {groupMembers.map(m => {
+                  const meta = userMeta[String(m.id)];
+                  const canRemove = String(m.id) !== String(currentUser.id) && (
+                    ['admin','project_manager','assistant_project_manager'].includes(currentUser.role) ||
+                    (currentUser.role === 'client' && (meta?.role === 'client_team_member'))
+                  );
+                  return (
+                    <div key={m.id} className="flex items-center justify-between p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {meta?.avatar ? (
+                          <img src={meta.avatar} className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs font-semibold">
+                            {(meta?.name || m.name).charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">{meta?.name || m.name}</div>
+                          {meta?.role && (
+                            <div className="text-[11px] text-gray-500 truncate">{meta.role.replace(/_/g, ' ')}</div>
+                          )}
+                        </div>
+                      </div>
+                      {canRemove && (
+                        <button
+                          aria-label="Remove member"
+                          className="p-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50"
+                          onClick={() => setConfirmRemove({ open: true, userId: String(m.id), userName: userMeta[String(m.id)]?.name || m.name })}
+                        >
+                          <UserMinus size={14} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {!groupMembers.length && (
+                  <div className="text-xs text-gray-500">No members</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Add Members Popup Modal (in-chat, not full page) */}
+      {addModalOpen && (
+        <>
+          <div className="absolute inset-0 bg-black/20" onClick={() => setAddModalOpen(false)}></div>
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-lg border shadow-lg p-4">
+              <div className="text-lg font-semibold mb-1">Add members</div>
+              {loadingMembers ? (
+                <div className="text-xs text-gray-400">Loading...</div>
+              ) : (
+                <div className="space-y-2 border rounded p-3">
+                  {memberOptions.length ? memberOptions.map(opt => (
+                    <label key={opt.id} className="flex items-center space-x-2 text-sm">
+                      <Checkbox
+                        checked={selectedToAdd.includes(opt.id)}
+                        onCheckedChange={(checked) => setSelectedToAdd(prev => checked ? [...prev, opt.id] : prev.filter(id => id !== opt.id))}
+                      />
+                      <span className="truncate">{opt.name} <span className="text-gray-400">({opt.role})</span></span>
+                    </label>
+                  )) : (
+                    <div className="text-xs text-gray-400">No users to add</div>
+                  )}
+                </div>
+              )}
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setAddModalOpen(false)}>Cancel</Button>
+                <Button
+                  size="sm"
+                  disabled={!selectedToAdd.length}
+                  onClick={async () => {
+                    try {
+                      const token = authAPI.getToken();
+                      await Promise.all(selectedToAdd.map(uid => (
+                        fetch(`${API_BASE_URL}/chat/groups/${groupId}/add_member/`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                          },
+                          credentials: 'include',
+                          body: JSON.stringify({ user_id: Number(uid) }),
+                        })
+                      )));
+                      const addSet = new Set(selectedToAdd);
+                      const toAddOpts = memberOptions.filter(o => addSet.has(o.id));
+                      const toAdd = toAddOpts.map(o => ({ id: o.id, name: o.name }));
+                      setGroupMembers(prev => [...prev, ...toAdd]);
+                      // update meta so avatar/name/role appear without refresh
+                      setUserMeta(prev => {
+                        const next = { ...prev } as Record<string, { name: string; role: string; avatar?: string }>;
+                        for (const o of toAddOpts) {
+                          next[o.id] = { name: o.name, role: o.role || 'user', avatar: o.avatar };
+                        }
+                        return next;
+                      });
+                      setMemberOptions(prev => prev.filter(o => !addSet.has(o.id)));
+                      setSelectedToAdd([]);
+                      setAddModalOpen(false);
+                      // Notify others via websocket
+                      if (isConnected) {
+                        send({ type: 'group_members_changed', sender: String(currentUser.id) });
+                      }
+                    } catch (_) {}
+                  }}
+                >Add Selected</Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Confirm Remove Modal */}
+      {confirmRemove.open && (
+        <>
+          <div className="absolute inset-0 bg-black/30" onClick={() => setConfirmRemove({ open: false })}></div>
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-lg border shadow-lg p-5">
+              <div className="text-lg font-semibold mb-1">Remove member</div>
+              <div className="text-sm text-gray-600 mb-4">Are you sure you want to remove {confirmRemove.userName || 'this member'} from the group?</div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setConfirmRemove({ open: false })}>Cancel</Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const token = authAPI.getToken();
+                      const res = await fetch(`${API_BASE_URL}/chat/groups/${groupId}/remove_member/`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Accept': 'application/json',
+                          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ user_id: Number(confirmRemove.userId) }),
+                      });
+                      if (!res.ok) {
+                        alert('Failed to remove member');
+                        return;
+                      }
+                      setGroupMembers(prev => prev.filter(x => String(x.id) !== String(confirmRemove.userId)));
+                      const meta = userMeta[String(confirmRemove.userId || '')];
+                      if (confirmRemove.userId) {
+                        setMemberOptions(prev => {
+                          const exists = prev.some(o => String(o.id) === String(confirmRemove.userId));
+                          if (exists) return prev;
+                          return [...prev, { id: String(confirmRemove.userId), name: meta?.name || confirmRemove.userName || 'User', role: meta?.role || 'user' }];
+                        });
+                      }
+                      // Notify others via websocket
+                      if (isConnected) {
+                        send({ type: 'group_members_changed', sender: String(currentUser.id) });
+                      }
+                    } catch (_) {}
+                    finally {
+                      setConfirmRemove({ open: false });
+                    }
+                  }}
+                >Remove</Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+

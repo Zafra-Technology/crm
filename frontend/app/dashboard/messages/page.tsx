@@ -3,9 +3,14 @@
 import { useState, useEffect } from 'react';
 import { User } from '@/types';
 import { getCurrentUser } from '@/lib/auth';
-import { authAPI } from '@/lib/api/auth';
+import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import { MessageSquareIcon, UserIcon, SearchIcon } from 'lucide-react';
 import IndividualChat from '@/components/chat/IndividualChat';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { groupChatApi } from '@/lib/api/chat-groups';
+import GroupChat from '@/components/chat/GroupChat';
 
 interface Designer {
   id: string;
@@ -29,6 +34,18 @@ export default function MessagesPage() {
   const [selectedUser, setSelectedUser] = useState<Designer | Manager | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Group chat states (move to top)
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupImage, setNewGroupImage] = useState<File | null>(null);
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
+  const [groupList, setGroupList] = useState<any[]>([]);
+  const [groupChatOpen, setGroupChatOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<any|null>(null);
+
+  const [memberOptions, setMemberOptions] = useState<any[]>([]);
+  const [memberOptionsLoading, setMemberOptionsLoading] = useState(false);
 
   // Define role groups
   const designerRoles = ['designer', 'senior_designer', 'auto_cad_drafter', 'team_head', 'team_lead'];
@@ -233,6 +250,54 @@ export default function MessagesPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const loadMemberOptions = async () => {
+      if (!groupModalOpen || !user) return;
+      try {
+        setMemberOptionsLoading(true);
+        const all = await authAPI.getUsers();
+        const filtered = (all || [])
+          .filter((u: any) => u.is_active)
+          .filter((u: any) => u.role !== 'client_team_member')
+          .filter((u: any) => String(u.id) !== String(user.id))
+          .map((u: any) => ({ id: String(u.id), name: u.full_name, email: u.email, role: u.role }));
+        setMemberOptions(filtered);
+      } catch (e) {
+        console.error('Failed to load member options', e);
+        setMemberOptions([]);
+      } finally {
+        setMemberOptionsLoading(false);
+      }
+    };
+    loadMemberOptions();
+  }, [groupModalOpen, user]);
+
+  // Load groups for current user
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const groups = await groupChatApi.listGroups();
+        const mapped = (groups || []).map(g => ({
+          id: g.id,
+          name: g.name,
+          image: g.image_url || '',
+          members: (g.member_ids || []).map(id => ({ id: String(id) })),
+          raw: g,
+        }));
+        setGroupList(mapped);
+      } catch (e) {
+        console.error('Failed to load groups', e);
+        setGroupList([]);
+      }
+    };
+    loadGroups();
+  }, []);
+
+  // Fallback (kept for safety but primary source is memberOptions)
+  const allPossibleMembers = (memberOptions && memberOptions.length > 0)
+    ? memberOptions
+    : [...designers, ...managers].filter(u => u.role !== 'client_team_member' && u.id !== user?.id);
+
   const filteredDesigners = designers.filter(designer =>
     designer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     designer.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -274,6 +339,22 @@ export default function MessagesPage() {
     );
   }
 
+  const canCreateGroup = [
+    'admin',
+    'project_manager',
+    'assistant_project_manager',
+  ].includes(user?.role || '');
+
+  const sidebarChats = [
+    ...[...groupList].reverse().map(group => ({
+      type: 'group', id: group.id, name: group.name, image: group.image, members: group.members, data: group
+    })),
+    ...filteredAdminsOnly.map(contact => ({ type: 'dm', id: contact.id, name: contact.name, contact })),
+    ...filteredProjectManagersOnly.map(contact => ({ type: 'dm', id: contact.id, name: contact.name, contact })),
+    ...filteredDesigners.map(contact => ({ type: 'dm', id: contact.id, name: contact.name, contact })),
+    ...filteredOtherStaff.map(contact => ({ type: 'dm', id: contact.id, name: contact.name, contact })),
+  ].filter((item, idx, arr) => arr.findIndex(i=>i.type === item.type && i.id === item.id) === idx); // dedupe if needed
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -287,9 +368,113 @@ export default function MessagesPage() {
         </p>
       </div>
 
+      {/* Group Chat Modal */}
+      <Dialog open={groupModalOpen} onOpenChange={(open) => {
+        setGroupModalOpen(open);
+        if (!open) {
+          setNewGroupName(''); setNewGroupImage(null); setSelectedGroupMembers([]);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Group</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Group Name</label>
+              <input
+                type="text"
+                className="w-full border px-3 py-2 rounded-md focus:outline-none focus:ring"
+                value={newGroupName}
+                onChange={e => setNewGroupName(e.target.value)}
+                placeholder="Enter group name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Group Image</label>
+              <input
+                type="file"
+                accept="image/*"
+                className="w-full"
+                onChange={e => setNewGroupImage(e.target.files?.[0] || null)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Select Members</label>
+              <div className="max-h-40 overflow-auto border rounded p-2 space-y-2">
+                {memberOptionsLoading ? (
+                  <span className="text-xs text-gray-400">Loading members...</span>
+                ) : allPossibleMembers.length ? allPossibleMembers.map(member => (
+                  <label key={member.id} className="flex items-center space-x-2 cursor-pointer">
+                    <Checkbox
+                      checked={selectedGroupMembers.includes(member.id)}
+                      onCheckedChange={checked => {
+                        setSelectedGroupMembers(members =>
+                          checked ? [...members, member.id] : members.filter(id => id !== member.id)
+                        );
+                      }}
+                    />
+                    <span className="text-sm">{member.name} <span className="text-muted-foreground">({member.role})</span></span>
+                  </label>
+                )) : <span className="text-xs text-gray-400">No available users</span>}
+              </div>
+              <span className="block text-xs text-muted-foreground mt-1">* Current user is automatically included.</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => { setGroupModalOpen(false); }}>
+              Cancel
+            </Button>
+            <Button type="button"
+              disabled={!newGroupName || selectedGroupMembers.length < 1}
+              onClick={async () => {
+                try {
+                  // Convert image to base64 if provided
+                  let image_base64: string | undefined;
+                  if (newGroupImage) {
+                    const file = newGroupImage;
+                    const toBase64 = (f: File) => new Promise<string>((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onload = () => resolve(String(reader.result));
+                      reader.onerror = reject;
+                      reader.readAsDataURL(f);
+                    });
+                    image_base64 = await toBase64(file);
+                  }
+                  const member_ids = selectedGroupMembers.map(id => Number(id));
+                  const created = await groupChatApi.createGroup({ name: newGroupName, member_ids, image_base64 });
+                  if (created) {
+                    setGroupList(prev => ([...prev, {
+                      id: created.id,
+                      name: created.name,
+                      image: created.image_url || '',
+                      members: (created.member_ids || []).map(id => ({ id: String(id) })),
+                      raw: created,
+                    }]));
+                  }
+                } catch (e) {
+                  console.error('Failed to create group', e);
+                } finally {
+                  setGroupModalOpen(false); setNewGroupName(''); setNewGroupImage(null); setSelectedGroupMembers([]);
+                }
+              }}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
-        {/* Left Sidebar - Contacts */}
-        <div className="lg:col-span-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
+        {/* Left Sidebar - Unified Chats (groups + users) */}
+        <div className="lg:col-span-1 bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+            <h3 className="font-semibold text-gray-700 text-md">Chats</h3>
+            {canCreateGroup && (
+              <Button size="sm" onClick={() => setGroupModalOpen(true)}>
+                + Create Group
+              </Button>
+            )}
+          </div>
           {/* Search */}
           <div className="p-4 border-b border-gray-200">
             <div className="relative">
@@ -303,180 +488,71 @@ export default function MessagesPage() {
               />
             </div>
           </div>
-
-          {/* Contacts List */}
-          <div className="overflow-y-auto h-[calc(100vh-16rem)]">
-            {/* Admins Section (for non-designers) */}
-            {!designerRoles.includes(user?.role || '') && filteredAdminsOnly.length > 0 && (
-              <div className="p-3">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  {(user?.role === 'client' || user?.role === 'client_team_member') ? 'Admin Contacts' : 'Admins'}
-                </h3>
-                {filteredAdminsOnly.map((manager) => (
+          {/* Unified list: Groups and Users */}
+          <div className="flex-1 overflow-y-auto min-h-0 p-3">
+            {sidebarChats.length ? sidebarChats.map(chat => {
+              if (chat.type === 'group') {
+                const group = chat as { type: 'group', id: any, name: any, image: any, members: any[], data: any };
+                return (
                   <div
-                    key={manager.id}
-                    onClick={() => setSelectedUser(manager)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
-                      (user?.role === 'client' || user?.role === 'client_team_member')
-                        ? selectedUser?.id === manager.id
-                          ? 'bg-purple-100 border border-purple-300'
-                          : 'hover:bg-purple-50'
-                        : selectedUser?.id === manager.id
-                          ? 'bg-blue-100 border border-blue-300'
-                          : 'hover:bg-gray-50'
-                    }`}
+                    key={group.id}
+                    onClick={() => { setGroupChatOpen(true); setSelectedGroup(group.data); setSelectedUser(null); }}
+                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${selectedGroup?.id === group.id && groupChatOpen ? 'bg-blue-100 border border-blue-300' : 'hover:bg-blue-50'}`}
                   >
-                    <div className={`w-10 h-10 ${getAvatarColor(manager.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-white font-medium text-sm">
-                        {getInitials(manager.name)}
-                      </span>
-                    </div>
+                    {group.image ? (
+                      <img src={resolveMediaUrl(group.image)} className="w-10 h-10 rounded-full flex-shrink-0 object-cover" alt="group" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0 text-white font-bold">{group.name.charAt(0).toUpperCase()}</div>
+                    )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {manager.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {manager.role.charAt(0).toUpperCase() + manager.role.slice(1)}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{group.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{Array.isArray(group.members) ? group.members.map((m: any)=>m.name).slice(0,2).join(', ') : ''}{Array.isArray(group.members) && group.members.length > 2 ? ', ...': ''}</p>
                     </div>
-                    <div className={`w-2 h-2 ${(user?.role === 'client' || user?.role === 'client_team_member') ? 'bg-purple-500' : 'bg-blue-500'} rounded-full`}></div>
+                    <span className="ml-2 px-2 py-1 text-xs rounded bg-blue-50 text-blue-500">Group</span>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* Project Managers Section (for non-designers) */}
-            {!designerRoles.includes(user?.role || '') && filteredProjectManagersOnly.length > 0 && (
-              <div className="p-3">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  {(user?.role === 'client' || user?.role === 'client_team_member') ? 'Project Manager Contacts' : 'Project Managers'}
-                </h3>
-                {filteredProjectManagersOnly.map((manager) => (
+                );
+              } else {
+                const dm = chat as { type: 'dm', id: string, name: string, contact: any };
+                return (
                   <div
-                    key={manager.id}
-                    onClick={() => setSelectedUser(manager)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
-                      (user?.role === 'client' || user?.role === 'client_team_member')
-                        ? selectedUser?.id === manager.id
-                          ? 'bg-purple-100 border border-purple-300'
-                          : 'hover:bg-purple-50'
-                        : selectedUser?.id === manager.id
-                          ? 'bg-blue-100 border border-blue-300'
-                          : 'hover:bg-gray-50'
-                    }`}
+                    key={dm.id}
+                    onClick={() => { setSelectedUser(dm.contact); setGroupChatOpen(false); setSelectedGroup(null); }}
+                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${selectedUser?.id === dm.id && !groupChatOpen ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'}`}
                   >
-                    <div className={`w-10 h-10 ${getAvatarColor(manager.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-white font-medium text-sm">
-                        {getInitials(manager.name)}
-                      </span>
-                    </div>
+                    {dm.contact?.profile_pic || dm.contact?.avatar ? (
+                      <img src={resolveMediaUrl(dm.contact.profile_pic || dm.contact.avatar)} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                    ) : (
+                      <div className={`w-10 h-10 ${getAvatarColor(dm.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-white font-medium text-sm">{getInitials(dm.name)}</span>
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {manager.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {manager.role.charAt(0).toUpperCase() + manager.role.slice(1)}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{dm.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{dm.contact?.role?.charAt(0).toUpperCase() + dm.contact?.role?.slice(1)}</p>
                     </div>
-                    <div className={`w-2 h-2 ${(user?.role === 'client' || user?.role === 'client_team_member') ? 'bg-purple-500' : 'bg-blue-500'} rounded-full`}></div>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* Team Members List / Designers List */}
-            {filteredDesigners.length > 0 && (
-              <div className="p-3">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  {user?.role === 'client' ? 'Team Members' : 
-                   user?.role === 'client_team_member' ? 'Team Contacts' :
-                   designerRoles.includes(user?.role || '') ? 'Team Members' :
-                   user?.role === 'project_manager' || user?.role === 'assistant_project_manager' ? 'Designers' : 'Team Designers'}
-                </h3>
-                {filteredDesigners.map((designer) => (
-                  <div
-                    key={designer.id}
-                    onClick={() => setSelectedUser(designer)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
-                      (user?.role === 'client' || user?.role === 'client_team_member')
-                        ? selectedUser?.id === designer.id 
-                          ? 'bg-purple-100 border border-purple-300' 
-                          : 'hover:bg-purple-50'
-                        : selectedUser?.id === designer.id 
-                          ? 'bg-blue-100 border border-blue-300' 
-                          : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 ${getAvatarColor(designer.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-white font-medium text-sm">
-                        {getInitials(designer.name)}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {designer.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {designer.role.charAt(0).toUpperCase() + designer.role.slice(1)}
-                      </p>
-                    </div>
-                    <div className={`w-2 h-2 ${(user?.role === 'client' || user?.role === 'client_team_member') ? 'bg-purple-500' : 'bg-blue-500'} rounded-full`}></div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Other Staff Section (for non-designers only) */}
-            {!designerRoles.includes(user?.role || '') && filteredOtherStaff.length > 0 && (
-              <div className="p-3">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Other Staff
-                </h3>
-                {filteredOtherStaff.map((staff) => (
-                  <div
-                    key={staff.id}
-                    onClick={() => setSelectedUser(staff)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
-                      selectedUser?.id === staff.id 
-                        ? 'bg-orange-100 border border-orange-300' 
-                        : 'hover:bg-orange-50'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 ${getAvatarColor(staff.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-white font-medium text-sm">
-                        {getInitials(staff.name)}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {staff.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {staff.role.charAt(0).toUpperCase() + staff.role.slice(1)}
-                      </p>
-                    </div>
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* No contacts found */}
-            {(designerRoles.includes(user?.role || '') 
-              ? filteredDesigners.length === 0 
-              : filteredDesigners.length === 0 && filteredManagers.length === 0 && filteredOtherStaff.length === 0
-            ) && (
+                );
+              }
+            }) : (
               <div className="p-8 text-center text-gray-500">
                 <MessageSquareIcon size={48} className="mx-auto mb-4 text-gray-300" />
-                <p>No contacts found</p>
+                <p>No chats found</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Right Side - Chat Area */}
-        <div className="lg:col-span-2">
-          {selectedUser ? (
+        <div className="lg:col-span-2 h-full overflow-y-auto">
+          {(groupChatOpen && selectedGroup) ? (
+            <GroupChat
+              groupId={String(selectedGroup.id)}
+              groupName={selectedGroup.name}
+              groupImage={selectedGroup.image}
+              members={(selectedGroup.members || []).map((m:any)=>({ id: String(m.id), name: m.name }))}
+              currentUser={user!}
+            />
+          ) : selectedUser ? (
             <IndividualChat
               currentUser={user!}
               targetUser={selectedUser}
