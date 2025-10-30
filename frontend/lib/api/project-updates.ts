@@ -1,15 +1,22 @@
 import { ProjectUpdate } from '@/types';
+import { getCookie } from '@/lib/cookies';
 
-const API_BASE = '/api/project-updates';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 export const projectUpdatesApi = {
   // Get all updates
-  getAll: async (): Promise<ProjectUpdate[]> => {
+  getAll: async (updateData: { projectId: string }): Promise<ProjectUpdate[]> => {
     try {
-      const response = await fetch(API_BASE);
+      const token = getCookie('auth_token');
+      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates`, {
+        credentials: 'include',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+      });
       if (!response.ok) throw new Error('Failed to fetch project updates');
       const data = await response.json();
-      return data.updates;
+      return Array.isArray(data) ? data : data.updates || [];
     } catch (error) {
       console.error('Error fetching project updates:', error);
       return [];
@@ -17,12 +24,18 @@ export const projectUpdatesApi = {
   },
 
   // Get updates by project ID
-  getByProjectId: async (projectId: string): Promise<ProjectUpdate[]> => {
+  getByProjectId: async (updateData: { projectId: string }): Promise<ProjectUpdate[]> => {
     try {
-      const response = await fetch(`${API_BASE}?projectId=${projectId}`);
+      const token = getCookie('auth_token');
+      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates`, {
+        credentials: 'include',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+      });
       if (!response.ok) throw new Error('Failed to fetch project updates');
       const data = await response.json();
-      return data.updates;
+      return Array.isArray(data) ? data : data.updates || [];
     } catch (error) {
       console.error('Error fetching project updates:', error);
       return [];
@@ -30,9 +43,9 @@ export const projectUpdatesApi = {
   },
 
   // Get updates by user ID
-  getByUserId: async (userId: string): Promise<ProjectUpdate[]> => {
+  getByUserId: async (updateData: { projectId: string; userId: string }): Promise<ProjectUpdate[]> => {
     try {
-      const response = await fetch(`${API_BASE}?userId=${userId}`);
+      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates?userId=${userId}`);
       if (!response.ok) throw new Error('Failed to fetch project updates');
       const data = await response.json();
       return data.updates;
@@ -43,9 +56,9 @@ export const projectUpdatesApi = {
   },
 
   // Get single update
-  getById: async (id: string): Promise<ProjectUpdate | null> => {
+  getById: async (updateData: { projectId: string; id: string }): Promise<ProjectUpdate | null> => {
     try {
-      const response = await fetch(`${API_BASE}/${id}`);
+      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates/${id}`);
       if (!response.ok) return null;
       const data = await response.json();
       return data.update;
@@ -63,15 +76,19 @@ export const projectUpdatesApi = {
     title: string;
     description?: string;
     fileUrl?: string;
+    fileName?: string;
+    fileSize?: number;
+    fileType?: string;
   }): Promise<ProjectUpdate | null> => {
     try {
-      const response = await fetch(API_BASE, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${updateData.projectId}/updates`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData),
+        }
+      );
       
       if (!response.ok) {
         const error = await response.json();
@@ -87,9 +104,9 @@ export const projectUpdatesApi = {
   },
 
   // Update project update
-  update: async (id: string, updateData: Partial<ProjectUpdate>): Promise<ProjectUpdate | null> => {
+  update: async (updateData: { projectId: string; id: string; updateData: Partial<ProjectUpdate> }): Promise<ProjectUpdate | null> => {
     try {
-      const response = await fetch(`${API_BASE}/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates/${updateData.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -111,9 +128,9 @@ export const projectUpdatesApi = {
   },
 
   // Delete project update
-  delete: async (id: string): Promise<boolean> => {
+  delete: async (updateData: { projectId: string; id: string }): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE}/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates/${updateData.id}`, {
         method: 'DELETE',
       });
       

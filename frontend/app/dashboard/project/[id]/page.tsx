@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { projectsApi } from '@/lib/api/projects';
 import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
+import { projectUpdatesApi } from '@/lib/api/project-updates';
 import { getCookie } from '@/lib/cookies';
 import { mockChatMessages } from '@/lib/data/mockData';
 import { User, Project, ProjectUpdate, ChatMessage } from '@/types';
@@ -204,9 +205,13 @@ export default function ProjectDetailsPage() {
         }
       }
 
-      // Load project updates and messages (mock for now)
-      // TODO: Implement project updates API
-      setUpdates([]);
+      // Fetch project updates from API
+      try {
+        const fetchedUpdates = await projectUpdatesApi.getByProjectId({ projectId });
+        setUpdates(fetchedUpdates);
+      } catch (err) {
+        setUpdates([]);
+      }
 
       // Load chat messages from backend API (ProjectChat also loads; this is initial hydration)
       try {

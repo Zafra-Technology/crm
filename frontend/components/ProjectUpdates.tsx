@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { getCookie } from '@/lib/cookies';
 
 interface ProjectUpdatesProps {
   projectId: string;
@@ -45,34 +46,44 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
     e.preventDefault();
     try {
       setLoading(true);
-      
-      let fileUrl = '';
-      
-      // Handle file upload if file is selected
-      if (newUpdate.file) {
-        // Convert file to base64 for demo storage
-        fileUrl = await convertFileToBase64(newUpdate.file);
-      }
-      
-      const updateData = {
-        projectId,
-        userId: currentUser.id,
-        type: newUpdate.type,
-        title: newUpdate.title,
-        description: newUpdate.description,
-        fileUrl: fileUrl || undefined,
-        fileName: newUpdate.file?.name || undefined,
-        fileSize: newUpdate.file?.size || undefined,
-        fileType: newUpdate.file?.type || undefined,
-      };
 
-      const response = await fetch('/api/project-updates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
+      let response;
+      const token = getCookie('auth_token');
+
+      if (newUpdate.file) {
+        // Use FormData for file upload
+        const formData = new FormData();
+        formData.append('type', newUpdate.type);
+        formData.append('title', newUpdate.title);
+        formData.append('description', newUpdate.description);
+        formData.append('file', newUpdate.file);
+
+        response = await fetch(`http://localhost:8000/api/projects/${projectId}/updates`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            // Don't set Content-Type! Let browser handle
+          },
+        });
+      } else {
+        // Send JSON if no file
+        const updateData = {
+          type: newUpdate.type,
+          title: newUpdate.title,
+          description: newUpdate.description,
+        };
+        response = await fetch(`http://localhost:8000/api/projects/${projectId}/updates`, {
+          method: 'POST',
+          body: JSON.stringify(updateData),
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+        });
+      }
 
       if (response.ok) {
         setShowAddForm(false);
@@ -183,7 +194,7 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
       <CardContent>
 
         {/* Updates List */}
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-96 overflow-y-auto scrollbar-thin pr-2" style={{ maxHeight: '24rem', overflowY: 'auto' }}>
           {updates && updates.length > 0 ? (
             updates.map((update) => (
               <div key={update.id} className="border-l-2 border-border pl-4 pb-4">
