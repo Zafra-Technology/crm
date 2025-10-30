@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { SendIcon, ArrowLeftIcon, PaperclipIcon, DownloadIcon } from 'lucide-react';
 import { User } from '@/types';
+import { authAPI } from '@/lib/api/auth';
+import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
 
 interface Message {
   id: string;
@@ -31,12 +33,40 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const roomName = currentUser && targetUser ? `dm-${Math.min(Number(currentUser.id), Number(targetUser.id))}-${Math.max(Number(currentUser.id), Number(targetUser.id))}` : undefined;
+  const { isConnected, send } = useChatWebSocket(roomName, async (payload) => {
+    if (payload?.type === 'chat_message' || payload?.type === 'connection_established') {
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        const token = authAPI.getToken();
+        const res = await fetch(`${API_BASE_URL}/chat/individual/${targetUser.id}/messages`, {
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data);
+        }
+      } catch (_) {}
+    }
+  });
 
   // Load messages for this conversation
   useEffect(() => {
     const loadMessages = async () => {
       try {
-        const response = await fetch(`/api/messages/individual?user1=${currentUser.id}&user2=${targetUser.id}`);
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        const token = authAPI.getToken();
+        const response = await fetch(`${API_BASE_URL}/chat/individual/${targetUser.id}/messages`, {
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
         if (response.ok) {
           const data = await response.json();
           setMessages(data);
@@ -47,10 +77,6 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
     };
 
     loadMessages();
-    
-    // Poll for new messages every 3 seconds
-    const interval = setInterval(loadMessages, 3000);
-    return () => clearInterval(interval);
   }, [currentUser.id, targetUser.id]);
 
   // Auto-scroll to bottom when messages change
@@ -73,40 +99,64 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
 
   const sendMessage = async (content: string, messageType: 'text' | 'file' | 'image', fileData?: any) => {
     const messageData = {
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      receiverId: targetUser.id,
       message: content,
-      messageType,
-      timestamp: new Date().toISOString(),
-      ...fileData,
+      message_type: messageType,
+      file_name: fileData?.fileName || null,
+      file_size: fileData?.fileSize || null,
+      file_type: fileData?.fileType || null,
     };
 
     // Optimistically add message
     const tempMessage = {
-      ...messageData,
       id: `temp-${Date.now()}`,
-    };
+      senderId: String(currentUser.id),
+      senderName: currentUser.name || 'You',
+      receiverId: String(targetUser.id),
+      message: content,
+      messageType,
+      timestamp: new Date().toISOString(),
+      ...fileData,
+    } as Message;
     setMessages(prev => [...prev, tempMessage]);
     setNewMessage('');
 
     try {
-      const response = await fetch('/api/messages/individual', {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const token = authAPI.getToken();
+      const response = await fetch(`${API_BASE_URL}/chat/individual/${targetUser.id}/messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
         body: JSON.stringify(messageData),
       });
 
       if (response.ok) {
         const savedMessage = await response.json();
-        setMessages(prev => 
-          prev.map(msg => msg.id === tempMessage.id ? savedMessage : msg)
-        );
+        const frontendMessage: Message = {
+          id: String(savedMessage.id),
+          senderId: String(savedMessage.sender_id),
+          senderName: savedMessage.sender_name,
+          receiverId: String(savedMessage.recipient_id),
+          message: savedMessage.message,
+          timestamp: savedMessage.timestamp,
+          fileName: savedMessage.file_name,
+          fileSize: savedMessage.file_size,
+          fileType: savedMessage.file_type,
+          messageType: savedMessage.message_type,
+        };
+        setMessages(prev => prev.map(msg => msg.id === tempMessage.id ? frontendMessage : msg));
+        if (isConnected) {
+          send({ message: savedMessage.message, sender: String(savedMessage.sender_id) });
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
-      if (messageType === 'text') setNewMessage(messageData.message);
+      if (messageType === 'text') setNewMessage(content);
     }
   };
 
@@ -213,7 +263,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
       <div ref={messagesContainerRef} className="h-[calc(100vh-20rem)] overflow-y-auto p-4 space-y-4">
         {messages.map((message) => {
           const isOwnMessage = message.senderId === currentUser.id;
-          const isTaskTagged = message.messageType === 'task_tag' || message.message.includes('Task:');
+          const isTaskTagged = message.message.includes('Task:');
           
           return (
             <div

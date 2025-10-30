@@ -208,21 +208,42 @@ export default function ProjectDetailsPage() {
       // TODO: Implement project updates API
       setUpdates([]);
 
-      // Load chat messages from API
+      // Load chat messages from backend API (ProjectChat also loads; this is initial hydration)
       try {
         console.log('🔄 Loading chat messages for project:', projectId);
-        const chatResponse = await fetch(`/api/chat/${projectId}`);
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        const token = authAPI.getToken();
+        const chatResponse = await fetch(`${API_BASE_URL}/chat/project/${projectId}/messages`, {
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
         if (chatResponse.ok) {
           const projectMessages = await chatResponse.json();
           console.log('💬 Loaded chat messages:', projectMessages.length);
-          setChatMessages(projectMessages);
+          const mapped = (projectMessages || []).map((m: any) => ({
+            id: String(m.id),
+            projectId: String(m.project_id),
+            userId: String(m.user_id),
+            userName: m.user_name,
+            userRole: m.user_role,
+            message: m.message,
+            messageType: m.message_type,
+            timestamp: m.timestamp,
+            fileName: m.file_name,
+            fileSize: m.file_size,
+            fileType: m.file_type,
+            fileUrl: resolveMediaUrl(m.file_url),
+          }));
+          setChatMessages(mapped);
         } else {
           console.error('Chat API error:', chatResponse.status);
           setChatMessages([]);
         }
       } catch (error) {
         console.error('Error loading chat messages:', error);
-        // Fallback to empty array if API fails
         setChatMessages([]);
       }
 

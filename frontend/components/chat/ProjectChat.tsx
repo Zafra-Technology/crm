@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon } from 'lucide-react';
+import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon } from 'lucide-react';
 import { ChatMessage, User } from '@/types';
-import { useSocket } from '@/lib/hooks/useSocket';
+import { resolveMediaUrl } from '@/lib/api/auth';
+import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
+import { authAPI } from '@/lib/api/auth';
+import ChatFilePreviewModal from '@/components/modals/ChatFilePreviewModal';
 
 interface ProjectChatProps {
   projectId: string;
@@ -20,7 +23,54 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { socket, isConnected } = useSocket(projectId);
+  const [preview, setPreview] = useState<{open: boolean; url: string; name: string; type: string; size?: number}>({ open: false, url: '', name: '', type: '', size: undefined });
+  const { isConnected, send } = useChatWebSocket(
+    projectId ? `project-${projectId}` : undefined,
+    async (payload) => {
+      if (payload?.type === 'chat_message' || payload?.type === 'connection_established') {
+        // If this WS event came from the same user who just sent the message, skip refetch to avoid flicker
+        if (payload?.sender && String(payload.sender) === String(currentUser?.id)) {
+          return;
+        }
+        try {
+          const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+          const url = `${API_BASE_URL}/chat/project/${projectId}/messages`;
+          const token = authAPI.getToken();
+          const res = await fetch(url, {
+            headers: {
+              'Accept': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+            credentials: 'include',
+          });
+          if (res.ok) {
+            const latest = await res.json();
+            const mapped = (latest || []).map((m: any) => ({
+              id: String(m.id),
+              projectId: String(m.project_id),
+              userId: String(m.user_id),
+              userName: m.user_name,
+              userRole: m.user_role,
+              message: m.message,
+              messageType: m.message_type,
+              timestamp: m.timestamp,
+              fileName: m.file_name,
+              fileSize: m.file_size,
+              fileType: m.file_type,
+              fileUrl: resolveMediaUrl(m.file_url),
+            }));
+            // Merge only new messages to avoid resetting the list which causes UI flicker
+            setChatMessages((prev) => {
+              const existingIds = new Set(prev.map((p) => String(p.id)));
+              const additions = mapped.filter((m: any) => !existingIds.has(String(m.id)));
+              return additions.length ? [...prev, ...additions] : prev;
+            });
+            scrollToBottom();
+          }
+        } catch (_) {}
+      }
+    }
+  );
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -28,40 +78,19 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     }
   };
 
-  // Socket event listeners
+  // Typing indicator via WS (best-effort)
   useEffect(() => {
-    if (!socket) return;
-
-    // Listen for new messages
-    socket.on('new-message', (message: ChatMessage) => {
-      setChatMessages(prev => [...prev, message]);
-      scrollToBottom();
-    });
-
-    // Listen for typing indicators
-    socket.on('user-typing', (data: {userId: string, userName: string, isTyping: boolean}) => {
-      if (data.userId === currentUser?.id) return; // Don't show own typing
-      
-      setIsTyping(prev => {
-        if (data.isTyping) {
-          // Add user to typing list if not already there
-          const exists = prev.find(u => u.userId === data.userId);
-          if (!exists) {
-            return [...prev, {userId: data.userId, userName: data.userName}];
-          }
-          return prev;
-        } else {
-          // Remove user from typing list
-          return prev.filter(u => u.userId !== data.userId);
-        }
-      });
-    });
-
-    return () => {
-      socket.off('new-message');
-      socket.off('user-typing');
+    const typingTimeouts = new Map<string, any>();
+    const handleLocalTyping = () => {
+      if (!currentUser) return;
+      send({ message: `${currentUser.full_name || currentUser.first_name || 'User'} is typing...`, sender: String(currentUser.id) });
     };
-  }, [socket, currentUser?.id]);
+    // Attach on input change below via handleLocalTyping when needed
+    return () => {
+      typingTimeouts.forEach((t) => clearTimeout(t));
+      typingTimeouts.clear();
+    };
+  }, [send, currentUser]);
 
   // Auto-scroll when messages change
   useEffect(() => {
@@ -75,11 +104,34 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     const loadMessages = async () => {
       try {
         console.log('🔄 Loading chat history for project:', projectId);
-        const response = await fetch(`/api/chat/${projectId}`);
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        const url = `${API_BASE_URL}/chat/project/${projectId}/messages`;
+        const token = authAPI.getToken();
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
         if (response.ok) {
           const projectMessages = await response.json();
           console.log('💬 Loaded conversation history:', projectMessages.length, 'messages');
-          setChatMessages(projectMessages);
+          const mapped = (projectMessages || []).map((m: any) => ({
+            id: String(m.id),
+            projectId: String(m.project_id),
+            userId: String(m.user_id),
+            userName: m.user_name,
+            userRole: m.user_role,
+            message: m.message,
+            messageType: m.message_type,
+            timestamp: m.timestamp,
+            fileName: m.file_name,
+            fileSize: m.file_size,
+            fileType: m.file_type,
+            fileUrl: resolveMediaUrl(m.file_url),
+          }));
+          setChatMessages(mapped);
         }
       } catch (error) {
         console.error('Error loading chat history:', error);
@@ -89,25 +141,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     loadMessages();
   }, [projectId]);
 
-  // Polling for new messages every 3 seconds (since Socket.IO isn't working)
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/chat/${projectId}`);
-        if (response.ok) {
-          const latestMessages = await response.json();
-          if (latestMessages.length !== chatMessages.length) {
-            console.log('🔄 New messages detected, updating chat');
-            setChatMessages(latestMessages);
-          }
-        }
-      } catch (error) {
-        console.error('Error polling for messages:', error);
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [projectId, chatMessages.length]);
+  // Remove polling: WS will trigger refresh
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +163,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       file_name: fileData?.fileName || null,
       file_size: fileData?.fileSize || null,
       file_type: fileData?.fileType || null,
+      file_url: fileData?.fileUrl || null,
     };
 
     // Optimistically add message to UI first
@@ -150,7 +185,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
       const apiUrl = `${API_BASE_URL}/chat/project/${projectId}/messages`;
       console.log('Calling API:', apiUrl);
-      
+      const token = authAPI.getToken();
       // Save message to database
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -158,6 +193,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(messageData),
       });
@@ -165,7 +201,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       console.log('API Response:', response.status, response.ok);
 
       if (response.ok) {
-        const savedMessage = await response.json();
+            const savedMessage = await response.json();
         console.log('Message saved:', savedMessage);
         
         // Convert backend response to frontend format
@@ -173,14 +209,15 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
           id: savedMessage.id,
           projectId: savedMessage.project_id,
           userId: savedMessage.user_id,
-          userName: savedMessage.user_name,
-          userRole: savedMessage.user_role,
+              userName: savedMessage.user_name,
+              userRole: savedMessage.user_role,
           message: savedMessage.message,
           messageType: savedMessage.message_type,
           timestamp: savedMessage.timestamp,
           fileName: savedMessage.file_name,
           fileSize: savedMessage.file_size,
           fileType: savedMessage.file_type,
+          fileUrl: resolveMediaUrl(savedMessage.file_url),
         };
         
         // Replace temp message with real one
@@ -190,15 +227,9 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
           )
         );
         
-        // Emit message via socket for real-time updates
-        if (socket && isConnected) {
-          console.log('Emitting via socket');
-          socket.emit('send-message', {
-            projectId,
-            message: frontendMessage,
-          });
-        } else {
-          console.log('Socket not connected:', { socket: !!socket, isConnected });
+        // Notify via backend WebSocket (others will refresh on receive)
+        if (isConnected) {
+          send({ message: savedMessage.message, sender: String(savedMessage.user_id) });
         }
       } else {
         console.error('API Error:', await response.text());
@@ -323,12 +354,25 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   };
 
   const getRoleTag = (role: string) => {
-    const roleConfig = {
+    const roleConfig: Record<string, { label: string; color: string }> = {
+      admin: { label: 'Admin', color: 'bg-red-100 text-red-800' },
       client: { label: 'Client', color: 'bg-blue-100 text-blue-800' },
       project_manager: { label: 'Manager', color: 'bg-green-100 text-green-800' },
+      assistant_project_manager: { label: 'Asst. PM', color: 'bg-emerald-100 text-emerald-800' },
       designer: { label: 'Designer', color: 'bg-purple-100 text-purple-800' },
+      senior_designer: { label: 'Sr. Designer', color: 'bg-purple-100 text-purple-800' },
+      team_lead: { label: 'Team Lead', color: 'bg-indigo-100 text-indigo-800' },
+      team_head: { label: 'Team Head', color: 'bg-indigo-100 text-indigo-800' },
+      professional_engineer: { label: 'Engineer', color: 'bg-amber-100 text-amber-800' },
+      auto_cad_drafter: { label: 'Drafter', color: 'bg-amber-100 text-amber-800' },
+      operation_manager: { label: 'Ops', color: 'bg-cyan-100 text-cyan-800' },
+      hr_manager: { label: 'HR', color: 'bg-pink-100 text-pink-800' },
+      accountant: { label: 'Accounts', color: 'bg-slate-100 text-slate-800' },
+      sales_manager: { label: 'Sales', color: 'bg-orange-100 text-orange-800' },
+      digital_marketing: { label: 'Marketing', color: 'bg-teal-100 text-teal-800' },
+      client_team_member: { label: 'Client Team', color: 'bg-blue-100 text-blue-800' },
     };
-    return roleConfig[role as keyof typeof roleConfig] || { label: 'User', color: 'bg-muted text-muted-foreground' };
+    return roleConfig[role] || { label: 'User', color: 'bg-muted text-muted-foreground' };
   };
 
   const getRoleAvatar = (role: string) => {
@@ -359,6 +403,37 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     if (fileType.includes('word') || fileType.includes('doc')) return <FileIcon size={16} className="text-blue-500" />;
     if (fileType.includes('excel') || fileType.includes('sheet')) return <FileIcon size={16} className="text-green-500" />;
     return <FileIcon size={16} />;
+  };
+
+  const openPreview = (url?: string, name?: string, type?: string, size?: number) => {
+    if (!url) return;
+    setPreview({ open: true, url, name: name || 'file', type: type || 'application/octet-stream', size });
+  };
+
+  const closePreview = () => setPreview(prev => ({ ...prev, open: false }));
+
+  const downloadViaBlob = async (url?: string, name?: string) => {
+    if (!url) return;
+    try {
+      const response = await fetch(url, { credentials: 'include' });
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      // Fallback to navigation if blob download fails
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
@@ -407,7 +482,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         ) : (
           chatMessages.map((message) => {
           const roleTag = getRoleTag(message.userRole || 'user');
-          const isOwnMessage = message.userId === currentUser.id;
+          const isOwnMessage = String(message.userId) === String(currentUser.id);
           
           return (
             <div
@@ -472,22 +547,24 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                             onError={(e) => {
                               console.error('Image failed to load:', message.fileName);
                             }}
+                            onClick={() => openPreview(message.fileUrl, message.fileName, message.fileType, message.fileSize)}
                           />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const link = document.createElement('a');
-                              link.href = message.fileUrl!;
-                              link.download = message.fileName || 'download';
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            }}
-                            className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Download"
-                          >
-                            <DownloadIcon size={14} />
-                          </button>
+                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openPreview(message.fileUrl, message.fileName, message.fileType, message.fileSize); }}
+                              className="bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full"
+                              title="View"
+                            >
+                              <EyeIcon size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); downloadViaBlob(message.fileUrl, message.fileName); }}
+                              className="bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full"
+                              title="Download"
+                            >
+                              <DownloadIcon size={14} />
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         /* File info for non-images */
@@ -504,21 +581,22 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                               {message.fileName || 'Unknown file'}
                             </p>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const link = document.createElement('a');
-                              link.href = message.fileUrl!;
-                              link.download = message.fileName || 'download';
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            }}
-                            className="text-gray-600 hover:bg-gray-300 p-1 rounded transition-colors"
-                            title="Download"
-                          >
-                            <DownloadIcon size={14} />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openPreview(message.fileUrl, message.fileName, message.fileType, message.fileSize); }}
+                              className="text-gray-600 hover:bg-gray-300 p-1 rounded transition-colors"
+                              title="View"
+                            >
+                              <EyeIcon size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); downloadViaBlob(message.fileUrl, message.fileName); }}
+                              className="text-gray-600 hover:bg-gray-300 p-1 rounded transition-colors"
+                              title="Download"
+                            >
+                              <DownloadIcon size={14} />
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -589,6 +667,16 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
           )}
         </button>
       </form>
+
+      {/* Preview Modal */}
+      <ChatFilePreviewModal
+        isOpen={preview.open}
+        onClose={closePreview}
+        fileUrl={preview.url}
+        fileName={preview.name}
+        fileType={preview.type}
+        fileSize={preview.size}
+      />
 
     </div>
   );
