@@ -316,8 +316,14 @@ export default function MessagesPage() {
                   <div
                     key={manager.id}
                     onClick={() => setSelectedUser(manager)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 border-2 border-green-200 bg-green-50 ${
-                      selectedUser?.id === manager.id ? 'bg-green-100 border-green-300' : 'hover:bg-green-100'
+                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
+                      (user?.role === 'client' || user?.role === 'client_team_member')
+                        ? selectedUser?.id === manager.id
+                          ? 'bg-purple-100 border border-purple-300'
+                          : 'hover:bg-purple-50'
+                        : selectedUser?.id === manager.id
+                          ? 'bg-blue-100 border border-blue-300'
+                          : 'hover:bg-gray-50'
                     }`}
                   >
                     <div className={`w-10 h-10 ${getAvatarColor(manager.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
@@ -330,10 +336,10 @@ export default function MessagesPage() {
                         {manager.name}
                       </p>
                       <p className="text-xs text-gray-500 truncate">
-                        Admin
+                        {manager.role.charAt(0).toUpperCase() + manager.role.slice(1)}
                       </p>
                     </div>
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className={`w-2 h-2 ${(user?.role === 'client' || user?.role === 'client_team_member') ? 'bg-purple-500' : 'bg-blue-500'} rounded-full`}></div>
                   </div>
                 ))}
               </div>
@@ -349,8 +355,14 @@ export default function MessagesPage() {
                   <div
                     key={manager.id}
                     onClick={() => setSelectedUser(manager)}
-                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 border-2 border-green-200 bg-green-50 ${
-                      selectedUser?.id === manager.id ? 'bg-green-100 border-green-300' : 'hover:bg-green-100'
+                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
+                      (user?.role === 'client' || user?.role === 'client_team_member')
+                        ? selectedUser?.id === manager.id
+                          ? 'bg-purple-100 border border-purple-300'
+                          : 'hover:bg-purple-50'
+                        : selectedUser?.id === manager.id
+                          ? 'bg-blue-100 border border-blue-300'
+                          : 'hover:bg-gray-50'
                     }`}
                   >
                     <div className={`w-10 h-10 ${getAvatarColor(manager.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
@@ -363,10 +375,10 @@ export default function MessagesPage() {
                         {manager.name}
                       </p>
                       <p className="text-xs text-gray-500 truncate">
-                        Project Manager
+                        {manager.role.charAt(0).toUpperCase() + manager.role.slice(1)}
                       </p>
                     </div>
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className={`w-2 h-2 ${(user?.role === 'client' || user?.role === 'client_team_member') ? 'bg-purple-500' : 'bg-blue-500'} rounded-full`}></div>
                   </div>
                 ))}
               </div>
@@ -405,7 +417,7 @@ export default function MessagesPage() {
                         {designer.name}
                       </p>
                       <p className="text-xs text-gray-500 truncate">
-                        {designer.role}
+                        {designer.role.charAt(0).toUpperCase() + designer.role.slice(1)}
                       </p>
                     </div>
                     <div className={`w-2 h-2 ${(user?.role === 'client' || user?.role === 'client_team_member') ? 'bg-purple-500' : 'bg-blue-500'} rounded-full`}></div>
@@ -440,7 +452,7 @@ export default function MessagesPage() {
                         {staff.name}
                       </p>
                       <p className="text-xs text-gray-500 truncate">
-                        {staff.role}
+                        {staff.role.charAt(0).toUpperCase() + staff.role.slice(1)}
                       </p>
                     </div>
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>

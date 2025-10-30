@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { SendIcon, ArrowLeftIcon, PaperclipIcon, DownloadIcon } from 'lucide-react';
+import { SendIcon, ArrowLeftIcon, PaperclipIcon, DownloadIcon, EyeIcon } from 'lucide-react';
 import { User } from '@/types';
+import { ProjectAttachment } from '@/types';
+import FileViewerModal from '@/components/modals/FileViewerModal';
 import { authAPI } from '@/lib/api/auth';
 import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
+import { Button } from '@/components/ui/button';
 
 interface Message {
   id: string;
@@ -25,6 +28,30 @@ interface IndividualChatProps {
   targetUser: any;
   onBack: () => void;
 }
+
+function normalizeMessages(msgs: any[]): Message[] {
+  return msgs.map(msg => ({
+    ...msg,
+    senderId: String(msg.sender_id ?? msg.senderId),
+    senderName: msg.sender_name ?? msg.senderName,
+    receiverId: String(msg.recipient_id ?? msg.receiverId),
+    fileUrl: msg.file_url || msg.fileUrl,
+    fileName: msg.file_name || msg.fileName, // fix for showing correct file name
+    fileType: msg.file_type || msg.fileType, // NEW: map file type for preview
+  }));
+}
+
+// Add a small helper to infer mime type from filename when backend doesn't provide it
+const guessMimeType = (name?: string): string => {
+  if (!name) return '';
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.pdf')) return 'application/pdf';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  return '';
+};
 
 export default function IndividualChat({ currentUser, targetUser, onBack }: IndividualChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,7 +75,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         });
         if (res.ok) {
           const data = await res.json();
-          setMessages(data);
+          setMessages(normalizeMessages(data));
         }
       } catch (_) {}
     }
@@ -69,7 +96,12 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         });
         if (response.ok) {
           const data = await response.json();
-          setMessages(data);
+          setMessages(normalizeMessages(Array.isArray(data) ? data.map(msg => ({
+            ...msg,
+            senderId: String(msg.sender_id),
+            senderName: msg.sender_name,
+            receiverId: String(msg.recipient_id),
+          })) : []));
         }
       } catch (error) {
         console.error('Error loading messages:', error);
@@ -98,12 +130,13 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
   };
 
   const sendMessage = async (content: string, messageType: 'text' | 'file' | 'image', fileData?: any) => {
-    const messageData = {
+    const messageData: any = {
       message: content,
       message_type: messageType,
       file_name: fileData?.fileName || null,
       file_size: fileData?.fileSize || null,
       file_type: fileData?.fileType || null,
+      file_url: fileData?.fileUrl || null, // <-- pass base64 here
     };
 
     // Optimistically add message
@@ -117,7 +150,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
       timestamp: new Date().toISOString(),
       ...fileData,
     } as Message;
-    setMessages(prev => [...prev, tempMessage]);
+    setMessages(prev => normalizeMessages([...prev, tempMessage]));
     setNewMessage('');
 
     try {
@@ -174,11 +207,11 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
     try {
       const reader = new FileReader();
       reader.onload = async (event) => {
-        const fileUrl = event.target?.result as string;
+        const fileUrl = event.target?.result as string; // This is the base64 data: URL
         const messageType = file.type.startsWith('image/') ? 'image' : 'file';
-        
+
         const fileData = {
-          fileUrl,
+          fileUrl,               // will become file_url for the API
           fileName: file.name,
           fileSize: file.size,
           fileType: file.type,
@@ -191,7 +224,6 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         await sendMessage(messageText, messageType, fileData);
         setUploadingFile(false);
       };
-
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -234,6 +266,50 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  console.log('DEBUG alignment - messages', messages, 'currentUserId', currentUser.id);
+
+  const messagesReady =
+    messages.length === 0 ||
+    messages.every(
+      msg =>
+        typeof msg.senderId === 'string' &&
+        typeof msg.receiverId === 'string'
+    );
+
+  if (!messagesReady) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <span>Loading chat...</span>
+      </div>
+    );
+  }
+
+  const getFullFileUrl = (fileUrl: string) => {
+    if (!fileUrl) return '';
+    if (fileUrl.startsWith('http')) return fileUrl;
+    return `http://localhost:8000${fileUrl}`;
+  };
+
+  const handleDownload = async (fileUrl: string, fileName?: string) => {
+    try {
+      const response = await fetch(fileUrl, { credentials: 'include' });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'download';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      alert('Failed to download file.');
+    }
+  };
+
+  const [showViewer, setShowViewer] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<ProjectAttachment | null>(null);
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col">
       {/* Chat Header */}
@@ -262,7 +338,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
       {/* Messages */}
       <div ref={messagesContainerRef} className="h-[calc(100vh-20rem)] overflow-y-auto p-4 space-y-4">
         {messages.map((message) => {
-          const isOwnMessage = message.senderId === currentUser.id;
+          const isOwnMessage = String(message.senderId) === String(currentUser.id);
           const isTaskTagged = message.message.includes('Task:');
           
           return (
@@ -331,22 +407,36 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
                           )}
                         </div>
                         <button
+                          type="button"
                           onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = message.fileUrl!;
-                            link.download = message.fileName || 'download';
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
+                            if (!message.fileUrl) return;
+                            const attachment: ProjectAttachment = {
+                              id: message.id,
+                              name: message.fileName || 'Attachment',
+                              size: message.fileSize || 0,
+                              type: message.fileType || guessMimeType(message.fileName) || 'application/octet-stream',
+                              url: getFullFileUrl(message.fileUrl),
+                              uploadedAt: message.timestamp,
+                              uploadedBy: message.senderId,
+                            };
+                            setSelectedFile(attachment);
+                            setShowViewer(true);
                           }}
-                          className={`p-1 rounded ${
-                            isOwnMessage 
-                              ? 'text-blue-200 hover:bg-blue-500' 
-                              : 'text-gray-500 hover:bg-gray-200'
-                          }`}
+                          className={`text-gray-600 hover:bg-gray-300 p-1 rounded transition-colors${isOwnMessage ? ' ml-1' : ''}`}
+                          title="View"
+                          disabled={!message.fileUrl}
+                        >
+                          <EyeIcon size={14} />
+                        </button>
+                        <Button
+                          onClick={() => handleDownload(getFullFileUrl(message.fileUrl), message.fileName)}
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Download file"
                         >
                           <DownloadIcon size={12} />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -408,6 +498,11 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
           </button>
         </div>
       </form>
+      <FileViewerModal
+        isOpen={showViewer}
+        onClose={() => { setShowViewer(false); setSelectedFile(null); }}
+        attachment={selectedFile}
+      />
     </div>
   );
 }
