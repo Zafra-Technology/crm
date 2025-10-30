@@ -69,8 +69,8 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
       const usersData = await authAPI.getUsers(selectedRole || undefined, searchTerm || undefined);
       console.log('Fetched users data:', usersData);
       
-      // Filter out clients - only show staff users
-      const staffUsers = usersData.filter(user => user.role !== 'client');
+      // Filter out clients and client team members - only show staff users
+      const staffUsers = usersData.filter(user => user.role !== 'client' && user.role !== 'client_team_member');
       setUsers(staffUsers);
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -88,8 +88,8 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   const loadRoleChoices = async () => {
     try {
       const roles = await authAPI.getRoleChoices();
-      // Filter out client role for staff management
-      const staffRoles = roles.filter(role => role.value !== 'client');
+      // Filter out client and client team member roles for staff management
+      const staffRoles = roles.filter(role => role.value !== 'client' && role.value !== 'client_team_member');
       setRoleChoices(staffRoles);
     } catch (error) {
       console.error('Failed to load role choices:', error);

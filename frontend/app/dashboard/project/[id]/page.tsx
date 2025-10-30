@@ -396,6 +396,7 @@ export default function ProjectDetailsPage() {
     user.role === 'admin' ||
     user.role === 'project_manager' ||
     user.role === 'assistant_project_manager' ||
+    user.role === 'professional_engineer' ||
     user.role === 'client' ||
     user.role === 'client_team_member'
   );

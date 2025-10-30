@@ -48,7 +48,7 @@ export default function MessagesPage() {
   const [memberOptionsLoading, setMemberOptionsLoading] = useState(false);
 
   // Define role groups
-  const designerRoles = ['designer', 'senior_designer', 'auto_cad_drafter', 'team_head', 'team_lead'];
+  const designerRoles = ['designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'team_head', 'team_lead'];
 
   useEffect(() => {
     getCurrentUser().then(setUser);
@@ -169,7 +169,73 @@ export default function MessagesPage() {
             setManagers([]);
           }
         } else {
-          // Fetch all users once for non-client users
+          // Professional engineer: fetch only permitted roles to avoid permission errors
+          if (user.role === 'professional_engineer') {
+            try {
+              const toSimple = (arr: any[]) => (arr || []).filter(u => u.is_active).map(u => ({
+                id: u.id.toString(),
+                name: u.full_name,
+                email: u.email,
+                role: u.role,
+              }));
+
+              const managersCombined: Array<{ id: string; name: string; email: string; role: string }> = [];
+
+              // Fetch each role independently to avoid Promise.all being rejected entirely
+              try {
+                const pms = await authAPI.getUsers('project_manager');
+                managersCombined.push(...toSimple(pms));
+              } catch (_) {}
+
+              try {
+                const apms = await authAPI.getUsers('assistant_project_manager');
+                managersCombined.push(...toSimple(apms));
+              } catch (_) {}
+
+              try {
+                const admins = await authAPI.getUsers('admin');
+                managersCombined.push(...toSimple(admins));
+              } catch (_) {}
+
+              // Dedupe by id
+              const deduped = managersCombined.filter((m, idx, arr) => arr.findIndex(mm => mm.id === m.id) === idx);
+
+              if (deduped.length > 0) {
+                setDesigners([]);
+                setManagers(deduped);
+              } else {
+                // Fallback: derive project managers from assigned projects
+                try {
+                  const { projectsApi } = await import('@/lib/api/projects');
+                  const projects = await projectsApi.getByUser(user.id, user.role);
+                  const managersMap: Record<string, { id: string; name: string; email: string; role: string }> = {};
+                  (projects || []).forEach((p: any) => {
+                    const mid = String(p.managerId || '');
+                    if (mid) {
+                      managersMap[mid] = managersMap[mid] || {
+                        id: mid,
+                        name: p.managerName || 'Project Manager',
+                        email: '',
+                        role: 'project_manager',
+                      };
+                    }
+                  });
+                  const derived = Object.values(managersMap);
+                  setDesigners([]);
+                  setManagers(derived);
+                } catch (fallbackErr) {
+                  console.error('Fallback deriving managers from projects failed:', fallbackErr);
+                  setDesigners([]);
+                  setManagers([]);
+                }
+              }
+            } finally {
+              setLoading(false);
+            }
+            return; // Stop further processing for PE path
+          }
+
+          // Fetch all users once for other non-client users
           const allUsers = await authAPI.getUsers();
 
           // Derive managers from roles

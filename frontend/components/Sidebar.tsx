@@ -42,7 +42,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Projects', 
       href: '/dashboard',
       active: pathname === '/dashboard',
-      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'auto_cad_drafter', 'admin']
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
     },
     { 
       icon: ClockIcon, 
@@ -56,7 +56,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Tasks', 
       href: '/dashboard/tasks',
       active: pathname === '/dashboard/tasks',
-      roles: ['project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
+      roles: ['project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'auto_cad_drafter', 'admin']
     },
     { 
       icon: BuildingIcon, 
@@ -112,7 +112,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'Settings', 
       href: '/dashboard/settings',
       active: pathname === '/dashboard/settings',
-      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'hr_manager', 'accountant', 'sales_manager', 'digital_marketing', 'admin', 'operation_manager']
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'hr_manager', 'accountant', 'sales_manager', 'digital_marketing', 'admin', 'operation_manager']
     },
   ];
 
