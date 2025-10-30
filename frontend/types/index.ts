@@ -32,7 +32,8 @@ export interface Project {
   quotationFile?: string;
   quotationAccepted: boolean;
   clientId: string;
-  clientName: string;
+  clientName?: string;
+  clientCompany?: string;
   managerId: string;
   designerIds: string[];
   attachments?: ProjectAttachment[];

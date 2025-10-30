@@ -66,13 +66,21 @@ export default function ProjectDetailsPage() {
       // Load project details
       const foundProject = await projectsApi.getById(projectId);
       if (foundProject) {
-        setProject(foundProject);
+        // Map backend snake_case fields to camelCase for frontend
+        const mappedProject = {
+          ...foundProject,
+          clientName: foundProject.clientName || (foundProject as any).client_name,
+          clientCompany: foundProject.clientCompany || (foundProject as any).client_company,
+          // fallback: preserve other fields unchanged
+        };
+        setProject(mappedProject);
         setEditForm({
-          name: foundProject.name,
-          description: foundProject.description,
-          requirements: foundProject.requirements,
-          timeline: foundProject.timeline,
-          status: foundProject.status
+          name: mappedProject.name,
+          description: mappedProject.description,
+          requirements: mappedProject.requirements,
+          timeline: mappedProject.timeline,
+          status: mappedProject.status
+          // NO clientName or clientCompany in editForm
         });
 
         try {
@@ -384,6 +392,13 @@ export default function ProjectDetailsPage() {
     user.role === 'team_lead';
   const isClient = user.role === 'client';
   const isDesigner = user.role === 'designer';
+  const canSeeChat = (
+    user.role === 'admin' ||
+    user.role === 'project_manager' ||
+    user.role === 'assistant_project_manager' ||
+    user.role === 'client' ||
+    user.role === 'client_team_member'
+  );
 
   const statusColors: Record<Project['status'] | 'inactive' | 'rejected' | 'quotation_submitted', string> = {
     planning: 'bg-blue-100 text-blue-800',
@@ -427,7 +442,7 @@ export default function ProjectDetailsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column - Project Content */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className={`lg:${canSeeChat ? 'col-span-1' : 'col-span-2'} space-y-6`}>
           {/* Project Details */}
           <Card>
             <CardHeader>
@@ -451,9 +466,9 @@ export default function ProjectDetailsPage() {
                     <div className="flex items-center space-x-2 text-muted-foreground">
                       <BuildingIcon size={16} />
                       <div className="flex flex-col">
-                        <span className="font-medium">{client?.full_name || (project as any).clientName || 'Unknown Client'}</span>
-                        {(client?.company_name || (project as any).clientCompany) && (
-                          <span className="text-sm text-muted-foreground/70">{client?.company_name || (project as any).clientCompany}</span>
+                        <span className="font-medium">{project.clientName || 'Unknown Client'}</span>
+                        {project.clientCompany && (
+                          <span className="text-sm text-muted-foreground/70">{project.clientCompany}</span>
                         )}
                       </div>
                     </div>
@@ -582,15 +597,17 @@ export default function ProjectDetailsPage() {
         </div>
 
         {/* Right Column - Team Chat */}
-        <div className="lg:col-span-1">
-          <div className="h-[calc(100vh-12rem)] sticky top-6">
-            <ProjectChat 
-              projectId={projectId}
-              currentUser={user}
-              messages={chatMessages}
-            />
+        {canSeeChat && (
+          <div className="lg:col-span-1">
+            <div className="h-[calc(100vh-12rem)] sticky top-6">
+              <ProjectChat 
+                projectId={projectId}
+                currentUser={user}
+                messages={chatMessages}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Edit Project Modal */}

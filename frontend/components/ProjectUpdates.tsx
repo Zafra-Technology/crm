@@ -42,6 +42,9 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
     file: null as File | null,
   });
 
+  // Compute if user can add update
+  const userCanAddUpdate = canEdit && !['client', 'client_team_member'].includes(currentUser.role);
+
   const handleAddUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -178,7 +181,7 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Project Updates</CardTitle>
-          {canEdit && (
+          {userCanAddUpdate && (
             <Button
               onClick={() => setShowAddForm(true)}
               variant="outline"
@@ -274,128 +277,130 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
         </div>
 
         {/* Add Update Form */}
-        <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add Project Update</DialogTitle>
-              <DialogDescription>
-                Share a new update about this project.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleAddUpdate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="update-type">Update Type</Label>
-                <Select
-                  value={newUpdate.type}
-                  onValueChange={(value) => setNewUpdate({ ...newUpdate, type: value as ProjectUpdate['type'] })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select update type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="design">Design Update</SelectItem>
-                    <SelectItem value="file">File Upload</SelectItem>
-                    <SelectItem value="comment">Comment</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        {userCanAddUpdate && (
+          <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add Project Update</DialogTitle>
+                <DialogDescription>
+                  Share a new update about this project.
+                </DialogDescription>
+              </DialogHeader>
               
-              <div className="space-y-2">
-                <Label htmlFor="update-title">Title</Label>
-                <Input
-                  id="update-title"
-                  type="text"
-                  required
-                  value={newUpdate.title}
-                  onChange={(e) => setNewUpdate({ ...newUpdate, title: e.target.value })}
-                  placeholder="Update title"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="update-description">Description</Label>
-                <Textarea
-                  id="update-description"
-                  value={newUpdate.description}
-                  onChange={(e) => setNewUpdate({ ...newUpdate, description: e.target.value })}
-                  rows={3}
-                  placeholder="Describe the update"
-                />
-              </div>
-
-                {/* File Upload (Optional) */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Attach File (Optional)
-                  </label>
-                  <div className="space-y-3">
-                    {/* File Upload Area */}
-                    {!newUpdate.file ? (
-                      <div className="flex items-center justify-center w-full">
-                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-input rounded-lg cursor-pointer bg-accent/50 hover:bg-accent">
-                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <UploadIcon className="w-8 h-8 mb-4 text-muted-foreground" />
-                            <p className="mb-2 text-sm text-muted-foreground">
-                              <span className="font-semibold">Click to upload</span> or drag and drop
-                            </p>
-                            <p className="text-xs text-muted-foreground">PDF, DOC, Images, etc. (MAX. 10MB)</p>
-                          </div>
-                          <input
-                            type="file"
-                            onChange={handleFileUpload}
-                            className="hidden"
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif"
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      /* Selected File Display */
-                      <div className="flex items-center justify-between p-3 bg-accent/50 rounded-md border border-border">
-                        <div className="flex items-center space-x-3">
-                          <FileIcon size={20} className="text-muted-foreground" />
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{newUpdate.file.name}</p>
-                            <p className="text-xs text-muted-foreground">{formatFileSize(newUpdate.file.size)}</p>
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={removeFile}
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
-                          <XIcon size={16} />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+              <form onSubmit={handleAddUpdate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="update-type">Update Type</Label>
+                  <Select
+                    value={newUpdate.type}
+                    onValueChange={(value) => setNewUpdate({ ...newUpdate, type: value as ProjectUpdate['type'] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select update type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="design">Design Update</SelectItem>
+                      <SelectItem value="file">File Upload</SelectItem>
+                      <SelectItem value="comment">Comment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="update-title">Title</Label>
+                  <Input
+                    id="update-title"
+                    type="text"
+                    required
+                    value={newUpdate.title}
+                    onChange={(e) => setNewUpdate({ ...newUpdate, title: e.target.value })}
+                    placeholder="Update title"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="update-description">Description</Label>
+                  <Textarea
+                    id="update-description"
+                    value={newUpdate.description}
+                    onChange={(e) => setNewUpdate({ ...newUpdate, description: e.target.value })}
+                    rows={3}
+                    placeholder="Describe the update"
+                  />
                 </div>
 
-            </form>
+                  {/* File Upload (Optional) */}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Attach File (Optional)
+                    </label>
+                    <div className="space-y-3">
+                      {/* File Upload Area */}
+                      {!newUpdate.file ? (
+                        <div className="flex items-center justify-center w-full">
+                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-input rounded-lg cursor-pointer bg-accent/50 hover:bg-accent">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <UploadIcon className="w-8 h-8 mb-4 text-muted-foreground" />
+                              <p className="mb-2 text-sm text-muted-foreground">
+                                <span className="font-semibold">Click to upload</span> or drag and drop
+                              </p>
+                              <p className="text-xs text-muted-foreground">PDF, DOC, Images, etc. (MAX. 10MB)</p>
+                            </div>
+                            <input
+                              type="file"
+                              onChange={handleFileUpload}
+                              className="hidden"
+                              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif"
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        /* Selected File Display */
+                        <div className="flex items-center justify-between p-3 bg-accent/50 rounded-md border border-border">
+                          <div className="flex items-center space-x-3">
+                            <FileIcon size={20} className="text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{newUpdate.file.name}</p>
+                              <p className="text-xs text-muted-foreground">{formatFileSize(newUpdate.file.size)}</p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={removeFile}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                          >
+                            <XIcon size={16} />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowAddForm(false)}
-                disabled={loading}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="flex-1"
-                onClick={handleAddUpdate}
-              >
-                {loading ? 'Adding...' : 'Add Update'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              </form>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddForm(false)}
+                  disabled={loading}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1"
+                  onClick={handleAddUpdate}
+                >
+                  {loading ? 'Adding...' : 'Add Update'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
 
         {/* File Viewer Modal */}
         <FileViewerModal

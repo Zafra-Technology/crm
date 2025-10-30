@@ -45,7 +45,7 @@ export const projectUpdatesApi = {
   // Get updates by user ID
   getByUserId: async (updateData: { projectId: string; userId: string }): Promise<ProjectUpdate[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates?userId=${userId}`);
+      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates?userId=${updateData.userId}`);
       if (!response.ok) throw new Error('Failed to fetch project updates');
       const data = await response.json();
       return data.updates;
@@ -58,7 +58,7 @@ export const projectUpdatesApi = {
   // Get single update
   getById: async (updateData: { projectId: string; id: string }): Promise<ProjectUpdate | null> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates/${id}`);
+      const response = await fetch(`${API_BASE_URL}/projects/${updateData.projectId}/updates/${updateData.id}`);
       if (!response.ok) return null;
       const data = await response.json();
       return data.update;
