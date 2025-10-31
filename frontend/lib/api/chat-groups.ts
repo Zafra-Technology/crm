@@ -78,6 +78,26 @@ export const groupChatApi = {
     return res.json();
   },
 
+  editMessage: async (groupId: number, messageId: number, payload: { message: string }): Promise<boolean> => {
+    const res = await fetch(`${API_BASE}/groups/${groupId}/messages/${messageId}/edit`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ message: payload.message }),
+    });
+    return res.ok;
+  },
+
+  deleteMessage: async (groupId: number, messageId: number, scope: 'me' | 'everyone'): Promise<boolean> => {
+    const res = await fetch(`${API_BASE}/groups/${groupId}/messages/${messageId}/delete`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ scope }),
+    });
+    return res.ok;
+  },
+
   addMember: async (groupId: number, userId: number): Promise<boolean> => {
     const res = await fetch(`${API_BASE}/groups/${groupId}/add_member/`, {
       method: 'POST',

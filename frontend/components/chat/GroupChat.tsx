@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { SendIcon, PaperclipIcon, DownloadIcon, EyeIcon, UserMinus, X, Search, Users } from 'lucide-react';
+import { SendIcon, PaperclipIcon, DownloadIcon, EyeIcon, UserMinus, X, Search, Users, MoreVertical, Forward, CheckSquare, Pencil, Trash2, Image as ImageIcon, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { User } from '@/types';
 import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
@@ -9,6 +9,11 @@ import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
 import ChatFilePreviewModal from '@/components/modals/ChatFilePreviewModal';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import ShareMessageModal from '@/components/modals/ShareMessageModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+import { groupChatApi } from '@/lib/api/chat-groups';
+import { individualChatApi } from '@/lib/api/individual-chat';
 
 interface GroupChatProps {
   groupId: string;
@@ -50,6 +55,15 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
   const [userMeta, setUserMeta] = useState<Record<string, { name: string; role: string; avatar?: string }>>({});
   const [confirmRemove, setConfirmRemove] = useState<{ open: boolean; userId?: string; userName?: string }>({ open: false });
   const [memberSearch, setMemberSearch] = useState('');
+  const { toast } = useToast();
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>('');
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id?: string; timestamp?: string }>({ open: false });
+  const [editingFileData, setEditingFileData] = useState<{ fileUrl: string; fileName: string; fileSize: number; fileType: string; messageType: 'file'|'image' } | null>(null);
 
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
   const { isConnected, send } = useChatWebSocket(
@@ -106,12 +120,8 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
               fileSize: m.file_size || undefined,
               fileType: m.file_type || undefined,
             }));
-            // Merge only new messages
-            setMessages((prev) => {
-              const existingIds = new Set(prev.map(p => String(p.id)));
-              const additions = mapped.filter((m:any) => !existingIds.has(String(m.id)));
-              return additions.length ? [...prev, ...additions] : prev;
-            });
+            // Replace with latest snapshot so edits/deletes reflect immediately
+            setMessages(mapped);
             setUserMeta(prev => {
               const next = { ...prev } as Record<string, { name: string; role: string; avatar?: string }>;
               for (const m of mapped) {
@@ -423,6 +433,43 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
     }
   };
 
+  const canEdit = (m: GroupMessage) => {
+    if (String(m.userId) !== String(currentUser.id)) return false;
+    const dt = new Date(m.timestamp).getTime();
+    return Date.now() - dt <= 24 * 3600 * 1000;
+  };
+  const canDeleteEveryone = (m: GroupMessage) => {
+    if (String(m.userId) !== String(currentUser.id)) return false;
+    const dt = new Date(m.timestamp).getTime();
+    return Date.now() - dt <= 1 * 3600 * 1000;
+  };
+
+  const handleEditSave = async (m: GroupMessage) => {
+    const ok = await groupChatApi.editMessage(Number(groupId), Number(m.id), { message: editingText });
+    if (ok) {
+      setMessages(prev => prev.map(mm => mm.id === m.id ? { ...mm, message: editingText } : mm));
+      setEditingId(null); setEditingText('');
+    } else {
+      toast({ title: 'Edit failed', description: 'Unable to edit message', variant: 'destructive' as any });
+    }
+  };
+
+  const performDelete = async (scope: 'me' | 'everyone') => {
+    if (!deleteDialog.id) return;
+    const ok = await groupChatApi.deleteMessage(Number(groupId), Number(deleteDialog.id), scope);
+    if (ok) {
+      if (scope === 'me') {
+        setMessages(prev => prev.filter(m => String(m.id) !== String(deleteDialog.id)));
+      } else {
+        setMessages(prev => prev.map(m => String(m.id) === String(deleteDialog.id) ? { ...m, message: 'this message has been deleted', messageType: 'text', fileUrl: undefined, fileName: undefined, fileSize: undefined, fileType: undefined } : m));
+        if (isConnected) send({ type: 'chat_message', sender: String(currentUser.id) });
+      }
+    } else {
+      toast({ title: 'Delete failed', description: 'Unable to delete message', variant: 'destructive' as any });
+    }
+    setDeleteDialog({ open: false });
+  };
+
   const getRoleBadgeClasses = (role?: string) => {
     const key = (role || 'user').toLowerCase();
     if (key.includes('admin')) return 'bg-red-50 text-red-700 border-red-200';
@@ -464,6 +511,31 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
         </div>
       </div>
 
+      {isSelectMode ? (
+        <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+          <div className="text-sm text-gray-700">{selectedMessageIds.size} selected</div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8 px-3"
+              disabled={selectedMessageIds.size === 0}
+              onClick={() => setShareOpen(true)}
+            >
+              <Forward size={14} className="mr-1" /> Share
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              onClick={() => { setSelectedMessageIds(new Set()); setIsSelectMode(false); }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.map((m) => {
           const own = String(m.userId) === String(currentUser.id);
@@ -479,6 +551,13 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
               )}
               <div className={`flex-1 max-w-sm ${own ? 'text-right' : ''}`}>
                 <div className={`flex items-center space-x-2 mb-1 ${own ? 'justify-end' : ''}`}>
+                  {isSelectMode && (
+                    <Checkbox
+                      checked={selectedMessageIds.has(String(m.id))}
+                      onCheckedChange={() => setSelectedMessageIds(prev => { const n = new Set(prev); const id = String(m.id); n.has(id) ? n.delete(id) : n.add(id); return n; })}
+                      className="mr-1"
+                    />
+                  )}
                   {!own && (
                     <>
                       <span className="text-sm font-medium text-gray-900 truncate max-w-[160px]">{meta.name}</span>
@@ -488,9 +567,89 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
                     </>
                   )}
                   <span className="text-xs text-gray-500">{formatTime(m.timestamp)}</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="text-gray-600 hover:bg-gray-200 p-1 rounded" title="More">
+                        <MoreVertical size={14} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align={own ? 'start' : 'end'} className="w-40">
+                      <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                        <span className="inline-flex items-center gap-2">
+                          <Forward size={14} />
+                          <span>Share</span>
+                        </span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setIsSelectMode(true); setSelectedMessageIds(prev => new Set(prev).add(String(m.id))); }}>
+                        <span className="inline-flex items-center gap-2">
+                          <CheckSquare size={14} />
+                          <span>Select</span>
+                        </span>
+                      </DropdownMenuItem>
+                      {own && canEdit(m) && (
+                        <DropdownMenuItem onClick={() => { setEditingId(String(m.id)); setEditingText(m.message); setEditingFileData(null); }}>
+                          <span className="inline-flex items-center gap-2"><Pencil size={14} /><span>Edit</span></span>
+                        </DropdownMenuItem>
+                      )}
+                      {own && (
+                        <DropdownMenuItem onClick={() => setDeleteDialog({ open: true, id: String(m.id), timestamp: m.timestamp })}>
+                          <span className="inline-flex items-center gap-2"><Trash2 size={14} /><span>Delete</span></span>
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div className={`inline-block text-sm break-all ${own ? 'bg-gray-300 text-black rounded-l-xl rounded-tr-xl rounded-br-sm px-3 py-2' : 'bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl rounded-bl-sm px-3 py-2'}`}>
-                {m.message && <div className="text-sm whitespace-pre-line">{m.message}</div>}
+                {editingId === String(m.id) ? (
+                  <div className="mb-2 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input value={editingText} onChange={(e)=>setEditingText(e.target.value)} className="flex-1 border px-2 py-1 rounded text-black" />
+                      <Button size="sm" onClick={async () => {
+                        const payload: any = { message: editingText };
+                        if (editingFileData) {
+                          payload.file_url = editingFileData.fileUrl;
+                          payload.file_name = editingFileData.fileName;
+                          payload.file_size = editingFileData.fileSize;
+                          payload.file_type = editingFileData.fileType;
+                          payload.message_type = editingFileData.messageType;
+                        }
+                        const ok = await fetch(`${API_BASE_URL}/chat/groups/${groupId}/messages/${m.id}/edit`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(authAPI.getToken() ? { 'Authorization': `Bearer ${authAPI.getToken()}` } : {}) },
+                          credentials: 'include',
+                          body: JSON.stringify(payload),
+                        }).then(r=>r.ok);
+                        if (ok) {
+                          setMessages(prev => prev.map(mm => mm.id === m.id ? { ...mm, message: editingText + ' (edited)', fileUrl: editingFileData?.fileUrl || mm.fileUrl, fileName: editingFileData?.fileName || mm.fileName, fileSize: (editingFileData?.fileSize ?? mm.fileSize), fileType: editingFileData?.fileType || mm.fileType, messageType: editingFileData?.messageType || mm.messageType } : mm));
+                          setEditingId(null); setEditingText(''); setEditingFileData(null);
+                          if (isConnected) send({ type: 'chat_message', sender: String(currentUser.id) });
+                        } else {
+                          toast({ title: 'Edit failed', description: 'Unable to edit message', variant: 'destructive' as any });
+                        }
+                      }}>Save</Button>
+                      <Button size="sm" variant="outline" onClick={() => { setEditingId(null); setEditingText(''); setEditingFileData(null); }}>Cancel</Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input type="file" className="hidden" id={`edit-file-${m.id}`} onChange={(e) => {
+                        const f = e.target.files?.[0]; if (!f) return;
+                        const reader = new FileReader(); reader.onload = () => {
+                          const fileUrl = String(reader.result);
+                          const messageType = f.type.startsWith('image/') ? 'image' : 'file';
+                          setEditingFileData({ fileUrl, fileName: f.name, fileSize: f.size, fileType: f.type, messageType });
+                        }; reader.readAsDataURL(f);
+                      }} />
+                      <Button size="sm" variant="secondary" onClick={() => document.getElementById(`edit-file-${m.id}`)?.click() as any}>Change attachment</Button>
+                      {editingFileData && (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-600 truncate max-w-[160px]">
+                          {editingFileData.messageType === 'image' ? <ImageIcon size={12} /> : <FileText size={12} />}
+                          {editingFileData.fileName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  m.message && <div className="text-sm whitespace-pre-line">{m.message}</div>
+                )}
                 {m.fileUrl && (
                   <div className="mt-2">
                     {m.messageType === 'image' ? (
@@ -550,6 +709,72 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
       </form>
 
       <ChatFilePreviewModal isOpen={preview.open} onClose={closePreview} fileUrl={preview.url} fileName={preview.name} fileType={preview.type} fileSize={preview.size} />
+
+  {deleteDialog.open && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-md shadow-lg p-4 w-[320px]">
+        <div className="text-sm font-medium mb-2">Delete message</div>
+        <div className="text-xs text-gray-600 mb-4">Choose how you want to delete this message.</div>
+        <div className="flex flex-col gap-2">
+          <Button variant="outline" onClick={() => performDelete('me')}>Delete for me</Button>
+          {(() => {
+            const msg = messages.find(mm => String(mm.id) === String(deleteDialog.id));
+            return (msg && canDeleteEveryone(msg)) ? (
+              <Button variant="destructive" onClick={() => performDelete('everyone')}>Delete for everyone</Button>
+            ) : null;
+          })()}
+          <Button variant="ghost" onClick={() => setDeleteDialog({ open: false })}>Cancel</Button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  <ShareMessageModal
+    isOpen={shareOpen}
+    onClose={() => setShareOpen(false)}
+    loading={shareLoading}
+    onConfirm={async ({ groupIds, userIds }) => {
+      try {
+        setShareLoading(true);
+        const ids = selectedMessageIds.size > 0 ? selectedMessageIds : new Set<string>();
+        const toShare = (ids.size ? messages.filter(mm => ids.has(String(mm.id))) : []);
+        const sendOne = async (msg: any) => {
+          if (msg.fileUrl) {
+            const res = await fetch(msg.fileUrl, { credentials: 'include' });
+            const blob = await res.blob();
+            const dataUrl: string = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result));
+              reader.onerror = () => reject(new Error('read fail'));
+              reader.readAsDataURL(blob);
+            });
+            const isImg = (msg.fileType || '').startsWith('image/');
+            const messageType: 'image' | 'file' = isImg ? 'image' : 'file';
+            const messageText = isImg ? `📷 Shared an image: ${msg.fileName || ''}` : `📎 Shared a file: ${msg.fileName || ''}`;
+            const payload = { message: messageText, message_type: messageType, file_name: msg.fileName || null, file_size: msg.fileSize || null, file_type: msg.fileType || null, file_url: dataUrl };
+            await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
+            await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+          } else {
+            const payload = { message: msg.message || '', message_type: 'text' as const, file_name: null, file_size: null, file_type: null, file_url: null };
+            await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
+            await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+          }
+        };
+        for (const m of toShare) { // keep order
+          // eslint-disable-next-line no-await-in-loop
+          await sendOne(m);
+        }
+        setSelectedMessageIds(new Set());
+        setIsSelectMode(false);
+        toast({ title: 'Shared', description: 'Shared successfully.' });
+        setShareOpen(false);
+      } catch (e) {
+        toast({ title: 'Share failed', description: 'Unable to share.', variant: 'destructive' as any });
+      } finally {
+        setShareLoading(false);
+      }
+    }}
+  />
 
       {/* In-chat right panel (non-portal) */}
       {infoOpen && (

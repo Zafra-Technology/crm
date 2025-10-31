@@ -5,6 +5,7 @@ import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, E
 import { MoreVertical } from 'lucide-react';
 import { Forward } from 'lucide-react';
 import { CheckSquare } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { ChatMessage, User } from '@/types';
 import { resolveMediaUrl } from '@/lib/api/auth';
 import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
@@ -40,6 +41,10 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   const { toast } = useToast();
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>('');
+  const [editingFileData, setEditingFileData] = useState<any>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id?: string; timestamp?: string }>({ open: false });
   const { isConnected, send } = useChatWebSocket(
     projectId ? `project-${projectId}` : undefined,
     async (payload) => {
@@ -75,12 +80,8 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
               fileType: m.file_type,
               fileUrl: resolveMediaUrl(m.file_url),
             }));
-            // Merge only new messages to avoid resetting the list which causes UI flicker
-            setChatMessages((prev) => {
-              const existingIds = new Set(prev.map((p) => String(p.id)));
-              const additions = mapped.filter((m: any) => !existingIds.has(String(m.id)));
-              return additions.length ? [...prev, ...additions] : prev;
-            });
+            // Replace with latest snapshot so edits/deletes reflect immediately
+            setChatMessages(mapped);
             scrollToBottom();
           }
         } catch (_) {}
@@ -420,6 +421,79 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     if (fileType.includes('excel') || fileType.includes('sheet')) return <FileIcon size={16} className="text-green-500" />;
     return <FileIcon size={16} />;
   };
+  const canEdit = (message: ChatMessage) => {
+    if (String(message.userId) !== String(currentUser.id)) return false;
+    const dt = new Date(message.timestamp).getTime();
+    return Date.now() - dt <= 24 * 3600 * 1000;
+  };
+  const canDeleteEveryone = (message: ChatMessage) => {
+    if (String(message.userId) !== String(currentUser.id)) return false;
+    const dt = new Date(message.timestamp).getTime();
+    return Date.now() - dt <= 1 * 3600 * 1000;
+  };
+
+  const handleEditSave = async (msg: ChatMessage) => {
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const token = authAPI.getToken();
+      const body: any = { message: editingText };
+      if ((editingFileData as any)?.fileUrl) {
+        body.file_url = (editingFileData as any).fileUrl;
+        body.file_name = (editingFileData as any).fileName;
+        body.file_size = (editingFileData as any).fileSize;
+        body.file_type = (editingFileData as any).fileType;
+        body.message_type = (editingFileData as any).messageType;
+      }
+      const res = await fetch(`${API_BASE_URL}/chat/project/${projectId}/messages/${msg.id}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setChatMessages(prev => prev.map(m => m.id === msg.id ? { ...m, message: editingText + ' (edited)', fileUrl: (editingFileData as any)?.fileUrl || m.fileUrl, fileName: (editingFileData as any)?.fileName || m.fileName, fileSize: (editingFileData as any)?.fileSize ?? m.fileSize, fileType: (editingFileData as any)?.fileType || m.fileType, messageType: (editingFileData as any)?.messageType || m.messageType } : m));
+        setEditingId(null); setEditingText('');
+        setEditingFileData(null);
+        if (isConnected) {
+          send({ type: 'chat_message', sender: String(currentUser.id) });
+        }
+      } else {
+        toast({ title: 'Edit failed', description: 'Unable to edit message', variant: 'destructive' as any });
+      }
+    } catch (e) {
+      toast({ title: 'Edit failed', description: 'Unable to edit message', variant: 'destructive' as any });
+    }
+  };
+
+  const performDelete = async (scope: 'me' | 'everyone') => {
+    if (!deleteDialog.id) return;
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const token = authAPI.getToken();
+      const res = await fetch(`${API_BASE_URL}/chat/project/${projectId}/messages/${deleteDialog.id}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        credentials: 'include',
+        body: JSON.stringify({ scope }),
+      });
+      if (res.ok) {
+        if (scope === 'me') {
+          setChatMessages(prev => prev.filter(m => String(m.id) !== String(deleteDialog.id)));
+        } else {
+          setChatMessages(prev => prev.map(m => String(m.id) === String(deleteDialog.id) ? { ...m, message: 'this message has been deleted', messageType: 'text', fileUrl: undefined, fileName: undefined, fileSize: undefined, fileType: undefined } : m));
+          if (isConnected) {
+            send({ type: 'chat_message', sender: String(currentUser.id) });
+          }
+        }
+      } else {
+        toast({ title: 'Delete failed', description: 'Unable to delete message', variant: 'destructive' as any });
+      }
+    } catch (e) {
+      toast({ title: 'Delete failed', description: 'Unable to delete message', variant: 'destructive' as any });
+    } finally {
+      setDeleteDialog({ open: false });
+    }
+  };
 
   const urlToDataUrl = async (url: string): Promise<string> => {
     const res = await fetch(url, { credentials: 'include' });
@@ -623,6 +697,16 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                           <span>Select</span>
                         </span>
                       </DropdownMenuItem>
+                      {isOwnMessage && canEdit(message) && (
+                        <DropdownMenuItem onClick={() => { setEditingId(String(message.id)); setEditingText(message.message); }}>
+                          <span className="inline-flex items-center gap-2"><Pencil size={14} /><span>Edit</span></span>
+                        </DropdownMenuItem>
+                      )}
+                      {isOwnMessage && (
+                        <DropdownMenuItem onClick={() => setDeleteDialog({ open: true, id: String(message.id), timestamp: message.timestamp })}>
+                          <span className="inline-flex items-center gap-2"><Trash2 size={14} /><span>Delete</span></span>
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -637,14 +721,38 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                     ) : ''
                   }`}
                 >
-                  {/* Text message */}
-                  {message.message && 
+                  {/* Text message or editing */}
+                  {editingId === String(message.id) ? (
+                    <div className="mb-2 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input value={editingText} onChange={(e)=>setEditingText(e.target.value)} className="flex-1 border px-2 py-1 rounded text-black" />
+                        <Button size="sm" onClick={() => handleEditSave(message)}>Save</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setEditingId(null); setEditingText(''); setEditingFileData(null); }}>Cancel</Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="file" className="hidden" onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const fileUrl = String(reader.result);
+                            const messageType = f.type.startsWith('image/') ? 'image' : 'file';
+                            setEditingFileData({ fileUrl, fileName: f.name, fileSize: f.size, fileType: f.type, messageType });
+                          };
+                          reader.readAsDataURL(f);
+                        }} id={`edit-file-${message.id}`} />
+                        <Button size="sm" variant="secondary" onClick={() => document.getElementById(`edit-file-${message.id}`)?.click() as any}>Change attachment</Button>
+                        {editingFileData && <span className="text-xs text-gray-600 truncate max-w-[160px]">{editingFileData.fileName}</span>}
+                      </div>
+                    </div>
+                  ) : (
+                  message.message && 
                    !message.message.startsWith('📷 Shared an image:') && 
                    !message.message.startsWith('[Image:') && (
                     <div className="mb-2">
                       {message.message}
                     </div>
-                  )}
+                  ))}
 
                   {/* File attachment */}
                   {message.fileUrl && (
@@ -857,6 +965,26 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
           }
         }}
       />
+
+      {/* Delete dialog */}
+      {deleteDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-md shadow-lg p-4 w-[320px]">
+            <div className="text-sm font-medium mb-2">Delete message</div>
+            <div className="text-xs text-gray-600 mb-4">Choose how you want to delete this message.</div>
+            <div className="flex flex-col gap-2">
+              <Button variant="outline" onClick={() => performDelete('me')}>Delete for me</Button>
+              {(() => {
+                const msg = chatMessages.find(m => String(m.id) === String(deleteDialog.id));
+                return (msg && canDeleteEveryone(msg)) ? (
+                  <Button variant="destructive" onClick={() => performDelete('everyone')}>Delete for everyone</Button>
+                ) : null;
+              })()}
+              <Button variant="ghost" onClick={() => setDeleteDialog({ open: false })}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

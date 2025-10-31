@@ -69,7 +69,9 @@ export default function MessagesPage() {
               name: member.full_name,
               email: member.email,
               role: 'Team Member',
-              status: (member.is_active ? 'active' : 'inactive') as 'active' | 'inactive'
+              status: (member.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
+              profile_pic: member.profile_pic,
+              avatar: member.profile_pic,
             }));
             setDesigners(teamMembersFormatted);
 
@@ -83,7 +85,9 @@ export default function MessagesPage() {
                 id: u.id.toString(),
                 name: u.full_name,
                 email: u.email,
-                role: u.role
+                role: u.role,
+                profile_pic: u.profile_pic,
+                avatar: u.profile_pic,
               }));
 
             const admins = allUsers
@@ -92,7 +96,9 @@ export default function MessagesPage() {
                 id: u.id.toString(),
                 name: u.full_name,
                 email: u.email,
-                role: u.role
+                role: u.role,
+                profile_pic: u.profile_pic,
+                avatar: u.profile_pic,
               }));
 
             setManagers([...projectManagers, ...admins]);
@@ -119,14 +125,16 @@ export default function MessagesPage() {
             );
 
             // Combine client and team members
-            const teamContacts = [];
+            const teamContacts: any[] = [];
             if (mainClient) {
               teamContacts.push({
                 id: mainClient.id.toString(),
                 name: mainClient.full_name,
                 email: mainClient.email,
                 role: 'Client',
-                status: (mainClient.is_active ? 'active' : 'inactive') as 'active' | 'inactive'
+                status: (mainClient.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
+                profile_pic: mainClient.profile_pic,
+                avatar: mainClient.profile_pic,
               });
             }
 
@@ -135,7 +143,9 @@ export default function MessagesPage() {
               name: member.full_name,
               email: member.email,
               role: 'Team Member',
-              status: (member.is_active ? 'active' : 'inactive') as 'active' | 'inactive'
+              status: (member.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
+              profile_pic: member.profile_pic,
+              avatar: member.profile_pic,
             }));
 
             teamContacts.push(...teamMembersFormatted);
@@ -150,7 +160,9 @@ export default function MessagesPage() {
                 id: u.id.toString(),
                 name: u.full_name,
                 email: u.email,
-                role: u.role
+                role: u.role,
+                profile_pic: u.profile_pic,
+                avatar: u.profile_pic,
               }));
 
             const admins = allUsers
@@ -159,7 +171,9 @@ export default function MessagesPage() {
                 id: u.id.toString(),
                 name: u.full_name,
                 email: u.email,
-                role: u.role
+                role: u.role,
+                profile_pic: u.profile_pic,
+                avatar: u.profile_pic,
               }));
 
             setManagers([...projectManagers, ...admins]);
@@ -248,7 +262,9 @@ export default function MessagesPage() {
               name: u.full_name,
               email: u.email,
               role: u.role_display || u.role,
-              status: (u.is_active ? 'active' : 'inactive') as 'active' | 'inactive'
+              status: (u.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
+              profile_pic: u.profile_pic,
+              avatar: u.profile_pic,
             }));
 
           const allManagers = allUsers
@@ -257,7 +273,9 @@ export default function MessagesPage() {
               id: u.id.toString(),
               name: u.full_name,
               email: u.email,
-              role: u.role
+              role: u.role,
+              profile_pic: u.profile_pic,
+              avatar: u.profile_pic,
             }));
 
           const allAdmins = allUsers
@@ -266,7 +284,9 @@ export default function MessagesPage() {
               id: u.id.toString(),
               name: u.full_name,
               email: u.email,
-              role: u.role
+              role: u.role,
+              profile_pic: u.profile_pic,
+              avatar: u.profile_pic,
             }));
 
           if (user.role === 'project_manager' || user.role === 'assistant_project_manager') {
@@ -287,7 +307,9 @@ export default function MessagesPage() {
                 name: u.full_name,
                 email: u.email,
                 role: u.role_display || u.role,
-                status: (u.is_active ? 'active' : 'inactive') as 'active' | 'inactive'
+                status: (u.is_active ? 'active' : 'inactive') as 'active' | 'inactive',
+                profile_pic: u.profile_pic,
+                avatar: u.profile_pic,
               }));
             
             // Set all team members in the designers list (they'll be displayed as "Team Members")

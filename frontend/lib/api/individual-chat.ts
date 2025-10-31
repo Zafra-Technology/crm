@@ -58,6 +58,26 @@ export const individualChatApi = {
     if (!res.ok) return null;
     return res.json();
   },
+
+  editMessage: async (userId: number, messageId: number, payload: any): Promise<boolean> => {
+    const res = await fetch(`${API_BASE}/${userId}/messages/${messageId}/edit`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  },
+
+  deleteMessage: async (userId: number, messageId: number, scope: 'me' | 'everyone'): Promise<boolean> => {
+    const res = await fetch(`${API_BASE}/${userId}/messages/${messageId}/delete`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ scope }),
+    });
+    return res.ok;
+  },
 };
 
 

@@ -1,13 +1,19 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { SendIcon, ArrowLeftIcon, PaperclipIcon, DownloadIcon, EyeIcon } from 'lucide-react';
+import { SendIcon, ArrowLeftIcon, PaperclipIcon, DownloadIcon, EyeIcon, MoreVertical, Forward, CheckSquare, ImageIcon, FileText, Pencil, Trash2 } from 'lucide-react';
 import { User } from '@/types';
 import { ProjectAttachment } from '@/types';
 import FileViewerModal from '@/components/modals/FileViewerModal';
-import { authAPI } from '@/lib/api/auth';
+import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import ShareMessageModal from '@/components/modals/ShareMessageModal';
+import { useToast } from '@/hooks/use-toast';
+import { groupChatApi } from '@/lib/api/chat-groups';
+import { individualChatApi } from '@/lib/api/individual-chat';
 
 interface Message {
   id: string;
@@ -80,7 +86,15 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
       } catch (_) {}
     }
   });
-
+  const { toast } = useToast();
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>('');
+  const [editingFileData, setEditingFileData] = useState<{ fileUrl: string; fileName: string; fileSize: number; fileType: string; messageType: 'file'|'image' } | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id?: string; timestamp?: string }>({ open: false });
   // Load messages for this conversation
   useEffect(() => {
     const loadMessages = async () => {
@@ -321,11 +335,15 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
           <ArrowLeftIcon size={20} />
         </button>
         
-        <div className={`w-10 h-10 ${getAvatarColor(targetUser.name)} rounded-full flex items-center justify-center`}>
-          <span className="text-white font-medium text-sm">
-            {getInitials(targetUser.name)}
-          </span>
-        </div>
+        {targetUser?.profile_pic || targetUser?.avatar ? (
+          <img src={resolveMediaUrl(targetUser.profile_pic || targetUser.avatar)} className="w-10 h-10 rounded-full object-cover" />
+        ) : (
+          <div className={`w-10 h-10 ${getAvatarColor(targetUser.name)} rounded-full flex items-center justify-center`}>
+            <span className="text-white font-medium text-sm">
+              {getInitials(targetUser.name)}
+            </span>
+          </div>
+        )}
         
         <div className="flex-1">
           <h3 className="font-semibold text-gray-900">{targetUser.name}</h3>
@@ -334,6 +352,19 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
           </p>
         </div>
       </div>
+
+      {/* Selection header */}
+      {isSelectMode ? (
+        <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+          <div className="text-sm text-gray-700">{selectedMessageIds.size} selected</div>
+          <div className="flex items-center gap-2">
+            <Button variant="default" size="sm" className="h-8 px-3" disabled={selectedMessageIds.size === 0} onClick={() => setShareOpen(true)}>
+              <Forward size={14} className="mr-1" /> Share
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 px-3" onClick={() => { setSelectedMessageIds(new Set()); setIsSelectMode(false); }}>Cancel</Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="h-[calc(100vh-20rem)] overflow-y-auto p-4 space-y-4">
@@ -370,9 +401,53 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
                     ? 'bg-blue-500 text-white'
                     : 'bg-gray-100 text-gray-900'
                 }`}>
-                  <div className="text-sm whitespace-pre-line">
-                    {message.message}
-                  </div>
+                  {editingId === String(message.id) ? (
+                    <div className="mb-2 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input value={editingText} onChange={(e)=>setEditingText(e.target.value)} className="flex-1 border px-2 py-1 rounded text-black" />
+                        <Button size="sm" onClick={async () => {
+                          const payload: any = { message: editingText };
+                          if (editingFileData) {
+                            payload.file_url = editingFileData.fileUrl;
+                            payload.file_name = editingFileData.fileName;
+                            payload.file_size = editingFileData.fileSize;
+                            payload.file_type = editingFileData.fileType;
+                            payload.message_type = editingFileData.messageType;
+                          }
+                          const ok = await individualChatApi.editMessage(Number(targetUser.id), Number(message.id), payload);
+                          if (ok) {
+                            setMessages(prev => prev.map(m => m.id === message.id ? { ...m, message: editingText + ' (edited)', fileUrl: payload.file_url || m.fileUrl, fileName: payload.file_name || m.fileName, fileSize: (payload.file_size ?? m.fileSize), fileType: payload.file_type || m.fileType, messageType: payload.message_type || m.messageType } as any : m));
+                            setEditingId(null); setEditingText(''); setEditingFileData(null);
+                            if (isConnected) send({ type: 'chat_message', sender: String(currentUser.id) });
+                          } else {
+                            toast({ title: 'Edit failed', description: 'Unable to edit message', variant: 'destructive' as any });
+                          }
+                        }}>Save</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setEditingId(null); setEditingText(''); setEditingFileData(null); }}>Cancel</Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="file" className="hidden" id={`edit-file-${message.id}`} onChange={(e) => {
+                          const f = e.target.files?.[0]; if (!f) return;
+                          const reader = new FileReader(); reader.onload = () => {
+                            const fileUrl = String(reader.result);
+                            const messageType = f.type.startsWith('image/') ? 'image' : 'file';
+                            setEditingFileData({ fileUrl, fileName: f.name, fileSize: f.size, fileType: f.type, messageType });
+                          }; reader.readAsDataURL(f);
+                        }} />
+                        <Button size="sm" variant="secondary" onClick={() => document.getElementById(`edit-file-${message.id}`)?.click() as any}>Change attachment</Button>
+                        {editingFileData && (
+                          <span className="inline-flex items-center gap-1 text-xs text-gray-600 truncate max-w-[160px]">
+                            {editingFileData.messageType === 'image' ? <ImageIcon size={12} /> : <FileText size={12} />}
+                            {editingFileData.fileName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm whitespace-pre-line">
+                      {message.message}
+                    </div>
+                  )}
                 
                   {/* File attachment */}
                   {message.fileUrl && (
@@ -429,7 +504,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
                           <EyeIcon size={14} />
                         </button>
                         <Button
-                          onClick={() => handleDownload(getFullFileUrl(message.fileUrl), message.fileName)}
+                          onClick={() => handleDownload(getFullFileUrl(message.fileUrl || ''), message.fileName)}
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
@@ -445,6 +520,44 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
                     isOwnMessage ? 'text-blue-200' : 'text-gray-500'
                   }`}>
                     {formatTime(message.timestamp)}
+                    {isSelectMode && (
+                      <Checkbox
+                        checked={selectedMessageIds.has(String(message.id))}
+                        onCheckedChange={() => setSelectedMessageIds(prev => { const n = new Set(prev); const id = String(message.id); n.has(id) ? n.delete(id) : n.add(id); return n; })}
+                        className="ml-2 align-middle"
+                      />
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="text-gray-600 hover:bg-gray-200 p-1 rounded ml-2" title="More">
+                          <MoreVertical size={14} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'} className="w-40">
+                        <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                          <span className="inline-flex items-center gap-2">
+                            <Forward size={14} />
+                            <span>Share</span>
+                          </span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setIsSelectMode(true); setSelectedMessageIds(prev => new Set(prev).add(String(message.id))); }}>
+                          <span className="inline-flex items-center gap-2">
+                            <CheckSquare size={14} />
+                            <span>Select</span>
+                          </span>
+                        </DropdownMenuItem>
+                        {isOwnMessage && (Date.now() - new Date(message.timestamp).getTime() <= 24*3600*1000) && (
+                          <DropdownMenuItem onClick={() => { setEditingId(String(message.id)); setEditingText(message.message); setEditingFileData(null); }}>
+                            <span className="inline-flex items-center gap-2"><Pencil size={14} /><span>Edit</span></span>
+                          </DropdownMenuItem>
+                        )}
+                        {isOwnMessage && (
+                          <DropdownMenuItem onClick={() => setDeleteDialog({ open: true, id: String(message.id), timestamp: message.timestamp })}>
+                            <span className="inline-flex items-center gap-2"><Trash2 size={14} /><span>Delete</span></span>
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               )}
@@ -503,6 +616,85 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         onClose={() => { setShowViewer(false); setSelectedFile(null); }}
         attachment={selectedFile}
       />
+  {deleteDialog.open && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-md shadow-lg p-4 w-[320px]">
+        <div className="text-sm font-medium mb-2">Delete message</div>
+        <div className="text-xs text-gray-600 mb-4">Choose how you want to delete this message.</div>
+        <div className="flex flex-col gap-2">
+          <Button variant="outline" onClick={async () => {
+            const ok = await individualChatApi.deleteMessage(Number(targetUser.id), Number(deleteDialog.id), 'me');
+            if (ok) setMessages(prev => prev.filter(m => String(m.id) !== String(deleteDialog.id)));
+            else toast({ title: 'Delete failed', description: 'Unable to delete', variant: 'destructive' as any });
+            setDeleteDialog({ open: false });
+          }}>Delete for me</Button>
+          {(() => {
+            const msg = messages.find(mm => String(mm.id) === String(deleteDialog.id));
+            const allow = msg && (String(msg.senderId) === String(currentUser.id)) && (Date.now() - new Date(msg.timestamp).getTime() <= 3600*1000);
+            return allow ? (
+              <Button variant="destructive" onClick={async () => {
+                const ok = await individualChatApi.deleteMessage(Number(targetUser.id), Number(deleteDialog.id), 'everyone');
+                if (ok) {
+                  setMessages(prev => prev.map(m => String(m.id) === String(deleteDialog.id) ? { ...m, message: 'this message has been deleted', messageType: 'text', fileUrl: undefined, fileName: undefined, fileSize: undefined, fileType: undefined } as any : m));
+                  if (isConnected) send({ type: 'chat_message', sender: String(currentUser.id) });
+                } else {
+                  toast({ title: 'Delete failed', description: 'Unable to delete', variant: 'destructive' as any });
+                }
+                setDeleteDialog({ open: false });
+              }}>Delete for everyone</Button>
+            ) : null;
+          })()}
+          <Button variant="ghost" onClick={() => setDeleteDialog({ open: false })}>Cancel</Button>
+        </div>
+      </div>
+    </div>
+  )}
+  <ShareMessageModal
+    isOpen={shareOpen}
+    onClose={() => setShareOpen(false)}
+    loading={shareLoading}
+    onConfirm={async ({ groupIds, userIds }) => {
+      try {
+        setShareLoading(true);
+        const ids = selectedMessageIds.size > 0 ? selectedMessageIds : new Set<string>();
+        const toShare = (ids.size ? messages.filter(mm => ids.has(String(mm.id))) : []);
+        const sendOne = async (msg: any) => {
+          if (msg.fileUrl) {
+            const res = await fetch(getFullFileUrl(msg.fileUrl || ''), { credentials: 'include' });
+            const blob = await res.blob();
+            const dataUrl: string = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result));
+              reader.onerror = () => reject(new Error('read fail'));
+              reader.readAsDataURL(blob);
+            });
+            const isImg = (msg.fileType || '').startsWith('image/');
+            const messageType: 'image' | 'file' = isImg ? 'image' : 'file';
+            const messageText = isImg ? `📷 Shared an image: ${msg.fileName || ''}` : `📎 Shared a file: ${msg.fileName || ''}`;
+            const payload = { message: messageText, message_type: messageType, file_name: msg.fileName || null, file_size: msg.fileSize || null, file_type: msg.fileType || null, file_url: dataUrl };
+            await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
+            await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+          } else {
+            const payload = { message: msg.message || '', message_type: 'text' as const, file_name: null, file_size: null, file_type: null, file_url: null };
+            await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
+            await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+          }
+        };
+        for (const m of toShare) { // keep order
+          // eslint-disable-next-line no-await-in-loop
+          await sendOne(m);
+        }
+        setSelectedMessageIds(new Set());
+        setIsSelectMode(false);
+        toast({ title: 'Shared', description: 'Shared successfully.' });
+        setShareOpen(false);
+      } catch (e) {
+        toast({ title: 'Share failed', description: 'Unable to share.', variant: 'destructive' as any });
+      } finally {
+        setShareLoading(false);
+      }
+    }}
+  />
     </div>
   );
 }
