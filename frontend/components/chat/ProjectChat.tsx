@@ -2,11 +2,21 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon } from 'lucide-react';
+import { MoreVertical } from 'lucide-react';
+import { Forward } from 'lucide-react';
+import { CheckSquare } from 'lucide-react';
 import { ChatMessage, User } from '@/types';
 import { resolveMediaUrl } from '@/lib/api/auth';
 import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
 import { authAPI } from '@/lib/api/auth';
 import ChatFilePreviewModal from '@/components/modals/ChatFilePreviewModal';
+import ShareMessageModal from '@/components/modals/ShareMessageModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { groupChatApi } from '@/lib/api/chat-groups';
+import { individualChatApi } from '@/lib/api/individual-chat';
+import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 
 interface ProjectChatProps {
   projectId: string;
@@ -24,6 +34,12 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<{open: boolean; url: string; name: string; type: string; size?: number}>({ open: false, url: '', name: '', type: '', size: undefined });
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ url?: string; name?: string; type?: string; size?: number; isImage?: boolean; text?: string } | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const { toast } = useToast();
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const { isConnected, send } = useChatWebSocket(
     projectId ? `project-${projectId}` : undefined,
     async (payload) => {
@@ -83,7 +99,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     const typingTimeouts = new Map<string, any>();
     const handleLocalTyping = () => {
       if (!currentUser) return;
-      send({ message: `${currentUser.full_name || currentUser.first_name || 'User'} is typing...`, sender: String(currentUser.id) });
+      send({ message: `${currentUser.name || currentUser.email || 'User'} is typing...`, sender: String(currentUser.id) });
     };
     // Attach on input change below via handleLocalTyping when needed
     return () => {
@@ -393,7 +409,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   };
 
   const isImageFile = (fileType?: string) => {
-    return fileType && fileType.startsWith('image/');
+    return !!(fileType && fileType.startsWith('image/'));
   };
 
   const getFileIcon = (fileType?: string) => {
@@ -403,6 +419,30 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     if (fileType.includes('word') || fileType.includes('doc')) return <FileIcon size={16} className="text-blue-500" />;
     if (fileType.includes('excel') || fileType.includes('sheet')) return <FileIcon size={16} className="text-green-500" />;
     return <FileIcon size={16} />;
+  };
+
+  const urlToDataUrl = async (url: string): Promise<string> => {
+    const res = await fetch(url, { credentials: 'include' });
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const toggleSelect = (messageId: string) => {
+    setSelectedMessageIds(prev => {
+      const next = new Set(prev);
+      if (next.has(messageId)) next.delete(messageId); else next.add(messageId);
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedMessageIds(new Set());
+    setIsSelectMode(false);
   };
 
   const openPreview = (url?: string, name?: string, type?: string, size?: number) => {
@@ -453,9 +493,37 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         </div>
       )}
       
-      <h3 className="text-lg font-semibold text-black mb-4 pb-3 border-b border-gray-200 flex-shrink-0">
-        Project Chat
-      </h3>
+      {!isSelectMode ? (
+        <h3 className="text-lg font-semibold text-black mb-4 pb-3 border-b border-gray-200 flex-shrink-0">
+          Project Chat
+        </h3>
+      ) : (
+        <div className="mb-4 pb-3 border-b border-gray-200 flex items-center justify-between">
+          <div className="text-sm text-gray-700">
+            {selectedMessageIds.size} selected
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8 px-3"
+              disabled={selectedMessageIds.size === 0}
+              onClick={() => setShareOpen(true)}
+              title="Share selected"
+            >
+              <Forward size={14} className="mr-1" /> Share
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              onClick={clearSelection}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-0">
@@ -498,6 +566,13 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
               </div>
               <div className={`flex-1 max-w-sm ${isOwnMessage ? 'text-right' : ''}`}>
                 <div className={`flex items-center space-x-2 mb-1 ${isOwnMessage ? 'justify-end' : ''}`}>
+                  {isSelectMode && (
+                    <Checkbox
+                      checked={selectedMessageIds.has(String(message.id))}
+                      onCheckedChange={() => toggleSelect(String(message.id))}
+                      className="mr-2"
+                    />
+                  )}
                   {!isOwnMessage && (
                     <>
                       <span className="text-sm font-medium text-gray-900">
@@ -511,6 +586,45 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                   <span className="text-xs text-gray-500">
                     {formatTime(message.timestamp)}
                   </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-gray-600 hover:bg-gray-200 p-1 rounded transition-colors"
+                        title="More"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'} className="w-40">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          if (message.fileUrl) {
+                            setShareTarget({ url: message.fileUrl, name: message.fileName, type: message.fileType, size: message.fileSize, isImage: isImageFile(message.fileType) });
+                          } else {
+                            setShareTarget({ text: message.message });
+                          }
+                          setShareOpen(true);
+                        }}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <Forward size={14} />
+                          <span>Share</span>
+                        </span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setIsSelectMode(true);
+                          setSelectedMessageIds(prev => new Set(prev).add(String(message.id)));
+                        }}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <CheckSquare size={14} />
+                          <span>Select</span>
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div
                   className={`inline-block text-sm break-all ${
@@ -676,6 +790,72 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         fileName={preview.name}
         fileType={preview.type}
         fileSize={preview.size}
+      />
+
+      {/* Share Modal */}
+      <ShareMessageModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        loading={shareLoading}
+        onConfirm={async ({ groupIds, userIds }) => {
+          try {
+            setShareLoading(true);
+            const sendOne = async (msg: any) => {
+              if (msg.fileUrl) {
+                const dataUrl = await urlToDataUrl(msg.fileUrl);
+                const isImg = isImageFile(msg.fileType);
+                const messageType: 'file' | 'image' = isImg ? 'image' : 'file';
+                const messageText = messageType === 'image' ? `📷 Shared an image: ${msg.fileName || ''}` : `📎 Shared a file: ${msg.fileName || ''}`;
+                const payload = {
+                  message: messageText,
+                  message_type: messageType,
+                  file_name: msg.fileName || null,
+                  file_size: msg.fileSize || null,
+                  file_type: msg.fileType || null,
+                  file_url: dataUrl,
+                };
+                await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
+                await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+              } else {
+                const payload = {
+                  message: msg.message || '',
+                  message_type: 'text' as const,
+                  file_name: null,
+                  file_size: null,
+                  file_type: null,
+                  file_url: null,
+                };
+                await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
+                await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+              }
+            };
+
+            if (isSelectMode && selectedMessageIds.size > 0) {
+              const toShare = chatMessages.filter(m => selectedMessageIds.has(String(m.id)));
+              for (const m of toShare) {
+                // share sequentially to keep order
+                // eslint-disable-next-line no-await-in-loop
+                await sendOne(m);
+              }
+              clearSelection();
+            } else if (shareTarget) {
+              const single = {
+                message: shareTarget.text,
+                fileUrl: shareTarget.url,
+                fileName: shareTarget.name,
+                fileSize: shareTarget.size,
+                fileType: shareTarget.type,
+              };
+              await sendOne(single);
+            }
+            toast({ title: 'Shared', description: 'File shared successfully.' });
+            setShareOpen(false);
+          } catch (e) {
+            toast({ title: 'Share failed', description: 'Unable to share. Please try again.', variant: 'destructive' as any });
+          } finally {
+            setShareLoading(false);
+          }
+        }}
       />
 
     </div>
