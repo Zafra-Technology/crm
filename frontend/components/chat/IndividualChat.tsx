@@ -304,6 +304,38 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
     return `http://localhost:8000${fileUrl}`;
   };
 
+  const downloadViaBlob = async (url?: string, name?: string) => {
+    if (!url) return;
+    if (url.startsWith('data:')) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+    try {
+      const response = await fetch(url, { credentials: 'include' });
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch (_) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   const handleDownload = async (fileUrl: string, fileName?: string) => {
     try {
       const response = await fetch(fileUrl, { credentials: 'include' });
@@ -396,10 +428,10 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
                 </div>
               ) : (
                 // Regular Message Design
-                <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                <div className={`max-w-xs lg:max-w-md inline-block text-sm break-all ${
                   isOwnMessage
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-900'
+                    ? 'bg-gray-300 text-black rounded-l-xl rounded-tr-xl rounded-br-sm px-3 py-2'
+                    : 'bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl rounded-bl-sm px-3 py-2'
                 }`}>
                   {editingId === String(message.id) ? (
                     <div className="mb-2 space-y-2">
@@ -455,28 +487,67 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
                       {/* Image preview */}
                       {message.messageType === 'image' && message.fileType?.startsWith('image/') && (
                         <div className="mb-2">
-                          <img
-                            src={message.fileUrl}
-                            alt={message.fileName || 'Shared image'}
-                            className="max-w-full rounded border"
-                          />
+                          <div className="relative group inline-block">
+                            <img
+                              src={message.fileUrl}
+                              alt={message.fileName || 'Shared image'}
+                              className="max-w-xs max-h-48 rounded cursor-pointer"
+                              onClick={() => {
+                                const attachment: ProjectAttachment = {
+                                  id: message.id,
+                                  name: message.fileName || 'Image',
+                                  size: message.fileSize || 0,
+                                  type: message.fileType || guessMimeType(message.fileName) || 'image/*',
+                                  url: message.fileUrl?.startsWith('data:') ? message.fileUrl : getFullFileUrl(message.fileUrl || ''),
+                                  uploadedAt: message.timestamp,
+                                  uploadedBy: message.senderId,
+                                };
+                                setSelectedFile(attachment);
+                                setShowViewer(true);
+                              }}
+                            />
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => { e.stopPropagation();
+                                  const attachment: ProjectAttachment = {
+                                    id: message.id,
+                                    name: message.fileName || 'Image',
+                                    size: message.fileSize || 0,
+                                    type: message.fileType || guessMimeType(message.fileName) || 'image/*',
+                                    url: message.fileUrl?.startsWith('data:') ? message.fileUrl : getFullFileUrl(message.fileUrl || ''),
+                                    uploadedAt: message.timestamp,
+                                    uploadedBy: message.senderId,
+                                  };
+                                  setSelectedFile(attachment);
+                                  setShowViewer(true);
+                                }}
+                                className="bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full"
+                                title="View"
+                              >
+                                <EyeIcon size={14} />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); downloadViaBlob(message.fileUrl, message.fileName); }}
+                                className="bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full"
+                                title="Download"
+                              >
+                                <DownloadIcon size={14} />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       )}
 
                       {/* File info */}
                       <div className={`flex items-center space-x-2 p-2 rounded border ${
-                        isOwnMessage ? 'bg-blue-600 border-blue-400' : 'bg-white border-gray-200'
+                        isOwnMessage ? 'bg-gray-200 border-gray-300' : 'bg-white border-gray-200'
                       }`}>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-medium truncate ${
-                            isOwnMessage ? 'text-blue-100' : 'text-gray-700'
-                          }`}>
+                          <p className={`text-xs font-medium truncate text-gray-700`}>
                             {message.fileName || 'Unknown file'}
                           </p>
                           {message.fileSize && (
-                            <p className={`text-xs ${
-                              isOwnMessage ? 'text-blue-200' : 'text-gray-500'
-                            }`}>
+                            <p className={`text-xs text-gray-500`}>
                               {formatFileSize(message.fileSize)}
                             </p>
                           )}
@@ -503,22 +574,18 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
                         >
                           <EyeIcon size={14} />
                         </button>
-                        <Button
-                          onClick={() => handleDownload(getFullFileUrl(message.fileUrl || ''), message.fileName)}
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="Download file"
+                        <button
+                          className="text-gray-600 hover:bg-gray-300 p-1 rounded"
+                          onClick={() => downloadViaBlob(message.fileUrl?.startsWith('data:') ? message.fileUrl : getFullFileUrl(message.fileUrl || ''), message.fileName)}
+                          title="Download"
                         >
-                          <DownloadIcon size={12} />
-                        </Button>
+                          <DownloadIcon size={14} />
+                        </button>
                       </div>
                     </div>
                   )}
                   
-                  <div className={`text-xs mt-1 ${
-                    isOwnMessage ? 'text-blue-200' : 'text-gray-500'
-                  }`}>
+                  <div className={`text-xs mt-1 text-gray-500`}>
                     {formatTime(message.timestamp)}
                     {isSelectMode && (
                       <Checkbox

@@ -246,7 +246,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         
         // Notify via backend WebSocket (others will refresh on receive)
         if (isConnected) {
-          send({ message: savedMessage.message, sender: String(savedMessage.user_id) });
+          send({ type: 'chat_message', message: savedMessage.message, sender: String(savedMessage.user_id) });
         }
       } else {
         console.error('API Error:', await response.text());
