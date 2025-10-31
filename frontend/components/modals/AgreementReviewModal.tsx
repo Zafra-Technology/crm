@@ -13,6 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import FileViewerModal from '@/components/modals/FileViewerModal';
+import { ProjectAttachment } from '@/types';
 
 interface AgreementReviewModalProps {
   isOpen: boolean;
@@ -36,6 +38,25 @@ export default function AgreementReviewModal({
   // Reject does not require message per requirement
   const [signedFile, setSignedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showViewer, setShowViewer] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<ProjectAttachment | null>(null);
+
+  const guessMimeType = (name?: string): string => {
+    if (!name) return 'application/octet-stream';
+    const lower = name.toLowerCase();
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.doc') || lower.endsWith('.docx')) return 'application/msword';
+    if (lower.endsWith('.xls')) return 'application/vnd.ms-excel';
+    if (lower.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    if (lower.endsWith('.ppt')) return 'application/vnd.ms-powerpoint';
+    if (lower.endsWith('.pptx')) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    if (lower.endsWith('.txt')) return 'text/plain';
+    return 'application/octet-stream';
+  };
 
   const handleAccept = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +88,8 @@ export default function AgreementReviewModal({
   };
 
   return (
+    <>
+    {!showViewer && (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
@@ -99,7 +122,19 @@ export default function AgreementReviewModal({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => window.open(f.url, '_blank', 'noopener,noreferrer')}
+                        onClick={() => {
+                          const attachment: ProjectAttachment = {
+                            id: String(idx),
+                            name: f.name || 'Agreement',
+                            size: 0,
+                            type: guessMimeType(f.name),
+                            url: f.url,
+                            uploadedAt: new Date().toISOString(),
+                            uploadedBy: ''
+                          };
+                          setSelectedFile(attachment);
+                          setShowViewer(true);
+                        }}
                         className="h-8 w-8 p-0"
                         title="Preview file"
                       >
@@ -170,6 +205,14 @@ export default function AgreementReviewModal({
           </div>
       </DialogContent>
     </Dialog>
+    )}
+    
+    <FileViewerModal
+      isOpen={showViewer}
+      onClose={() => { setShowViewer(false); setSelectedFile(null); }}
+      attachment={selectedFile}
+    />
+    </>
   );
 }
 
