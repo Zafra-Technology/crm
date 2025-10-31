@@ -6,6 +6,8 @@ import { tasksApi } from '@/lib/api/tasks';
 import { CalendarIcon, UserIcon, MessageSquareIcon, PaperclipIcon } from 'lucide-react';
 import TaskCard from './TaskCard';
 import { NotificationService } from '@/lib/services/notificationService';
+import { authAPI } from '@/lib/api/auth';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -49,6 +51,7 @@ export default function KanbanBoard({ project, currentUser, designers, loadingDe
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { toast } = useToast();
 
   useEffect(() => {
     console.log('🔄 KanbanBoard useEffect triggered for project:', project.id);
@@ -160,24 +163,42 @@ Status: ${task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.re
 
 ${message}`;
 
-      // Send individual message to the designer
-      const response = await fetch('/api/messages/individual', {
+      // Show immediate feedback while sending
+      const pendingToast = toast({
+        title: 'Sending message…',
+        description: `Tagging ${assignee.name} on "${task.title}"…`,
+      });
+
+      // Send individual message to the designer via backend API
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const token = authAPI.getToken();
+      const response = await fetch(`${API_BASE_URL}/chat/individual/${task.assigneeId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
-          senderId: currentUser.id,
-          senderName: currentUser.name,
-          receiverId: task.assigneeId,
           message: taskDetails,
-          messageType: 'task_tag'
+          message_type: 'task_tag',
+          file_name: null,
+          file_size: null,
+          file_type: null,
+          file_url: null,
         }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to send message');
       }
+
+      // Update toast to success immediately after message saved
+      pendingToast.update({
+        title: 'Message sent',
+        description: `Tagged ${assignee.name} on "${task.title}" in ${project.name}.`,
+      } as any);
 
       // Create notification for task tagging
       await NotificationService.createTaskTaggedNotification(
@@ -187,12 +208,24 @@ ${message}`;
         currentUser.name,
         message.substring(0, 100) + (message.length > 100 ? '...' : '')
       );
-
-      alert(`Message sent to ${assignee.name} successfully!`);
       
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      // If we showed a pending toast earlier, try to update it to error
+      try {
+        // This will no-op if no pending toast exists in this scope
+        // @ts-ignore - safe: update exists on returned object from toast()
+        pendingToast?.update?.({
+          title: 'Failed to send message',
+          description: 'Please try again.',
+          variant: 'destructive',
+        });
+      } catch (_) {
+        toast({
+          title: 'Failed to send message',
+          description: 'Please try again.',
+        });
+      }
     }
   };
 
