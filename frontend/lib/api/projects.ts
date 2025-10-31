@@ -94,12 +94,17 @@ export const projectsApi = {
     }
   },
 
-  // Get projects by user
-  getByUser: async (userId: string, userRole: string): Promise<Project[]> => {
+  // Get projects by user, optionally filtered by client id
+  getByUser: async (userId: string, userRole: string, options?: { clientId?: string | number }): Promise<Project[]> => {
     try {
       // Backend uses authentication to determine user and role automatically
-      // No need to pass user_id and user_role as query parameters
-      const response = await fetch(API_BASE, { headers: getAuthHeaders(), credentials: 'include' });
+      // Optional query filtering (e.g., client)
+      const qs = new URLSearchParams();
+      if (options?.clientId) {
+        qs.set('client', String(options.clientId));
+      }
+      const url = qs.toString() ? `${API_BASE}?${qs.toString()}` : API_BASE;
+      const response = await fetch(url, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Projects API error response:', errorText);

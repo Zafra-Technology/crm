@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Project } from '@/types';
 import { Designer } from '@/types/designer';
 import ProjectCard from '@/components/ProjectCard';
@@ -50,6 +51,7 @@ interface CreateProjectForm {
 
 export default function ProjectManagerDashboard({ projects: initialProjects, userId, userRole }: ProjectManagerDashboardProps) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const searchParams = useSearchParams();
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<APIUser[]>([]);
@@ -80,11 +82,12 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     loadProjects();
     loadDesigners();
     loadClients();
-  }, [userId]);
+  }, [userId, searchParams]);
 
   const loadProjects = async () => {
     try {
-      const projectsData = await projectsApi.getByUser(userId, 'project_manager');
+      const clientFilter = searchParams?.get('client') || undefined;
+      const projectsData = await projectsApi.getByUser(userId, 'project_manager', clientFilter ? { clientId: clientFilter } : undefined);
       setProjects(projectsData);
     } catch (error) {
       console.error('Error loading projects:', error);

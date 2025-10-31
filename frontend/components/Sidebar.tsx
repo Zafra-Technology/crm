@@ -16,7 +16,8 @@ import {
   ShieldIcon,
   UserPlus2Icon,
   UserPlusIcon,
-  ClockIcon
+  ClockIcon,
+  HomeIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,13 @@ export default function Sidebar({ userRole }: SidebarProps) {
 
   // Define menu items based on user role
   const allMenuItems = [
+    {
+      icon: HomeIcon,
+      label: 'Home',
+      href: '/dashboard/home',
+      active: pathname === '/dashboard/home',
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'hr_manager', 'accountant', 'sales_manager', 'digital_marketing', 'admin', 'operation_manager']
+    },
     {
       icon: FolderIcon, 
       label: 'Projects', 

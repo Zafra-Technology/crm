@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 // Projects API - using existing implementation
 import { User, Project } from '@/types';
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -32,7 +34,8 @@ export default function DashboardPage() {
       setLoading(true);
       // Import projects API dynamically to avoid circular dependencies
       const { projectsApi } = await import('@/lib/api/projects');
-      const projectsData = await projectsApi.getByUser(currentUser.id, currentUser.role);
+      const clientFilter = searchParams?.get('client') || undefined;
+      const projectsData = await projectsApi.getByUser(currentUser.id, currentUser.role, clientFilter ? { clientId: clientFilter } : undefined);
       setProjects(projectsData);
     } catch (error) {
       console.error('Error loading projects:', error);

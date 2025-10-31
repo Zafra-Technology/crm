@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Project } from '@/types';
 import ProjectCard from '@/components/ProjectCard';
 import { projectsApi } from '@/lib/api/projects';
@@ -20,6 +21,7 @@ interface ClientDashboardProps {
 
 export default function ClientDashboard({ projects: initialProjects, userId }: ClientDashboardProps) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const searchParams = useSearchParams();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
@@ -33,11 +35,12 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
   
   useEffect(() => {
     loadProjects();
-  }, [userId]);
+  }, [userId, searchParams]);
 
   const loadProjects = async () => {
     try {
-      const projectsData = await projectsApi.getByUser(userId, 'client');
+      const clientFilter = searchParams?.get('client') || undefined;
+      const projectsData = await projectsApi.getByUser(userId, 'client', clientFilter ? { clientId: clientFilter } : undefined);
       setProjects(projectsData);
     } catch (error) {
       console.error('Error loading projects:', error);
