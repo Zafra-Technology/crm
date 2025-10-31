@@ -364,44 +364,46 @@ export default function HomeDashboard({ user, projects, tasks }: HomeDashboardPr
         </CardContent>
       </Card>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="hover:shadow-sm transition-shadow">
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Projects</CardTitle></CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <div className="text-3xl font-bold text-foreground">{projectMetrics.total}</div>
-            <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center"><BriefcaseIcon className="text-foreground/70" /></div>
-          </CardContent>
-        </Card>
+      {/* KPI Cards (hidden for digital marketing) */}
+      {user.role !== 'digital_marketing' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="hover:shadow-sm transition-shadow">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Projects</CardTitle></CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div className="text-3xl font-bold text-foreground">{projectMetrics.total}</div>
+              <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center"><BriefcaseIcon className="text-foreground/70" /></div>
+            </CardContent>
+          </Card>
 
-        <Card className="hover:shadow-sm transition-shadow">
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Active</CardTitle></CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <div className="text-3xl font-bold text-foreground">{projectMetrics.active}</div>
-            <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center"><ActivityIcon className="text-foreground/70" /></div>
-          </CardContent>
-        </Card>
+          <Card className="hover:shadow-sm transition-shadow">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Active</CardTitle></CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div className="text-3xl font-bold text-foreground">{projectMetrics.active}</div>
+              <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center"><ActivityIcon className="text-foreground/70" /></div>
+            </CardContent>
+          </Card>
 
-        <Card className="hover:shadow-sm transition-shadow">
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle></CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <div className="text-3xl font-bold text-foreground">{projectMetrics.pending}</div>
-            <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center"><ClockIcon className="text-foreground/70" /></div>
-          </CardContent>
-        </Card>
+          <Card className="hover:shadow-sm transition-shadow">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle></CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div className="text-3xl font-bold text-foreground">{projectMetrics.pending}</div>
+              <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center"><ClockIcon className="text-foreground/70" /></div>
+            </CardContent>
+          </Card>
 
-        <Card className="hover:shadow-sm transition-shadow">
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle></CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-3xl font-bold text-foreground">{projectMetrics.completed}</div>
-              <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center"><CheckCircleIcon className="text-foreground/70" /></div>
-            </div>
-            <Progress value={projectMetrics.completionRate} />
-            <div className="text-xs text-muted-foreground mt-1">{projectMetrics.completionRate}% completion rate</div>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="hover:shadow-sm transition-shadow">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-3xl font-bold text-foreground">{projectMetrics.completed}</div>
+                <div className="w-10 h-10 rounded-md bg-accent flex items-center justify-center"><CheckCircleIcon className="text-foreground/70" /></div>
+              </div>
+              <Progress value={projectMetrics.completionRate} />
+              <div className="text-xs text-muted-foreground mt-1">{projectMetrics.completionRate}% completion rate</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Role-specific extras */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

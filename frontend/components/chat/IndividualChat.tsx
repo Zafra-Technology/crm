@@ -91,6 +91,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const [shareOpen, setShareOpen] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ message?: string; fileUrl?: string; fileName?: string; fileSize?: number; fileType?: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState<string>('');
   const [editingFileData, setEditingFileData] = useState<{ fileUrl: string; fileName: string; fileSize: number; fileType: string; messageType: 'file'|'image' } | null>(null);
@@ -601,7 +602,19 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'} className="w-40">
-                        <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                        <DropdownMenuItem onClick={() => { 
+                          if (message.fileUrl) {
+                            setShareTarget({
+                              fileUrl: message.fileUrl,
+                              fileName: message.fileName,
+                              fileSize: message.fileSize,
+                              fileType: message.fileType,
+                            });
+                          } else {
+                            setShareTarget({ message: message.message });
+                          }
+                          setShareOpen(true);
+                        }}>
                           <span className="inline-flex items-center gap-2">
                             <Forward size={14} />
                             <span>Share</span>
@@ -720,6 +733,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
     isOpen={shareOpen}
     onClose={() => setShareOpen(false)}
     loading={shareLoading}
+    currentUserId={currentUser?.id ? Number(currentUser.id) : undefined}
     onConfirm={async ({ groupIds, userIds }) => {
       try {
         setShareLoading(true);
@@ -741,18 +755,69 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
             const payload = { message: messageText, message_type: messageType, file_name: msg.fileName || null, file_size: msg.fileSize || null, file_type: msg.fileType || null, file_url: dataUrl };
             await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
             await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+            // Send WebSocket notifications for real-time updates
+            const notifyRoom = (roomName: string) => {
+              try {
+                const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+                const origin = API_BASE_URL.replace('/api', '');
+                const wsUrl = origin.replace('http://', 'ws://').replace('https://', 'wss://') + `/ws/chat/${encodeURIComponent(roomName)}/`;
+                const ws = new WebSocket(wsUrl);
+                ws.onopen = () => {
+                  ws.send(JSON.stringify({ type: 'chat_message', sender: String(currentUser.id) }));
+                  ws.close();
+                };
+                ws.onerror = () => ws.close();
+                setTimeout(() => ws.close(), 1000);
+              } catch (_) {}
+            };
+            // Notify group chats
+            (groupIds || []).forEach(gid => notifyRoom(`group-${gid}`));
+            // Notify individual chats
+            (userIds || []).forEach(uid => {
+              const minId = Math.min(Number(currentUser.id), Number(uid));
+              const maxId = Math.max(Number(currentUser.id), Number(uid));
+              notifyRoom(`dm-${minId}-${maxId}`);
+            });
           } else {
             const payload = { message: msg.message || '', message_type: 'text' as const, file_name: null, file_size: null, file_type: null, file_url: null };
             await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
             await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+            // Send WebSocket notifications for real-time updates
+            const notifyRoom = (roomName: string) => {
+              try {
+                const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+                const origin = API_BASE_URL.replace('/api', '');
+                const wsUrl = origin.replace('http://', 'ws://').replace('https://', 'wss://') + `/ws/chat/${encodeURIComponent(roomName)}/`;
+                const ws = new WebSocket(wsUrl);
+                ws.onopen = () => {
+                  ws.send(JSON.stringify({ type: 'chat_message', sender: String(currentUser.id) }));
+                  ws.close();
+                };
+                ws.onerror = () => ws.close();
+                setTimeout(() => ws.close(), 1000);
+              } catch (_) {}
+            };
+            // Notify group chats
+            (groupIds || []).forEach(gid => notifyRoom(`group-${gid}`));
+            // Notify individual chats
+            (userIds || []).forEach(uid => {
+              const minId = Math.min(Number(currentUser.id), Number(uid));
+              const maxId = Math.max(Number(currentUser.id), Number(uid));
+              notifyRoom(`dm-${minId}-${maxId}`);
+            });
           }
         };
-        for (const m of toShare) { // keep order
-          // eslint-disable-next-line no-await-in-loop
-          await sendOne(m);
+        if (toShare.length > 0) {
+          for (const m of toShare) { // keep order
+            // eslint-disable-next-line no-await-in-loop
+            await sendOne(m);
+          }
+        } else if (shareTarget) {
+          await sendOne(shareTarget);
         }
         setSelectedMessageIds(new Set());
         setIsSelectMode(false);
+        setShareTarget(null);
         toast({ title: 'Shared', description: 'Shared successfully.' });
         setShareOpen(false);
       } catch (e) {

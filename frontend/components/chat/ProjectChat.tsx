@@ -905,6 +905,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         isOpen={shareOpen}
         onClose={() => setShareOpen(false)}
         loading={shareLoading}
+        currentUserId={currentUser?.id ? Number(currentUser.id) : undefined}
         onConfirm={async ({ groupIds, userIds }) => {
           try {
             setShareLoading(true);

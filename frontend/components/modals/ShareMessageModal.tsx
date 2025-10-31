@@ -20,9 +20,10 @@ interface ShareMessageModalProps {
   onClose: () => void;
   onConfirm: (selected: { groupIds: number[]; userIds: number[] }) => Promise<void> | void;
   loading?: boolean;
+  currentUserId?: number;
 }
 
-export default function ShareMessageModal({ isOpen, onClose, onConfirm, loading = false }: ShareMessageModalProps) {
+export default function ShareMessageModal({ isOpen, onClose, onConfirm, loading = false, currentUserId }: ShareMessageModalProps) {
   const [groups, setGroups] = useState<GroupOut[]>([]);
   const [users, setUsers] = useState<SimpleUser[]>([]);
   const [search, setSearch] = useState('');
@@ -41,7 +42,10 @@ export default function ShareMessageModal({ isOpen, onClose, onConfirm, loading 
         ]);
         if (!mounted) return;
         setGroups(g || []);
-        setUsers((u || []).map((x: any) => ({ id: Number(x.id), full_name: x.full_name, email: x.email, role: x.role })));
+        const mappedUsers = (u || []).map((x: any) => ({ id: Number(x.id), full_name: x.full_name, email: x.email, role: x.role }));
+        // Filter out the current user if provided
+        const filteredUsers = currentUserId ? mappedUsers.filter(u => u.id !== currentUserId) : mappedUsers;
+        setUsers(filteredUsers);
       } catch {
         // swallow
       }
