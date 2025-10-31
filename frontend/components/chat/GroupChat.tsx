@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { SendIcon, PaperclipIcon, DownloadIcon, EyeIcon, UserMinus } from 'lucide-react';
+import { SendIcon, PaperclipIcon, DownloadIcon, EyeIcon, UserMinus, X, Search, Users } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { User } from '@/types';
 import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
@@ -48,6 +49,7 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
   const [dragOver, setDragOver] = useState(false);
   const [userMeta, setUserMeta] = useState<Record<string, { name: string; role: string; avatar?: string }>>({});
   const [confirmRemove, setConfirmRemove] = useState<{ open: boolean; userId?: string; userName?: string }>({ open: false });
+  const [memberSearch, setMemberSearch] = useState('');
 
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
   const { isConnected, send } = useChatWebSocket(
@@ -421,6 +423,20 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
     }
   };
 
+  const getRoleBadgeClasses = (role?: string) => {
+    const key = (role || 'user').toLowerCase();
+    if (key.includes('admin')) return 'bg-red-50 text-red-700 border-red-200';
+    if (key.includes('project_manager')) return 'bg-blue-50 text-blue-700 border-blue-200';
+    if (key.includes('assistant_project_manager')) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    if (key.includes('senior')) return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (key.includes('team_head')) return 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200';
+    if (key.includes('team_lead')) return 'bg-violet-50 text-violet-700 border-violet-200';
+    if (key.includes('professional_engineer')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if (key.includes('designer')) return 'bg-teal-50 text-teal-700 border-teal-200';
+    if (key.includes('client')) return 'bg-slate-50 text-slate-700 border-slate-200';
+    return 'bg-gray-50 text-gray-700 border-gray-200';
+  };
+
   return (
     <div 
       className={`card h-full flex flex-col relative ${dragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
@@ -540,25 +556,57 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
         <>
           <div className="absolute inset-0 bg-black/10" onClick={() => setInfoOpen(false)}></div>
           <div className="absolute right-0 top-0 h-full w-[360px] sm:w-[420px] bg-white border-l shadow-lg p-0 overflow-y-auto">
-            <div className="p-5 border-b bg-gradient-to-r from-gray-50 to-white">
+            <div className="p-5 border-b bg-gradient-to-r from-blue-50 via-white to-purple-50 relative">
+              <button
+                aria-label="Close group info"
+                title="Close"
+                className="absolute right-3 top-3 inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300 active:scale-95 transition focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                onClick={() => setInfoOpen(false)}
+              >
+                <X className="w-4 h-4" />
+              </button>
               <div className="flex flex-col items-center">
-                {groupImage ? (
-                  <img src={resolveMediaUrl(groupImage)} className="w-20 h-20 rounded-full object-cover ring-2 ring-gray-200" />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-white text-xl font-bold ring-2 ring-gray-200">{groupName?.charAt(0)?.toUpperCase() || 'G'}</div>
-                )}
+                <div className="relative">
+                  {groupImage ? (
+                    <img src={resolveMediaUrl(groupImage)} className="w-20 h-20 rounded-full object-cover ring-2 ring-white shadow" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-2xl font-bold ring-2 ring-white shadow">{groupName?.charAt(0)?.toUpperCase() || 'G'}</div>
+                  )}
+                  <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow">
+                    <Users className="w-4 h-4 text-blue-500" />
+                  </div>
+                </div>
                 <div className="font-semibold text-gray-900 mt-3 text-center truncate w-full px-4">{groupName}</div>
-                <div className="text-xs text-gray-500 mt-1">{groupMembers.length} member{groupMembers.length !== 1 ? 's' : ''}</div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge variant="secondary" className="text-[11px]">{groupMembers.length} {groupMembers.length === 1 ? 'member' : 'members'}</Badge>
+                </div>
                 <div className="mt-3">
-                  <Button size="sm" onClick={() => setAddModalOpen(true)}>Add members</Button>
+                  <Button size="sm" onClick={() => setAddModalOpen(true)} className="shadow-sm">Add members</Button>
                 </div>
               </div>
             </div>
 
             <div className="p-4">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Members</div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-semibold text-gray-500 uppercase">Members</div>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    placeholder="Search members"
+                    className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
-                {groupMembers.map(m => {
+                {groupMembers
+                  .filter(m => {
+                    const nm = (userMeta[String(m.id)]?.name || m.name || '').toLowerCase();
+                    const q = memberSearch.toLowerCase().trim();
+                    return !q || nm.includes(q);
+                  })
+                  .map(m => {
                   const meta = userMeta[String(m.id)];
                   const canRemove = String(m.id) !== String(currentUser.id) && (
                     ['admin','project_manager','assistant_project_manager'].includes(currentUser.role) ||
@@ -577,7 +625,9 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate">{meta?.name || m.name}</div>
                           {meta?.role && (
-                            <div className="text-[11px] text-gray-500 truncate">{meta.role.replace(/_/g, ' ')}</div>
+                            <span className={`inline-flex items-center px-1.5 py-0.5 mt-0.5 rounded-full text-[10px] border align-middle ${getRoleBadgeClasses(meta.role)}`}>
+                              {meta.role.replace(/_/g, ' ')}
+                            </span>
                           )}
                         </div>
                       </div>
