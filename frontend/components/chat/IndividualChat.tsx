@@ -7,6 +7,7 @@ import { ProjectAttachment } from '@/types';
 import FileViewerModal from '@/components/modals/FileViewerModal';
 import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
+import { useUserOnlineStatus } from '@/lib/hooks/useUserOnlineStatus';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -33,6 +34,7 @@ interface IndividualChatProps {
   currentUser: User;
   targetUser: any;
   onBack: () => void;
+  onNewMessage?: () => void;
 }
 
 function normalizeMessages(msgs: any[]): Message[] {
@@ -59,7 +61,7 @@ const guessMimeType = (name?: string): string => {
   return '';
 };
 
-export default function IndividualChat({ currentUser, targetUser, onBack }: IndividualChatProps) {
+export default function IndividualChat({ currentUser, targetUser, onBack, onNewMessage }: IndividualChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -67,6 +69,12 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const roomName = currentUser && targetUser ? `dm-${Math.min(Number(currentUser.id), Number(targetUser.id))}-${Math.max(Number(currentUser.id), Number(targetUser.id))}` : undefined;
+  
+  // Track online status
+  const isOnline = useUserOnlineStatus({
+    userId: targetUser.id,
+    currentUserId: currentUser.id,
+  });
   const { isConnected, send } = useChatWebSocket(roomName, async (payload) => {
     if (payload?.type === 'chat_message' || payload?.type === 'connection_established') {
       try {
@@ -82,6 +90,10 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         if (res.ok) {
           const data = await res.json();
           setMessages(normalizeMessages(data));
+          // Notify parent to refresh unread counts
+          if (onNewMessage) {
+            onNewMessage();
+          }
         }
       } catch (_) {}
     }
@@ -199,6 +211,10 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         setMessages(prev => prev.map(msg => msg.id === tempMessage.id ? frontendMessage : msg));
         if (isConnected) {
           send({ message: savedMessage.message, sender: String(savedMessage.sender_id) });
+        }
+        // Notify parent to refresh counts after sending message
+        if (onNewMessage) {
+          onNewMessage();
         }
       }
     } catch (error) {
@@ -379,9 +395,12 @@ export default function IndividualChat({ currentUser, targetUser, onBack }: Indi
         )}
         
         <div className="flex-1">
-          <h3 className="font-semibold text-gray-900">{targetUser.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-gray-900">{targetUser.name}</h3>
+            <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} title={isOnline ? 'Online' : 'Offline'}></div>
+          </div>
           <p className="text-sm text-gray-500">
-            {targetUser.role === 'project_manager' ? 'Project Manager' : targetUser.role}
+            {isOnline ? 'Online' : 'Offline'} • {targetUser.role === 'project_manager' ? 'Project Manager' : targetUser.role}
           </p>
         </div>
       </div>

@@ -3,13 +3,15 @@
 import { useState, useEffect } from 'react';
 import { User } from '@/types';
 import { getCurrentUser } from '@/lib/auth';
-import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
+import { authAPI, resolveMediaUrl, getBackendOrigin } from '@/lib/api/auth';
 import { MessageSquareIcon, UserIcon, SearchIcon } from 'lucide-react';
 import IndividualChat from '@/components/chat/IndividualChat';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { groupChatApi } from '@/lib/api/chat-groups';
+import { individualChatApi } from '@/lib/api/individual-chat';
+import { useMultipleUsersOnlineStatus } from '@/lib/hooks/useUserOnlineStatus';
 import GroupChat from '@/components/chat/GroupChat';
 
 interface Designer {
@@ -46,6 +48,18 @@ export default function MessagesPage() {
 
   const [memberOptions, setMemberOptions] = useState<any[]>([]);
   const [memberOptionsLoading, setMemberOptionsLoading] = useState(false);
+  const [groupUnreadCounts, setGroupUnreadCounts] = useState<Record<number, number>>({});
+  const [individualUnreadCounts, setIndividualUnreadCounts] = useState<Record<string, number>>({});
+  
+  // Track online status for all individual chat users
+  const allIndividualChatUserIds = [
+    ...(designers || []).map(d => d.id),
+    ...(managers || []).map(m => m.id),
+  ].filter(id => id && id !== user?.id);
+  const userOnlineStatus = useMultipleUsersOnlineStatus(
+    allIndividualChatUserIds.length > 0 ? allIndividualChatUserIds : [],
+    user?.id || ''
+  );
 
   // Define role groups
   const designerRoles = ['designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'team_head', 'team_lead'];
@@ -373,6 +387,10 @@ export default function MessagesPage() {
           raw: g,
         }));
         setGroupList(mapped);
+        
+        // Load unread counts for groups
+        const counts = await groupChatApi.getUnreadCounts();
+        setGroupUnreadCounts(counts);
       } catch (e) {
         console.error('Failed to load groups', e);
         setGroupList([]);
@@ -380,6 +398,221 @@ export default function MessagesPage() {
     };
     loadGroups();
   }, []);
+
+  // Load unread counts for individual chats
+  useEffect(() => {
+    const loadIndividualCounts = async () => {
+      if (!user) return;
+      try {
+        const conversations = await individualChatApi.getConversations();
+        const counts: Record<string, number> = {};
+        conversations.forEach(conv => {
+          counts[String(conv.user_id)] = conv.unread_count || 0;
+        });
+        setIndividualUnreadCounts(counts);
+      } catch (e) {
+        console.error('Failed to load individual chat counts', e);
+      }
+    };
+    loadIndividualCounts();
+    // Poll every 5 seconds as backup to ensure real-time updates even if WebSocket fails
+    const interval = setInterval(loadIndividualCounts, 5000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Load group unread counts with polling
+  useEffect(() => {
+    const loadGroupCounts = async () => {
+      if (!user) return;
+      try {
+        const counts = await groupChatApi.getUnreadCounts();
+        setGroupUnreadCounts(counts);
+      } catch (e) {
+        console.error('Failed to load group chat counts', e);
+      }
+    };
+    loadGroupCounts();
+    // Poll every 5 seconds as backup to ensure real-time updates even if WebSocket fails
+    const interval = setInterval(loadGroupCounts, 5000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Real-time WebSocket listeners for all group chats
+  useEffect(() => {
+    if (!user || !groupList.length) return;
+
+    const origin = getBackendOrigin() || 'http://localhost:8000';
+    const baseWsUrl = origin.replace('http://', 'ws://').replace('https://', 'wss://');
+    const wsConnections = new Map<string, WebSocket>();
+
+    // Connect to all group chat rooms for real-time updates
+    groupList.forEach(group => {
+      const roomName = `group-${group.id}`;
+      const wsUrl = `${baseWsUrl}/ws/chat/${encodeURIComponent(roomName)}/`;
+
+      // Skip if already connected
+      if (wsConnections.has(roomName)) return;
+
+      try {
+        const ws = new WebSocket(wsUrl);
+        wsConnections.set(roomName, ws);
+
+        ws.onopen = () => {
+          console.log(`Connected to group chat room: ${roomName}`);
+        };
+
+        ws.onmessage = async (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            // Update counts for any chat_message event (real-time updates)
+            if (payload?.type === 'chat_message' || payload?.type === 'connection_established') {
+              // Refresh unread counts immediately for real-time updates
+              // Don't filter by sender - we want to update for all messages to get accurate counts
+              try {
+                const counts = await groupChatApi.getUnreadCounts();
+                setGroupUnreadCounts(counts);
+              } catch (err) {
+                console.error('Error refreshing group counts:', err);
+              }
+            }
+          } catch (e) {
+            console.error('Error handling group chat WebSocket message:', e);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error(`WebSocket error for ${roomName}:`, error);
+        };
+
+        ws.onclose = () => {
+          wsConnections.delete(roomName);
+          // Note: Reconnection will be handled by effect re-running when groupList changes
+        };
+      } catch (error) {
+        console.error(`Failed to connect to ${roomName}:`, error);
+      }
+    });
+
+    // Cleanup: Close all connections
+    return () => {
+      wsConnections.forEach((ws, roomName) => {
+        try {
+          ws.close();
+        } catch (e) {
+          console.error(`Error closing WebSocket for ${roomName}:`, e);
+        }
+      });
+      wsConnections.clear();
+    };
+  }, [groupList.map(g => String(g.id)).join(','), user?.id]);
+
+  // Real-time WebSocket listeners for individual chats
+  useEffect(() => {
+    if (!user || (!designers.length && !managers.length)) return;
+
+    const origin = getBackendOrigin() || 'http://localhost:8000';
+    const baseWsUrl = origin.replace('http://', 'ws://').replace('https://', 'wss://');
+    const wsConnections = new Map<string, WebSocket>();
+
+    // Get all user IDs we have conversations with
+    const allUserIds = [
+      ...(designers || []).map(d => d.id),
+      ...(managers || []).map(m => m.id),
+    ].filter(id => id && id !== user.id);
+    
+    if (!allUserIds.length) return;
+
+    // Connect to all individual chat rooms
+    allUserIds.forEach(targetUserId => {
+      const minId = Math.min(Number(user.id), Number(targetUserId));
+      const maxId = Math.max(Number(user.id), Number(targetUserId));
+      const roomName = `dm-${minId}-${maxId}`;
+      const wsUrl = `${baseWsUrl}/ws/chat/${encodeURIComponent(roomName)}/`;
+
+      // Skip if already connected
+      if (wsConnections.has(roomName)) return;
+
+      try {
+        const ws = new WebSocket(wsUrl);
+        wsConnections.set(roomName, ws);
+
+        ws.onopen = () => {
+          console.log(`Connected to individual chat room: ${roomName}`);
+        };
+
+        ws.onmessage = async (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            // Update counts for any chat_message event (real-time updates)
+            if (payload?.type === 'chat_message' || payload?.type === 'connection_established') {
+              // Refresh unread counts immediately for real-time updates
+              // This ensures counts update even when messages come from others
+              try {
+                const conversations = await individualChatApi.getConversations();
+                const counts: Record<string, number> = {};
+                conversations.forEach(conv => {
+                  counts[String(conv.user_id)] = conv.unread_count || 0;
+                });
+                setIndividualUnreadCounts(counts);
+              } catch (err) {
+                console.error('Error refreshing individual counts:', err);
+              }
+            }
+          } catch (e) {
+            console.error('Error handling individual chat WebSocket message:', e);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error(`WebSocket error for ${roomName}:`, error);
+        };
+
+        ws.onclose = () => {
+          wsConnections.delete(roomName);
+          // Note: Reconnection will be handled by effect re-running when user/designers/managers change
+        };
+      } catch (error) {
+        console.error(`Failed to connect to ${roomName}:`, error);
+      }
+    });
+
+    // Cleanup: Close all connections
+    return () => {
+      wsConnections.forEach((ws, roomName) => {
+        try {
+          ws.close();
+        } catch (e) {
+          console.error(`Error closing WebSocket for ${roomName}:`, e);
+        }
+      });
+      wsConnections.clear();
+    };
+  }, [user?.id, designers.map(d => d.id).join(','), managers.map(m => m.id).join(',')]);
+
+  // Refresh unread counts immediately when chat opens/closes (in addition to polling and WebSocket)
+  useEffect(() => {
+    if (!user) return;
+    
+    const refreshCounts = async () => {
+      try {
+        // Refresh both counts when chat state changes
+        const [groupCounts, conversations] = await Promise.all([
+          groupChatApi.getUnreadCounts(),
+          individualChatApi.getConversations(),
+        ]);
+        setGroupUnreadCounts(groupCounts);
+        const counts: Record<string, number> = {};
+        conversations.forEach(conv => {
+          counts[String(conv.user_id)] = conv.unread_count || 0;
+        });
+        setIndividualUnreadCounts(counts);
+      } catch (e) {
+        console.error('Failed to refresh counts', e);
+      }
+    };
+    
+    refreshCounts();
+  }, [groupChatOpen, selectedUser?.id, user?.id]);
 
   // Fallback (kept for safety but primary source is memberOptions)
   const allPossibleMembers = (memberOptions && memberOptions.length > 0)
@@ -584,7 +817,20 @@ export default function MessagesPage() {
                 return (
                   <div
                     key={group.id}
-                    onClick={() => { setGroupChatOpen(true); setSelectedGroup(group.data); setSelectedUser(null); }}
+                    onClick={async () => { 
+                      setGroupChatOpen(true); 
+                      setSelectedGroup(group.data); 
+                      setSelectedUser(null);
+                      // Mark as read when opening
+                      try {
+                        await groupChatApi.markAsRead(group.id);
+                        // Refresh counts immediately
+                        const counts = await groupChatApi.getUnreadCounts();
+                        setGroupUnreadCounts(counts);
+                      } catch (e) {
+                        console.error('Error marking group as read:', e);
+                      }
+                    }}
                     className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${selectedGroup?.id === group.id && groupChatOpen ? 'bg-blue-100 border border-blue-300' : 'hover:bg-blue-50'}`}
                   >
                     {group.image ? (
@@ -596,7 +842,14 @@ export default function MessagesPage() {
                       <p className="text-sm font-medium text-gray-900 truncate">{group.name}</p>
                       <p className="text-xs text-gray-500 truncate">{Array.isArray(group.members) ? group.members.map((m: any)=>m.name).slice(0,2).join(', ') : ''}{Array.isArray(group.members) && group.members.length > 2 ? ', ...': ''}</p>
                     </div>
-                    <span className="ml-2 px-2 py-1 text-xs rounded bg-blue-50 text-blue-500">Group</span>
+                    <div className="flex items-center gap-2">
+                      {groupUnreadCounts[group.id] > 0 && (
+                        <span className="bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                          {groupUnreadCounts[group.id] > 99 ? '99+' : groupUnreadCounts[group.id]}
+                        </span>
+                      )}
+                      <span className="ml-2 px-2 py-1 text-xs rounded bg-blue-50 text-blue-500">Group</span>
+                    </div>
                   </div>
                 );
               } else {
@@ -604,7 +857,23 @@ export default function MessagesPage() {
                 return (
                   <div
                     key={dm.id}
-                    onClick={() => { setSelectedUser(dm.contact); setGroupChatOpen(false); setSelectedGroup(null); }}
+                    onClick={async () => { 
+                      setSelectedUser(dm.contact); 
+                      setGroupChatOpen(false); 
+                      setSelectedGroup(null);
+                      // Individual chats are automatically marked as read when messages are fetched
+                      // Refresh counts immediately
+                      try {
+                        const conversations = await individualChatApi.getConversations();
+                        const counts: Record<string, number> = {};
+                        conversations.forEach(conv => {
+                          counts[String(conv.user_id)] = conv.unread_count || 0;
+                        });
+                        setIndividualUnreadCounts(counts);
+                      } catch (e) {
+                        console.error('Failed to refresh counts', e);
+                      }
+                    }}
                     className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors mb-2 ${selectedUser?.id === dm.id && !groupChatOpen ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'}`}
                   >
                     {dm.contact?.profile_pic || dm.contact?.avatar ? (
@@ -615,7 +884,17 @@ export default function MessagesPage() {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{dm.name}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-gray-900 truncate flex-1 min-w-0">{dm.name}</p>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className={`w-2 h-2 rounded-full ${userOnlineStatus[dm.id] ? 'bg-green-500' : 'bg-gray-400'}`} title={userOnlineStatus[dm.id] ? 'Online' : 'Offline'}></div>
+                          {individualUnreadCounts[dm.id] > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                              {individualUnreadCounts[dm.id] > 99 ? '99+' : individualUnreadCounts[dm.id]}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <p className="text-xs text-gray-500 truncate">{dm.contact?.role?.charAt(0).toUpperCase() + dm.contact?.role?.slice(1)}</p>
                     </div>
                   </div>
@@ -639,12 +918,34 @@ export default function MessagesPage() {
               groupImage={selectedGroup.image}
               members={(selectedGroup.members || []).map((m:any)=>({ id: String(m.id), name: m.name }))}
               currentUser={user!}
+              onNewMessage={async () => {
+                // Refresh unread counts when new message arrives
+                try {
+                  const groupCounts = await groupChatApi.getUnreadCounts();
+                  setGroupUnreadCounts(groupCounts);
+                } catch (e) {
+                  console.error('Failed to refresh counts', e);
+                }
+              }}
             />
           ) : selectedUser ? (
             <IndividualChat
               currentUser={user!}
               targetUser={selectedUser}
               onBack={() => setSelectedUser(null)}
+              onNewMessage={async () => {
+                // Refresh unread counts when new message arrives
+                try {
+                  const conversations = await individualChatApi.getConversations();
+                  const counts: Record<string, number> = {};
+                  conversations.forEach(conv => {
+                    counts[String(conv.user_id)] = conv.unread_count || 0;
+                  });
+                  setIndividualUnreadCounts(counts);
+                } catch (e) {
+                  console.error('Failed to refresh counts', e);
+                }
+              }}
             />
           ) : (
             <div className="bg-white rounded-lg border border-gray-200 h-full flex items-center justify-center">

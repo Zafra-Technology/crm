@@ -43,8 +43,8 @@ export const getAuthToken = (): string | null => {
   return authAPI.getToken();
 };
 
-export const logout = (): void => {
-  authAPI.logout();
+export const logout = async (): Promise<void> => {
+  await authAPI.logout();
 };
 
 export const isAdmin = (user: any): boolean => {

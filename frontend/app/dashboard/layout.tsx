@@ -30,6 +30,24 @@ export default function DashboardLayout({
     loadUser();
   }, [router]);
 
+  // Keep user activity updated to mark them as online
+  useEffect(() => {
+    if (!user) return;
+    
+    // Refresh user activity every 2 minutes to keep them marked as online
+    const activityInterval = setInterval(async () => {
+      try {
+        await getCurrentUser(); // This updates last_login on backend
+      } catch (error) {
+        // Silent fail - don't disrupt user experience
+      }
+    }, 120000); // 2 minutes
+
+    return () => {
+      clearInterval(activityInterval);
+    };
+  }, [user]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">

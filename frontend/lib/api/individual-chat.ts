@@ -78,6 +78,16 @@ export const individualChatApi = {
     });
     return res.ok;
   },
+
+  getConversations: async (): Promise<Array<{ user_id: number; user_name: string; unread_count: number }>> => {
+    const res = await fetch(`${API_BASE_URL}/chat/conversations`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  },
 };
 
 

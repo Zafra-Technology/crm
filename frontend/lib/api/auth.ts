@@ -108,6 +108,15 @@ class AuthAPI {
     if (result?.token) {
       setCookie('auth_token', result.token);
     }
+    
+    // Trigger immediate refresh of online users
+    try {
+      const { refreshOnlineUsers } = await import('@/lib/hooks/usePresenceWebSocket');
+      refreshOnlineUsers();
+    } catch (e) {
+      // Ignore if module not loaded
+    }
+    
     return result;
   }
 
@@ -439,8 +448,29 @@ class AuthAPI {
     return response.json();
   }
 
-  logout(): void {
-    deleteCookie('auth_token');
+  async logout(): Promise<void> {
+    try {
+      // Call backend logout endpoint to mark user as offline
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: this.getAuthHeaders(),
+      });
+      
+      // Trigger immediate refresh of online users
+      try {
+        const { refreshOnlineUsers } = await import('@/lib/hooks/usePresenceWebSocket');
+        refreshOnlineUsers();
+      } catch (e) {
+        // Ignore if module not loaded
+      }
+    } catch (error) {
+      // Even if backend call fails, still delete the cookie
+      console.error('Error during logout:', error);
+    } finally {
+      // Always delete the cookie, regardless of backend response
+      deleteCookie('auth_token');
+    }
   }
 
   getCurrentUserFromStorage(): User | null {
@@ -527,6 +557,20 @@ class AuthAPI {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(errorText || 'Failed to test client login');
+    }
+
+    return response.json();
+  }
+
+  async getOnlineUsers(): Promise<number[]> {
+    const response = await fetch(`${API_BASE_URL}/auth/online-users`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      return [];
     }
 
     return response.json();

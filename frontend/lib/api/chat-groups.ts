@@ -117,6 +117,25 @@ export const groupChatApi = {
     });
     return res.ok;
   },
+
+  getUnreadCounts: async (): Promise<Record<number, number>> => {
+    const res = await fetch(`${API_BASE}/groups/unread-counts/`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) return {};
+    return res.json();
+  },
+
+  markAsRead: async (groupId: number): Promise<boolean> => {
+    const res = await fetch(`${API_BASE}/groups/${groupId}/mark-read/`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: getAuthHeaders(),
+    });
+    return res.ok;
+  },
 };
 
 

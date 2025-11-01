@@ -21,6 +21,7 @@ interface GroupChatProps {
   groupImage?: string;
   members?: Array<{ id: string; name: string }>;
   currentUser: User;
+  onNewMessage?: () => void;
 }
 
 interface GroupMessage {
@@ -38,7 +39,7 @@ interface GroupMessage {
   fileType?: string;
 }
 
-export default function GroupChat({ groupId, groupName, groupImage, members = [], currentUser }: GroupChatProps) {
+export default function GroupChat({ groupId, groupName, groupImage, members = [], currentUser, onNewMessage }: GroupChatProps) {
   const [messages, setMessages] = useState<GroupMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -137,6 +138,10 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
               return next;
             });
             scrollToBottom();
+            // Notify parent to refresh unread counts
+            if (onNewMessage) {
+              onNewMessage();
+            }
           }
         } catch (_) {}
       }
@@ -344,6 +349,10 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
         setMessages(prev => prev.map(m => m.id === optimistic.id ? mapped : m));
         if (isConnected) {
           send({ message: saved.message, sender: String(saved.user_id) });
+        }
+        // Notify parent to refresh counts after sending message
+        if (onNewMessage) {
+          onNewMessage();
         }
       } else {
         setMessages(prev => prev.filter(m => m.id !== optimistic.id));

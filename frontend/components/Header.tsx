@@ -23,8 +23,8 @@ interface HeaderProps {
 export default function Header({ user }: HeaderProps) {
   const router = useRouter();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push('/');
   };
 
@@ -44,9 +44,7 @@ export default function Header({ user }: HeaderProps) {
           <ThemeToggle />
           
           {/* Notifications */}
-          {(user.role === 'designer' || user.role === 'project_manager') && (
             <NotificationDropdown user={user} />
-          )}
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
