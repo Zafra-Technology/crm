@@ -15,6 +15,7 @@ import ShareMessageModal from '@/components/modals/ShareMessageModal';
 import { useToast } from '@/hooks/use-toast';
 import { groupChatApi } from '@/lib/api/chat-groups';
 import { individualChatApi } from '@/lib/api/individual-chat';
+import { formatChatDate, isDifferentDay } from '@/lib/utils/dateUtils';
 
 interface Message {
   id: string;
@@ -420,15 +421,25 @@ export default function IndividualChat({ currentUser, targetUser, onBack, onNewM
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="h-[calc(100vh-20rem)] overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => {
+        {messages.map((message, index) => {
           const isOwnMessage = String(message.senderId) === String(currentUser.id);
           const isTaskTagged = message.message.includes('Task:');
           
+          // Check if we need to show a date separator
+          const showDateSeparator = index === 0 || isDifferentDay(message.timestamp, messages[index - 1].timestamp);
+          
           return (
-            <div
-              key={message.id}
-              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-            >
+            <div key={message.id}>
+              {showDateSeparator && (
+                <div className="flex justify-center my-4">
+                  <span className="bg-gray-300 text-gray-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                    {formatChatDate(message.timestamp)}
+                  </span>
+                </div>
+              )}
+              <div
+                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+              >
               {isTaskTagged ? (
                 // Task Tagged Card Design
                 <div className="max-w-xs lg:max-w-md bg-red-50 border-l-4 border-red-500 rounded-lg shadow-sm">
@@ -660,6 +671,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack, onNewM
                   </div>
                 </div>
               )}
+              </div>
             </div>
           );
         })}

@@ -18,6 +18,7 @@ import { individualChatApi } from '@/lib/api/individual-chat';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { formatChatDate, isDifferentDay } from '@/lib/utils/dateUtils';
 
 interface ProjectChatProps {
   projectId: string;
@@ -622,17 +623,27 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
             </div>
           </div>
         ) : (
-          chatMessages.map((message) => {
+          chatMessages.map((message, index) => {
           const roleTag = getRoleTag(message.userRole || 'user');
           const isOwnMessage = String(message.userId) === String(currentUser.id);
           
+          // Check if we need to show a date separator
+          const showDateSeparator = index === 0 || isDifferentDay(message.timestamp, chatMessages[index - 1].timestamp);
+          
           return (
-            <div
-              key={message.id}
-              className={`flex items-start space-x-3 ${
-                isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''
-              }`}
-            >
+            <div key={message.id}>
+              {showDateSeparator && (
+                <div className="flex justify-center my-4">
+                  <span className="bg-gray-300 text-gray-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                    {formatChatDate(message.timestamp)}
+                  </span>
+                </div>
+              )}
+              <div
+                className={`flex items-start space-x-3 ${
+                  isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''
+                }`}
+              >
               <div className={`w-8 h-8 ${getRoleAvatar(message.userRole || 'user')} rounded-full flex items-center justify-center flex-shrink-0`}>
                 <span className="text-white font-medium text-xs">
                   {message.userName?.charAt(0).toUpperCase() || 'U'}
@@ -824,6 +835,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                     </div>
                   )}
                 </div>
+              </div>
               </div>
             </div>
           );

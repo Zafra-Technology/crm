@@ -81,6 +81,8 @@ export function resolveMediaUrl(url?: string | null): string {
 }
 
 class AuthAPI {
+  private currentUserPromise: Promise<User> | null = null;
+
   private getAuthHeaders() {
     const token = getCookie('auth_token');
     return {
@@ -139,16 +141,38 @@ class AuthAPI {
   }
 
   async getCurrentUser(): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
-      headers: this.getAuthHeaders(),
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to get current user');
+    // If there's already a pending request, return that instead of making a new one
+    if (this.currentUserPromise) {
+      return this.currentUserPromise;
     }
 
-    return response.json();
+    // Create new request
+    this.currentUserPromise = (async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: this.getAuthHeaders(),
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          // Include status code in error message for better error handling
+          const error = new Error(`Failed to get current user: ${response.status}`);
+          (error as any).status = response.status;
+          throw error;
+        }
+
+        const user = await response.json();
+        return user;
+      } finally {
+        // Clear the promise after request completes (success or failure)
+        // This allows retries if needed, but prevents duplicate simultaneous requests
+        setTimeout(() => {
+          this.currentUserPromise = null;
+        }, 100); // Small delay to allow concurrent calls to share the promise
+      }
+    })();
+
+    return this.currentUserPromise;
   }
 
   async updateCurrentUser(data: Partial<RegisterData>): Promise<User> {

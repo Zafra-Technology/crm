@@ -392,14 +392,6 @@ export default function ProjectDetailsPage() {
     user.role === 'team_lead';
   const isClient = user.role === 'client';
   const isDesigner = user.role === 'designer';
-  const canSeeChat = (
-    user.role === 'admin' ||
-    user.role === 'project_manager' ||
-    user.role === 'assistant_project_manager' ||
-    user.role === 'professional_engineer' ||
-    user.role === 'client' ||
-    user.role === 'client_team_member'
-  );
 
   const statusColors: Record<Project['status'] | 'inactive' | 'rejected' | 'quotation_submitted', string> = {
     planning: 'bg-blue-100 text-blue-800',
@@ -443,7 +435,7 @@ export default function ProjectDetailsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column - Project Content */}
-        <div className={`lg:${canSeeChat ? 'col-span-1' : 'col-span-2'} space-y-6`}>
+        <div className="lg:col-span-1 space-y-6">
           {/* Project Details */}
           <Card>
             <CardHeader>
@@ -598,17 +590,15 @@ export default function ProjectDetailsPage() {
         </div>
 
         {/* Right Column - Team Chat */}
-        {canSeeChat && (
-          <div className="lg:col-span-1">
-            <div className="h-[calc(100vh-12rem)] sticky top-6">
-              <ProjectChat 
-                projectId={projectId}
-                currentUser={user}
-                messages={chatMessages}
-              />
-            </div>
+        <div className="lg:col-span-1">
+          <div className="h-[calc(100vh-12rem)] sticky top-6">
+            <ProjectChat 
+              projectId={projectId}
+              currentUser={user}
+              messages={chatMessages}
+            />
           </div>
-        )}
+        </div>
       </div>
 
       {/* Edit Project Modal */}

@@ -37,9 +37,16 @@ export default function DashboardLayout({
     // Refresh user activity every 2 minutes to keep them marked as online
     const activityInterval = setInterval(async () => {
       try {
-        await getCurrentUser(); // This updates last_login on backend
-      } catch (error) {
-        // Silent fail - don't disrupt user experience
+        const updatedUser = await getCurrentUser();
+        if (updatedUser) {
+          setUser(updatedUser); // Update user state if fetch succeeds
+        }
+      } catch (error: any) {
+        // Silent fail for 401/unauthorized - user might have logged out
+        // Other errors are already logged in getCurrentUser
+        if (error?.status !== 401) {
+          console.error('Error refreshing user activity:', error);
+        }
       }
     }, 120000); // 2 minutes
 

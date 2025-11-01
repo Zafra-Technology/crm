@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/hooks/use-toast';
 import { groupChatApi } from '@/lib/api/chat-groups';
 import { individualChatApi } from '@/lib/api/individual-chat';
+import { formatChatDate, isDifferentDay } from '@/lib/utils/dateUtils';
 
 interface GroupChatProps {
   groupId: string;
@@ -547,11 +548,23 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
       ) : null}
 
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((m) => {
+        {messages.map((m, index) => {
           const own = String(m.userId) === String(currentUser.id);
           const meta = userMeta[String(m.userId)] || { name: m.userName, role: m.userRole || 'user', avatar: undefined };
+          
+          // Check if we need to show a date separator
+          const showDateSeparator = index === 0 || isDifferentDay(m.timestamp, messages[index - 1].timestamp);
+          
           return (
-            <div key={m.id} className={`flex items-start space-x-3 ${own ? 'flex-row-reverse space-x-reverse' : ''}`}>
+            <div key={m.id}>
+              {showDateSeparator && (
+                <div className="flex justify-center my-4">
+                  <span className="bg-gray-300 text-gray-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                    {formatChatDate(m.timestamp)}
+                  </span>
+                </div>
+              )}
+              <div className={`flex items-start space-x-3 ${own ? 'flex-row-reverse space-x-reverse' : ''}`}>
               {meta.avatar ? (
                 <img src={meta.avatar} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
               ) : (
@@ -711,6 +724,7 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
                   </div>
                 )}
                 </div>
+              </div>
               </div>
             </div>
           );

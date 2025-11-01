@@ -32,8 +32,12 @@ export const getCurrentUser = async (): Promise<any | null> => {
     const apiUser = await authAPI.getCurrentUser();
     const convertedUser = convertAPIUser(apiUser);
     return convertedUser;
-  } catch (error) {
-    console.error('Error fetching current user:', error);
+  } catch (error: any) {
+    // Silently handle 401 (unauthorized) - user likely not logged in yet
+    // Only log other errors
+    if (error?.message && !error.message.includes('401')) {
+      console.error('Error fetching current user:', error);
+    }
     return null;
   }
 };
