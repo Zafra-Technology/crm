@@ -596,6 +596,12 @@ export default function ProjectDetailsPage() {
               projectId={projectId}
               currentUser={user}
               messages={chatMessages}
+              isAssignedMember={
+                // Check if current user is in the project's assigned members (designerIds)
+                // Also check if user is in the designers array (loaded separately)
+                (project?.designerIds?.some(id => String(id) === String(user.id)) ?? false) ||
+                designers.some(d => d.id === user.id)
+              }
             />
           </div>
         </div>

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon, ArrowLeft, Users, Building2, MessageSquare, ChevronRight } from 'lucide-react';
 import { MoreVertical } from 'lucide-react';
 import { Forward } from 'lucide-react';
 import { CheckSquare } from 'lucide-react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { ChatMessage, User } from '@/types';
-import { resolveMediaUrl } from '@/lib/api/auth';
+import { resolveMediaUrl, getBackendOrigin } from '@/lib/api/auth';
 import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
 import { authAPI } from '@/lib/api/auth';
 import ChatFilePreviewModal from '@/components/modals/ChatFilePreviewModal';
@@ -24,11 +24,20 @@ interface ProjectChatProps {
   projectId: string;
   currentUser: User;
   messages: ChatMessage[];
+  isAssignedMember?: boolean; // Optional prop to indicate if user is an assigned member
 }
 
-export default function ProjectChat({ projectId, currentUser, messages }: ProjectChatProps) {
+type ChatType = 'client' | 'team' | null;
+
+export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false }: ProjectChatProps) {
+  const [selectedChatType, setSelectedChatType] = useState<ChatType>(null);
+  const [userHasSelected, setUserHasSelected] = useState(false); // Track if user explicitly selected
+  
+  // IMPORTANT: selectedChatType should ALWAYS start as null and only be set when user clicks
+  
   const [newMessage, setNewMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(messages);
+  // Initialize with empty messages - they will be loaded based on selectedChatType
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState<{userId: string, userName: string}[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -46,28 +55,135 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   const [editingText, setEditingText] = useState<string>('');
   const [editingFileData, setEditingFileData] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id?: string; timestamp?: string }>({ open: false });
+  
+  // Determine which chats to show based on user role
+  const canSeeClientChat = [
+    'admin',
+    'project_manager',
+    'assistant_project_manager',
+    'professional_engineer',
+    'client',
+    'client_team_member'
+  ].includes(currentUser?.role || '');
+
+  // Team chat visible to: admin, project_manager, assistant_project_manager, and assigned members
+  const canSeeTeamChat = [
+    'admin',
+    'project_manager',
+    'assistant_project_manager'
+  ].includes(currentUser?.role || '') || isAssignedMember;
+  
+  // Debug logging for team chat visibility
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log('🔍 Team Chat Visibility Check:', {
+        userRole: currentUser?.role,
+        isAssignedMember,
+        canSeeTeamChat,
+        projectId,
+        userId: currentUser?.id
+      });
+    }
+  }, [currentUser?.role, isAssignedMember, canSeeTeamChat, projectId, currentUser?.id]);
+
+  // Determine WebSocket room name based on selected chat type
+  const getWebSocketRoom = () => {
+    if (!selectedChatType) return undefined;
+    return `project-${projectId}-${selectedChatType}-chat`;
+  };
+
+  // Get API endpoint based on selected chat type
+  // Using query parameter approach for compatibility with existing backend
+  // Memoize to avoid recreating on every render
+  const getChatApiUrl = useCallback((endpoint: 'messages' | 'edit' | 'delete' = 'messages', messageId?: string) => {
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+    const basePath = `${API_BASE_URL}/chat/project/${projectId}`;
+    
+    // Try new endpoint structure first, fallback to query parameter
+    const chatTypeParam = selectedChatType ? `chat_type=${selectedChatType}` : '';
+    
+    if (endpoint === 'messages') {
+      // Try new endpoint structure
+      if (selectedChatType) {
+        // Try: /client-chat/messages or /team-chat/messages
+        const newEndpoint = `${basePath}/${selectedChatType}-chat/messages`;
+        return newEndpoint;
+      }
+      // Fallback to original with query parameter
+      return chatTypeParam ? `${basePath}/messages?${chatTypeParam}` : `${basePath}/messages`;
+    } else if (endpoint === 'edit' && messageId) {
+      if (selectedChatType) {
+        return `${basePath}/${selectedChatType}-chat/messages/${messageId}/edit`;
+      }
+      return `${basePath}/messages/${messageId}/edit${chatTypeParam ? `?${chatTypeParam}` : ''}`;
+    } else if (endpoint === 'delete' && messageId) {
+      if (selectedChatType) {
+        return `${basePath}/${selectedChatType}-chat/messages/${messageId}/delete`;
+      }
+      return `${basePath}/messages/${messageId}/delete${chatTypeParam ? `?${chatTypeParam}` : ''}`;
+    }
+    
+    return `${basePath}/messages`;
+  }, [projectId, selectedChatType]);
+
+  const wsRoom = getWebSocketRoom();
+  
+  // Log WebSocket connection status
+  useEffect(() => {
+    if (wsRoom) {
+      console.log('🔌 WebSocket Room:', wsRoom, 'Chat Type:', selectedChatType);
+    }
+  }, [wsRoom, selectedChatType]);
+
   const { isConnected, send } = useChatWebSocket(
-    projectId ? `project-${projectId}` : undefined,
+    wsRoom,
     async (payload) => {
       if (payload?.type === 'chat_message' || payload?.type === 'connection_established') {
         // If this WS event came from the same user who just sent the message, skip refetch to avoid flicker
         if (payload?.sender && String(payload.sender) === String(currentUser?.id)) {
           return;
         }
+        if (!selectedChatType) return;
         try {
-          const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-          const url = `${API_BASE_URL}/chat/project/${projectId}/messages`;
+          const url = getChatApiUrl('messages');
           const token = authAPI.getToken();
-          const res = await fetch(url, {
+          
+          // Try new endpoint first, if 404 then try with query parameter
+          let res = await fetch(url, {
             headers: {
               'Accept': 'application/json',
               ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             },
             credentials: 'include',
           });
+          
+          // If 404, try fallback with query parameter
+          if (!res.ok && res.status === 404) {
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+            const fallbackUrl = `${API_BASE_URL}/chat/project/${projectId}/messages?chat_type=${selectedChatType}`;
+            res = await fetch(fallbackUrl, {
+              headers: {
+                'Accept': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              },
+              credentials: 'include',
+            });
+          }
+          
           if (res.ok) {
             const latest = await res.json();
-            const mapped = (latest || []).map((m: any) => ({
+            // Filter messages by chat_type to ensure client chat messages don't show in team chat and vice versa
+            const filteredMessages = (latest || []).filter((m: any) => {
+              // If message has chat_type field, it must match selectedChatType
+              if (m.chat_type) {
+                return m.chat_type === selectedChatType;
+              }
+              // If message doesn't have chat_type (old messages), exclude them from type-specific chats
+              // Only show messages without chat_type if selectedChatType is null (legacy behavior)
+              return false;
+            });
+            
+            const mapped = filteredMessages.map((m: any) => ({
               id: String(m.id),
               projectId: String(m.project_id),
               userId: String(m.user_id),
@@ -85,10 +201,17 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
             setChatMessages(mapped);
             scrollToBottom();
           }
-        } catch (_) {}
+        } catch (error) {
+          console.error('Error in WebSocket message handler:', error);
+        }
       }
     }
   );
+  
+  // Log WebSocket connection status
+  useEffect(() => {
+    console.log('🔌 WebSocket Status:', { isConnected, room: wsRoom, chatType: selectedChatType });
+  }, [isConnected, wsRoom, selectedChatType]);
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -117,25 +240,139 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     }
   }, [chatMessages]);
 
-  // Load messages when component mounts or projectId changes
+  // Load chat preference from backend on mount (DO NOT auto-open - user must click explicitly)
+  // Preference is only used for remembering last choice, not for auto-opening
   useEffect(() => {
-    const loadMessages = async () => {
+    const loadPreference = async () => {
       try {
-        console.log('🔄 Loading chat history for project:', projectId);
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-        const url = `${API_BASE_URL}/chat/project/${projectId}/messages`;
         const token = authAPI.getToken();
-        const response = await fetch(url, {
+        const response = await fetch(`${API_BASE_URL}/chat/project/${projectId}/preference`, {
           headers: {
             'Accept': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
           credentials: 'include',
         });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.chat_type === 'client' || data.chat_type === 'team') {
+            console.log('📦 Loaded chat preference from backend (preference exists but will not auto-open):', data.chat_type);
+            // DO NOT set selectedChatType here - user must explicitly click
+            // Preference is stored but conversation won't open automatically
+          }
+        }
+        // Preference loaded - but we DO NOT auto-open conversation
+      } catch (error) {
+        console.error('Error loading chat preference:', error);
+      }
+    };
+    
+    loadPreference();
+  }, [projectId]);
+  
+  // Save chat preference to backend when user explicitly selects a chat type
+  useEffect(() => {
+    if (!selectedChatType || !userHasSelected) return;
+    
+    const savePreference = async () => {
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        const token = authAPI.getToken();
+        const response = await fetch(`${API_BASE_URL}/chat/project/${projectId}/preference`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({ chat_type: selectedChatType }),
+        });
+        
+        if (response.ok) {
+          console.log('💾 Saved chat preference to backend:', selectedChatType);
+          // Note: We're NOT setting sessionStorage anymore - conversations should only open on explicit click
+        } else {
+          console.warn('Failed to save chat preference:', response.status);
+        }
+      } catch (error) {
+        console.error('Error saving chat preference:', error);
+      }
+    };
+    
+    // Debounce saves to avoid too many API calls
+    const timer = setTimeout(savePreference, 500);
+    return () => clearTimeout(timer);
+  }, [selectedChatType, projectId, userHasSelected]);
+
+  // Load messages when component mounts, projectId changes, or selectedChatType changes
+  // IMPORTANT: Only load if userHasSelected is true - prevents auto-loading
+  useEffect(() => {
+    if (!selectedChatType) {
+      setChatMessages([]);
+      return;
+    }
+    
+    // Safety check: Don't load messages unless user explicitly selected a chat type
+    if (!userHasSelected) {
+      console.log('⚠️ Prevented auto-loading messages - user has not explicitly selected chat type');
+      setChatMessages([]);
+      return;
+    }
+
+    const loadMessages = async () => {
+      try {
+        console.log('🔄 Loading chat history for project:', projectId, 'chat type:', selectedChatType);
+        let url = getChatApiUrl('messages');
+        console.log('📡 Fetching from URL:', url);
+        const token = authAPI.getToken();
+        
+        // Try new endpoint first, if 404 then try with query parameter
+        let response = await fetch(url, {
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
+        
+        console.log('📥 Initial response status:', response.status);
+        
+        // If 404, try fallback with query parameter
+        if (!response.ok && response.status === 404) {
+          const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+          url = `${API_BASE_URL}/chat/project/${projectId}/messages?chat_type=${selectedChatType}`;
+          console.log('🔄 Trying fallback URL:', url);
+          response = await fetch(url, {
+            headers: {
+              'Accept': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+            credentials: 'include',
+          });
+          console.log('📥 Fallback response status:', response.status);
+        }
+        
         if (response.ok) {
           const projectMessages = await response.json();
           console.log('💬 Loaded conversation history:', projectMessages.length, 'messages');
-          const mapped = (projectMessages || []).map((m: any) => ({
+          
+          // Filter messages by chat_type to ensure client chat messages don't show in team chat and vice versa
+          const filteredMessages = (projectMessages || []).filter((m: any) => {
+            // If message has chat_type field, it must match selectedChatType
+            if (m.chat_type) {
+              return m.chat_type === selectedChatType;
+            }
+            // If message doesn't have chat_type (old messages), exclude them from type-specific chats
+            // Only show messages without chat_type if selectedChatType is null (legacy behavior)
+            return false;
+          });
+          
+          console.log(`📊 Filtered to ${filteredMessages.length} messages for ${selectedChatType} chat`);
+          
+          const mapped = filteredMessages.map((m: any) => ({
             id: String(m.id),
             projectId: String(m.project_id),
             userId: String(m.user_id),
@@ -150,14 +387,21 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
             fileUrl: resolveMediaUrl(m.file_url),
           }));
           setChatMessages(mapped);
+          console.log('✅ Messages loaded and set:', mapped.length);
+        } else {
+          // If endpoint doesn't exist yet, set empty messages
+          const errorText = await response.text().catch(() => 'Unknown error');
+          console.warn('⚠️ Chat API returned error:', response.status, errorText);
+          setChatMessages([]);
         }
       } catch (error) {
-        console.error('Error loading chat history:', error);
+        console.error('❌ Error loading chat history:', error);
+        setChatMessages([]);
       }
     };
 
     loadMessages();
-  }, [projectId]);
+  }, [projectId, selectedChatType, getChatApiUrl]);
 
   // Remove polling: WS will trigger refresh
 
@@ -175,6 +419,8 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   };
 
   const sendMessage = async (content: string, messageType: 'text' | 'file' | 'image', fileData?: any) => {
+    if (!selectedChatType) return;
+
     const messageData = {
       message: content,
       message_type: messageType,
@@ -182,6 +428,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       file_size: fileData?.fileSize || null,
       file_type: fileData?.fileType || null,
       file_url: fileData?.fileUrl || null,
+      chat_type: selectedChatType, // Include chat type in request body
     };
 
     // Optimistically add message to UI first
@@ -200,12 +447,12 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     setNewMessage('');
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-      const apiUrl = `${API_BASE_URL}/chat/project/${projectId}/messages`;
+      let apiUrl = getChatApiUrl('messages');
       console.log('Calling API:', apiUrl);
       const token = authAPI.getToken();
+      
       // Save message to database
-      const response = await fetch(apiUrl, {
+      let response = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -216,11 +463,38 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         body: JSON.stringify(messageData),
       });
 
+      // If 404, try fallback with original endpoint and chat_type in body
+      if (!response.ok && response.status === 404) {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        apiUrl = `${API_BASE_URL}/chat/project/${projectId}/messages`;
+        console.log('Trying fallback API:', apiUrl);
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(messageData),
+        });
+      }
+
       console.log('API Response:', response.status, response.ok);
 
       if (response.ok) {
             const savedMessage = await response.json();
         console.log('Message saved:', savedMessage);
+        
+        // Verify the saved message has the correct chat_type (safety check)
+        if (savedMessage.chat_type && savedMessage.chat_type !== selectedChatType) {
+          console.warn('⚠️ Saved message chat_type mismatch. Expected:', selectedChatType, 'Got:', savedMessage.chat_type);
+          // Remove temp message as it's for wrong chat type
+          setChatMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
+          if (messageType === 'text') setNewMessage(content); // Restore text message
+          toast({ title: 'Error', description: 'Message saved to wrong chat type', variant: 'destructive' as any });
+          return;
+        }
         
         // Convert backend response to frontend format
         const frontendMessage = {
@@ -238,7 +512,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
           fileUrl: resolveMediaUrl(savedMessage.file_url),
         };
         
-        // Replace temp message with real one
+        // Replace temp message with real one (only if chat_type matches)
         setChatMessages(prev => 
           prev.map(msg => 
             msg.id === tempMessage.id ? frontendMessage : msg
@@ -434,8 +708,9 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   };
 
   const handleEditSave = async (msg: ChatMessage) => {
+    if (!selectedChatType) return;
+    
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
       const token = authAPI.getToken();
       const body: any = { message: editingText };
       if ((editingFileData as any)?.fileUrl) {
@@ -445,7 +720,7 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         body.file_type = (editingFileData as any).fileType;
         body.message_type = (editingFileData as any).messageType;
       }
-      const res = await fetch(`${API_BASE_URL}/chat/project/${projectId}/messages/${msg.id}/edit`, {
+      const res = await fetch(getChatApiUrl('edit', msg.id), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
         credentials: 'include',
@@ -467,11 +742,10 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
   };
 
   const performDelete = async (scope: 'me' | 'everyone') => {
-    if (!deleteDialog.id) return;
+    if (!deleteDialog.id || !selectedChatType) return;
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
       const token = authAPI.getToken();
-      const res = await fetch(`${API_BASE_URL}/chat/project/${projectId}/messages/${deleteDialog.id}/delete`, {
+      const res = await fetch(getChatApiUrl('delete', deleteDialog.id), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
         credentials: 'include',
@@ -551,6 +825,93 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
     }
   };
 
+  // Chat selection view
+  if (!selectedChatType) {
+    return (
+      <div className="card h-full flex flex-col relative">
+        <div className="flex-shrink-0 px-4 md:px-6 pt-4 pb-4 border-b border-border">
+          <h3 className="text-lg font-semibold text-foreground mb-1">Project Chat</h3>
+          <p className="text-sm text-muted-foreground">Select a chat to start conversation</p>
+        </div>
+        
+        {/* Chat Options List */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3">
+          {canSeeClientChat && (
+            <button
+              onClick={() => {
+                console.log('👆 User clicked Client Chat - explicitly opening');
+                setUserHasSelected(true);
+                setSelectedChatType('client');
+              }}
+              className="w-full group relative text-left rounded-xl border border-border bg-card text-card-foreground shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-200 overflow-hidden"
+            >
+              <div className="p-5 flex items-start gap-4">
+                <div className="flex-shrink-0 w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors duration-200">
+                  <Building2 className="w-7 h-7 text-primary group-hover:text-primary-foreground transition-colors duration-200" />
+                </div>
+                <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                        Client Chat
+                      </h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-snug">
+                      Communicate with clients and stakeholders
+                    </p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-all duration-200 group-hover:translate-x-0.5 flex-shrink-0" />
+                </div>
+              </div>
+            </button>
+          )}
+          
+          {canSeeTeamChat && (
+            <button
+              onClick={() => {
+                console.log('👆 User clicked Team Chat - explicitly opening');
+                setUserHasSelected(true);
+                setSelectedChatType('team');
+              }}
+              className="w-full group relative text-left rounded-xl border border-border bg-card text-card-foreground shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-200 overflow-hidden"
+            >
+              <div className="p-5 flex items-start gap-4">
+                <div className="flex-shrink-0 w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors duration-200">
+                  <Users className="w-7 h-7 text-primary group-hover:text-primary-foreground transition-colors duration-200" />
+                </div>
+                <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                        Team Chat
+                      </h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-snug">
+                      Internal team communication and collaboration
+                    </p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-all duration-200 group-hover:translate-x-0.5 flex-shrink-0" />
+                </div>
+              </div>
+            </button>
+          )}
+          
+          {!canSeeClientChat && !canSeeTeamChat && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center p-6">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <p className="text-foreground font-medium mb-1">No chats available</p>
+                <p className="text-sm text-muted-foreground">Chat options are not available for your role.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       className={`card h-full flex flex-col relative ${dragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
@@ -569,13 +930,40 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
       )}
       
       {!isSelectMode ? (
-        <h3 className="text-lg font-semibold text-black mb-4 pb-3 border-b border-gray-200 flex-shrink-0">
-          Project Chat
-        </h3>
+        <div className="flex items-center space-x-3 mb-4 pb-3 border-b border-gray-200 flex-shrink-0">
+          <button
+            onClick={() => {
+              setSelectedChatType(null);
+              // Don't clear userHasSelected - keep it so preference is still saved
+            }}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+            title="Back to chat selection"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h3 className="text-lg font-semibold text-black">
+            Project Chat
+          </h3>
+          <span className="text-sm text-gray-500 ml-2">
+            {selectedChatType === 'client' ? 'Client Chat' : 'Team Chat'}
+          </span>
+        </div>
       ) : (
         <div className="mb-4 pb-3 border-b border-gray-200 flex items-center justify-between">
-          <div className="text-sm text-gray-700">
-            {selectedMessageIds.size} selected
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => {
+                setSelectedChatType(null);
+                // Don't clear userHasSelected - keep it so preference is still saved
+              }}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+              title="Back to chat selection"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="text-sm text-gray-700">
+              {selectedMessageIds.size} selected
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -613,8 +1001,10 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                 Start the conversation
               </h3>
               <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-                Send a message to begin collaborating with your team. Share updates, ask questions, 
-                or upload files to keep everyone in sync.
+                {selectedChatType === 'client' 
+                  ? 'Send a message to begin collaborating with clients. Share updates, ask questions, or upload files to keep everyone in sync.'
+                  : 'Send a message to begin collaborating with your team. Share updates, ask questions, or upload files to keep everyone in sync.'
+                }
               </p>
               <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
                 <PaperclipIcon size={14} />
@@ -918,9 +1308,101 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
         onClose={() => setShareOpen(false)}
         loading={shareLoading}
         currentUserId={currentUser?.id ? Number(currentUser.id) : undefined}
-        onConfirm={async ({ groupIds, userIds }) => {
+        showProjectChats={true}
+        projectId={projectId}
+        currentChatType={selectedChatType || undefined}
+        userRole={currentUser?.role}
+        isAssignedMember={isAssignedMember}
+        onConfirm={async ({ groupIds, userIds, projectChatTypes }) => {
           try {
             setShareLoading(true);
+            // Helper to send message to project chat
+            const sendToProjectChat = async (sharedMsg: any, chatType: string) => {
+              const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+              const token = authAPI.getToken();
+              let payload: any;
+              
+              // Handle both file messages and text messages
+              if (sharedMsg.fileUrl) {
+                const dataUrl = await urlToDataUrl(sharedMsg.fileUrl);
+                const isImg = isImageFile(sharedMsg.fileType);
+                const messageType: 'file' | 'image' = isImg ? 'image' : 'file';
+                const messageText = messageType === 'image' 
+                  ? `📷 Shared an image: ${sharedMsg.fileName || ''}` 
+                  : `📎 Shared a file: ${sharedMsg.fileName || ''}`;
+                payload = {
+                  message: messageText,
+                  message_type: messageType,
+                  file_name: sharedMsg.fileName || null,
+                  file_size: sharedMsg.fileSize || null,
+                  file_type: sharedMsg.fileType || null,
+                  file_url: dataUrl,
+                  chat_type: chatType,
+                };
+              } else {
+                // Text message sharing
+                const messageText = sharedMsg.message || sharedMsg.text || '';
+                payload = {
+                  message: messageText,
+                  message_type: 'text' as const,
+                  file_name: null,
+                  file_size: null,
+                  file_type: null,
+                  file_url: null,
+                  chat_type: chatType,
+                };
+              }
+              
+              // Try new endpoint first, fallback to query parameter
+              let apiUrl = `${API_BASE_URL}/chat/project/${projectId}/${chatType}-chat/messages`;
+              let response = await fetch(apiUrl, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify(payload),
+              });
+              
+              if (!response.ok && response.status === 404) {
+                // Fallback to query parameter
+                apiUrl = `${API_BASE_URL}/chat/project/${projectId}/messages`;
+                response = await fetch(apiUrl, {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                  },
+                  body: JSON.stringify(payload),
+                });
+              }
+              
+              if (!response.ok) {
+                throw new Error(`Failed to share to ${chatType} chat`);
+              }
+            };
+            
+            // Helper to send WebSocket notification for real-time updates
+            const notifyRoom = (roomName: string) => {
+              try {
+                const origin = getBackendOrigin() || 'http://localhost:8000';
+                const wsUrl = origin.replace('http://', 'ws://').replace('https://', 'wss://') + `/ws/chat/${encodeURIComponent(roomName)}/`;
+                const ws = new WebSocket(wsUrl);
+                ws.onopen = () => {
+                  ws.send(JSON.stringify({ type: 'chat_message', sender: String(currentUser?.id) }));
+                  ws.close();
+                };
+                ws.onerror = () => ws.close();
+                setTimeout(() => ws.close(), 1000);
+              } catch (_) {
+                // Ignore WebSocket errors
+              }
+            };
+            
             const sendOne = async (msg: any) => {
               if (msg.fileUrl) {
                 const dataUrl = await urlToDataUrl(msg.fileUrl);
@@ -935,8 +1417,27 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                   file_type: msg.fileType || null,
                   file_url: dataUrl,
                 };
+                
+                // Send messages via API
                 await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
                 await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+                
+                // Send WebSocket notifications for real-time updates
+                (groupIds || []).forEach(gid => notifyRoom(`group-${gid}`));
+                (userIds || []).forEach(uid => {
+                  const minId = Math.min(Number(currentUser?.id || 0), Number(uid));
+                  const maxId = Math.max(Number(currentUser?.id || 0), Number(uid));
+                  notifyRoom(`dm-${minId}-${maxId}`);
+                });
+                
+                // Send to project chats if selected
+                if (projectChatTypes && projectChatTypes.length > 0) {
+                  await Promise.all(projectChatTypes.map(chatType => sendToProjectChat(msg, chatType)));
+                  // Notify project chat WebSocket rooms
+                  projectChatTypes.forEach(chatType => {
+                    notifyRoom(`project-${projectId}-${chatType}-chat`);
+                  });
+                }
               } else {
                 const payload = {
                   message: msg.message || '',
@@ -946,8 +1447,27 @@ export default function ProjectChat({ projectId, currentUser, messages }: Projec
                   file_type: null,
                   file_url: null,
                 };
+                
+                // Send messages via API
                 await Promise.all((groupIds || []).map(gid => groupChatApi.sendMessage(gid, payload)));
                 await Promise.all((userIds || []).map(uid => individualChatApi.sendMessage(uid, payload)));
+                
+                // Send WebSocket notifications for real-time updates
+                (groupIds || []).forEach(gid => notifyRoom(`group-${gid}`));
+                (userIds || []).forEach(uid => {
+                  const minId = Math.min(Number(currentUser?.id || 0), Number(uid));
+                  const maxId = Math.max(Number(currentUser?.id || 0), Number(uid));
+                  notifyRoom(`dm-${minId}-${maxId}`);
+                });
+                
+                // Send to project chats if selected
+                if (projectChatTypes && projectChatTypes.length > 0) {
+                  await Promise.all(projectChatTypes.map(chatType => sendToProjectChat(msg, chatType)));
+                  // Notify project chat WebSocket rooms
+                  projectChatTypes.forEach(chatType => {
+                    notifyRoom(`project-${projectId}-${chatType}-chat`);
+                  });
+                }
               }
             };
 
