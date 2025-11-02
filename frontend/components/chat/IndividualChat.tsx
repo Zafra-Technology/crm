@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { groupChatApi } from '@/lib/api/chat-groups';
 import { individualChatApi } from '@/lib/api/individual-chat';
 import { formatChatDate, isDifferentDay } from '@/lib/utils/dateUtils';
+import { LinkifiedText } from '@/lib/utils/linkUtils';
 
 interface Message {
   id: string;
@@ -450,7 +451,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack, onNewM
                   </div>
                   <div className="p-4">
                     <div className="text-sm text-gray-800 whitespace-pre-line">
-                      {message.message}
+                      <LinkifiedText text={message.message} />
                     </div>
                     <div className="text-xs text-red-600 mt-2 font-medium">
                       From: {message.senderName} • {formatTime(message.timestamp)}
@@ -508,7 +509,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack, onNewM
                     </div>
                   ) : (
                     <div className="text-sm whitespace-pre-line">
-                      {message.message}
+                      <LinkifiedText text={message.message} />
                     </div>
                   )}
                 

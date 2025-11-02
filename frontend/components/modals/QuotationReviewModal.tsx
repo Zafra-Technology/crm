@@ -138,14 +138,47 @@ export default function QuotationReviewModal({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          const url = resolveMediaUrl(quotationFile);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = quotationFile.split('/').pop() || 'quotation';
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
+                        onClick={async () => {
+                          if (!quotationFile) return;
+                          
+                          try {
+                            const fileName = quotationFile.split('/').pop() || 'quotation';
+                            const fileUrl = resolveMediaUrl(quotationFile);
+                            
+                            // If it's a data URL (base64), download directly
+                            if (fileUrl.startsWith('data:')) {
+                              const link = document.createElement('a');
+                              link.href = fileUrl;
+                              link.download = fileName;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              return;
+                            }
+                            
+                            // For remote URLs, fetch as blob to handle CORS and authentication
+                            const response = await fetch(fileUrl, { credentials: 'include' });
+                            if (!response.ok) throw new Error('Failed to fetch file');
+                            
+                            const blob = await response.blob();
+                            const objectUrl = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = objectUrl;
+                            link.download = fileName;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(objectUrl);
+                          } catch (error) {
+                            console.error('Error downloading file:', error);
+                            // Fallback to direct link download
+                            const link = document.createElement('a');
+                            link.href = resolveMediaUrl(quotationFile);
+                            link.download = quotationFile.split('/').pop() || 'quotation';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }
                         }}
                         className="h-8 w-8 p-0"
                         title="Download file"

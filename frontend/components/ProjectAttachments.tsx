@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { formatDate } from '@/lib/utils/dateUtils';
+import { resolveMediaUrl } from '@/lib/api/auth';
 
 interface ProjectAttachmentsProps {
   attachments: ProjectAttachment[];
@@ -74,14 +75,47 @@ export default function ProjectAttachments({
     }
   };
 
-  const handleDownload = (attachment: ProjectAttachment) => {
-    // Create a temporary link to download the file
-    const link = document.createElement('a');
-    link.href = attachment.url;
-    link.download = attachment.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (attachment: ProjectAttachment) => {
+    if (!attachment.url) return;
+    
+    try {
+      // Resolve the URL properly (handles backend URLs)
+      const fileUrl = resolveMediaUrl(attachment.url);
+      
+      // If it's a data URL (base64), download directly
+      if (fileUrl.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = attachment.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // For remote URLs, fetch as blob to handle CORS and authentication
+      const response = await fetch(fileUrl, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = attachment.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      // Fallback to direct link download
+      const link = document.createElement('a');
+      link.href = resolveMediaUrl(attachment.url);
+      link.download = attachment.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleView = (attachment: ProjectAttachment) => {

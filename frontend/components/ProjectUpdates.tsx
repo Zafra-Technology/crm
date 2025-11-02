@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { getCookie } from '@/lib/cookies';
 import { formatDate } from '@/lib/utils/dateUtils';
+import { resolveMediaUrl } from '@/lib/api/auth';
 
 interface ProjectUpdatesProps {
   projectId: string;
@@ -240,13 +241,47 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                         <EyeIcon size={14} />
                       </Button>
                       <Button
-                        onClick={() => {
-                          const link = document.createElement('a');
-                          link.href = update.fileUrl!;
-                          link.download = update.fileName || 'download';
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
+                        onClick={async () => {
+                          if (!update.fileUrl) return;
+                          
+                          try {
+                            // Resolve the URL properly (handles backend URLs)
+                            const fileUrl = resolveMediaUrl(update.fileUrl);
+                            
+                            // If it's a data URL (base64), download directly
+                            if (fileUrl.startsWith('data:')) {
+                              const link = document.createElement('a');
+                              link.href = fileUrl;
+                              link.download = update.fileName || 'download';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              return;
+                            }
+                            
+                            // For remote URLs, fetch as blob to handle CORS and authentication
+                            const response = await fetch(fileUrl, { credentials: 'include' });
+                            if (!response.ok) throw new Error('Failed to fetch file');
+                            
+                            const blob = await response.blob();
+                            const objectUrl = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = objectUrl;
+                            link.download = update.fileName || 'download';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(objectUrl);
+                          } catch (error) {
+                            console.error('Error downloading file:', error);
+                            // Fallback to direct link download
+                            const link = document.createElement('a');
+                            link.href = resolveMediaUrl(update.fileUrl);
+                            link.download = update.fileName || 'download';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }
                         }}
                         variant="ghost"
                         size="icon"

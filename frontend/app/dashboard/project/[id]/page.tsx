@@ -554,22 +554,90 @@ export default function ProjectDetailsPage() {
     setShowStampedFilesViewer(true);
   };
 
-  const handleDownloadFinalOutputFile = (file: ProjectAttachment) => {
-    const link = document.createElement('a');
-    link.href = file.url;
-    link.download = file.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadFinalOutputFile = async (file: ProjectAttachment) => {
+    if (!file.url) return;
+    
+    try {
+      // Resolve the URL properly (handles backend URLs)
+      const fileUrl = resolveMediaUrl(file.url);
+      
+      // If it's a data URL (base64), download directly
+      if (fileUrl.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // For remote URLs, fetch as blob to handle CORS and authentication
+      const response = await fetch(fileUrl, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      // Fallback to direct link download
+      const link = document.createElement('a');
+      link.href = resolveMediaUrl(file.url);
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
-  const handleDownloadStampedFile = (file: ProjectAttachment) => {
-    const link = document.createElement('a');
-    link.href = file.url;
-    link.download = file.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadStampedFile = async (file: ProjectAttachment) => {
+    if (!file.url) return;
+    
+    try {
+      // Resolve the URL properly (handles backend URLs)
+      const fileUrl = resolveMediaUrl(file.url);
+      
+      // If it's a data URL (base64), download directly
+      if (fileUrl.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // For remote URLs, fetch as blob to handle CORS and authentication
+      const response = await fetch(fileUrl, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      // Fallback to direct link download
+      const link = document.createElement('a');
+      link.href = resolveMediaUrl(file.url);
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleRemoveFinalOutputFile = async (fileId: string) => {

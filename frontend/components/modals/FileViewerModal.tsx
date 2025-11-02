@@ -124,14 +124,48 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
     return true; // Assume other URLs are valid
   };
 
-  const handleDownload = () => {
-    const validUrl = getValidImageUrl(attachment.url);
-    const link = document.createElement('a');
-    link.href = validUrl;
-    link.download = attachment.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async () => {
+    if (!attachment || !attachment.url) return;
+    
+    try {
+      const validUrl = getValidImageUrl(attachment.url);
+      const fileUrl = resolveMediaUrl(validUrl);
+      
+      // If it's a data URL (base64), download directly
+      if (fileUrl.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = attachment.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // For remote URLs, fetch as blob to handle CORS and authentication
+      const response = await fetch(fileUrl, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = attachment.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      // Fallback to direct link download
+      const validUrl = getValidImageUrl(attachment.url);
+      const link = document.createElement('a');
+      link.href = resolveMediaUrl(validUrl);
+      link.download = attachment.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleZoomIn = () => {

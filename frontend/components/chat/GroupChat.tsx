@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { groupChatApi } from '@/lib/api/chat-groups';
 import { individualChatApi } from '@/lib/api/individual-chat';
 import { formatChatDate, isDifferentDay } from '@/lib/utils/dateUtils';
+import { LinkifiedText } from '@/lib/utils/linkUtils';
 
 interface GroupChatProps {
   groupId: string;
@@ -683,7 +684,11 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
                     </div>
                   </div>
                 ) : (
-                  m.message && <div className="text-sm whitespace-pre-line">{m.message}</div>
+                  m.message && (
+                    <div className="text-sm whitespace-pre-line">
+                      <LinkifiedText text={m.message} />
+                    </div>
+                  )
                 )}
                 {m.fileUrl && (
                   <div className="mt-2">

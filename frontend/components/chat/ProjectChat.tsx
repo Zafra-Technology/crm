@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { formatChatDate, isDifferentDay } from '@/lib/utils/dateUtils';
+import { LinkifiedText } from '@/lib/utils/linkUtils';
 
 interface ProjectChatProps {
   projectId: string;
@@ -32,6 +33,8 @@ type ChatType = 'client' | 'team' | null;
 export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false }: ProjectChatProps) {
   const [selectedChatType, setSelectedChatType] = useState<ChatType>(null);
   const [userHasSelected, setUserHasSelected] = useState(false); // Track if user explicitly selected
+  const [isLoading, setIsLoading] = useState(false);
+  const endpointCacheRef = useRef<{ [key: string]: 'new' | 'fallback' }>({}); // Cache which endpoint format works
   
   // IMPORTANT: selectedChatType should ALWAYS start as null and only be set when user clicks
   
@@ -95,34 +98,35 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
   };
 
   // Get API endpoint based on selected chat type
-  // Using query parameter approach for compatibility with existing backend
-  // Memoize to avoid recreating on every render
-  const getChatApiUrl = useCallback((endpoint: 'messages' | 'edit' | 'delete' = 'messages', messageId?: string) => {
+  // Optimized: Use cached endpoint format to avoid double fetch attempts
+  const getChatApiUrl = useCallback((endpoint: 'messages' | 'edit' | 'delete' = 'messages', messageId?: string, useCache: boolean = true) => {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
     const basePath = `${API_BASE_URL}/chat/project/${projectId}`;
     
-    // Try new endpoint structure first, fallback to query parameter
-    const chatTypeParam = selectedChatType ? `chat_type=${selectedChatType}` : '';
+    if (!selectedChatType) {
+      return `${basePath}/messages`;
+    }
     
+    const cacheKey = `${projectId}-${selectedChatType}`;
+    const cachedFormat = endpointCacheRef.current[cacheKey];
+    
+    // For messages endpoint, use cached format if available, otherwise try fallback first (most likely to work)
     if (endpoint === 'messages') {
-      // Try new endpoint structure
-      if (selectedChatType) {
-        // Try: /client-chat/messages or /team-chat/messages
-        const newEndpoint = `${basePath}/${selectedChatType}-chat/messages`;
-        return newEndpoint;
+      if (useCache && cachedFormat === 'new') {
+        return `${basePath}/${selectedChatType}-chat/messages`;
       }
-      // Fallback to original with query parameter
-      return chatTypeParam ? `${basePath}/messages?${chatTypeParam}` : `${basePath}/messages`;
+      // Default to query parameter approach (most compatible)
+      return `${basePath}/messages?chat_type=${selectedChatType}`;
     } else if (endpoint === 'edit' && messageId) {
-      if (selectedChatType) {
+      if (useCache && cachedFormat === 'new') {
         return `${basePath}/${selectedChatType}-chat/messages/${messageId}/edit`;
       }
-      return `${basePath}/messages/${messageId}/edit${chatTypeParam ? `?${chatTypeParam}` : ''}`;
+      return `${basePath}/messages/${messageId}/edit?chat_type=${selectedChatType}`;
     } else if (endpoint === 'delete' && messageId) {
-      if (selectedChatType) {
+      if (useCache && cachedFormat === 'new') {
         return `${basePath}/${selectedChatType}-chat/messages/${messageId}/delete`;
       }
-      return `${basePath}/messages/${messageId}/delete${chatTypeParam ? `?${chatTypeParam}` : ''}`;
+      return `${basePath}/messages/${messageId}/delete?chat_type=${selectedChatType}`;
     }
     
     return `${basePath}/messages`;
@@ -147,10 +151,10 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         }
         if (!selectedChatType) return;
         try {
-          const url = getChatApiUrl('messages');
           const token = authAPI.getToken();
+          const cacheKey = `${projectId}-${selectedChatType}`;
+          let url = getChatApiUrl('messages', undefined, true);
           
-          // Try new endpoint first, if 404 then try with query parameter
           let res = await fetch(url, {
             headers: {
               'Accept': 'application/json',
@@ -159,47 +163,47 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             credentials: 'include',
           });
           
-          // If 404, try fallback with query parameter
-          if (!res.ok && res.status === 404) {
+          // If 404, try new endpoint format and cache it
+          if (!res.ok && res.status === 404 && !endpointCacheRef.current[cacheKey]) {
             const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-            const fallbackUrl = `${API_BASE_URL}/chat/project/${projectId}/messages?chat_type=${selectedChatType}`;
-            res = await fetch(fallbackUrl, {
+            const newUrl = `${API_BASE_URL}/chat/project/${projectId}/${selectedChatType}-chat/messages`;
+            res = await fetch(newUrl, {
               headers: {
                 'Accept': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
               },
               credentials: 'include',
             });
+            if (res.ok) {
+              endpointCacheRef.current[cacheKey] = 'new';
+            }
+          } else if (res.ok && !endpointCacheRef.current[cacheKey]) {
+            endpointCacheRef.current[cacheKey] = 'fallback';
           }
           
           if (res.ok) {
             const latest = await res.json();
-            // Filter messages by chat_type to ensure client chat messages don't show in team chat and vice versa
-            const filteredMessages = (latest || []).filter((m: any) => {
-              // If message has chat_type field, it must match selectedChatType
-              if (m.chat_type) {
-                return m.chat_type === selectedChatType;
-              }
-              // If message doesn't have chat_type (old messages), exclude them from type-specific chats
-              // Only show messages without chat_type if selectedChatType is null (legacy behavior)
-              return false;
-            });
-            
-            const mapped = filteredMessages.map((m: any) => ({
-              id: String(m.id),
-              projectId: String(m.project_id),
-              userId: String(m.user_id),
-              userName: m.user_name,
-              userRole: m.user_role,
-              message: m.message,
-              messageType: m.message_type,
-              timestamp: m.timestamp,
-              fileName: m.file_name,
-              fileSize: m.file_size,
-              fileType: m.file_type,
-              fileUrl: resolveMediaUrl(m.file_url),
-            }));
-            // Replace with latest snapshot so edits/deletes reflect immediately
+            // Optimize: Filter and map in single pass
+            const mapped = (latest || []).reduce((acc: ChatMessage[], m: any) => {
+              if (m.chat_type && m.chat_type !== selectedChatType) return acc;
+              if (!m.chat_type && selectedChatType) return acc;
+              
+              acc.push({
+                id: String(m.id),
+                projectId: String(m.project_id),
+                userId: String(m.user_id),
+                userName: m.user_name,
+                userRole: m.user_role,
+                message: m.message,
+                messageType: m.message_type,
+                timestamp: m.timestamp,
+                fileName: m.file_name,
+                fileSize: m.file_size,
+                fileType: m.file_type,
+                fileUrl: m.file_url ? resolveMediaUrl(m.file_url) : undefined,
+              });
+              return acc;
+            }, []);
             setChatMessages(mapped);
             scrollToBottom();
           }
@@ -326,13 +330,14 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
 
     const loadMessages = async () => {
       try {
-        console.log('🔄 Loading chat history for project:', projectId, 'chat type:', selectedChatType);
-        let url = getChatApiUrl('messages');
-        console.log('📡 Fetching from URL:', url);
+        setIsLoading(true);
         const token = authAPI.getToken();
+        const cacheKey = `${projectId}-${selectedChatType}`;
+        let url = getChatApiUrl('messages', undefined, true);
+        let response: Response;
         
-        // Try new endpoint first, if 404 then try with query parameter
-        let response = await fetch(url, {
+        // Fetch using cached or default endpoint
+        response = await fetch(url, {
           headers: {
             'Accept': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -340,65 +345,67 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
           credentials: 'include',
         });
         
-        console.log('📥 Initial response status:', response.status);
-        
-        // If 404, try fallback with query parameter
-        if (!response.ok && response.status === 404) {
+        // If 404, try new endpoint format and cache it
+        if (!response.ok && response.status === 404 && !endpointCacheRef.current[cacheKey]) {
           const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-          url = `${API_BASE_URL}/chat/project/${projectId}/messages?chat_type=${selectedChatType}`;
-          console.log('🔄 Trying fallback URL:', url);
-          response = await fetch(url, {
+          const newUrl = `${API_BASE_URL}/chat/project/${projectId}/${selectedChatType}-chat/messages`;
+          response = await fetch(newUrl, {
             headers: {
               'Accept': 'application/json',
               ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             },
             credentials: 'include',
           });
-          console.log('📥 Fallback response status:', response.status);
+          
+          // Cache successful endpoint format
+          if (response.ok) {
+            endpointCacheRef.current[cacheKey] = 'new';
+          }
+        } else if (response.ok && !endpointCacheRef.current[cacheKey]) {
+          // Cache that query parameter format works
+          endpointCacheRef.current[cacheKey] = 'fallback';
         }
         
         if (response.ok) {
           const projectMessages = await response.json();
-          console.log('💬 Loaded conversation history:', projectMessages.length, 'messages');
           
-          // Filter messages by chat_type to ensure client chat messages don't show in team chat and vice versa
-          const filteredMessages = (projectMessages || []).filter((m: any) => {
-            // If message has chat_type field, it must match selectedChatType
-            if (m.chat_type) {
-              return m.chat_type === selectedChatType;
+          // Optimize: Filter and map in single pass, and batch URL resolution
+          const mapped = (projectMessages || []).reduce((acc: ChatMessage[], m: any) => {
+            // Filter by chat_type efficiently
+            if (m.chat_type && m.chat_type !== selectedChatType) {
+              return acc;
             }
-            // If message doesn't have chat_type (old messages), exclude them from type-specific chats
-            // Only show messages without chat_type if selectedChatType is null (legacy behavior)
-            return false;
-          });
+            if (!m.chat_type && selectedChatType) {
+              return acc;
+            }
+            
+            // Map message with optimized URL resolution
+            acc.push({
+              id: String(m.id),
+              projectId: String(m.project_id),
+              userId: String(m.user_id),
+              userName: m.user_name,
+              userRole: m.user_role,
+              message: m.message,
+              messageType: m.message_type,
+              timestamp: m.timestamp,
+              fileName: m.file_name,
+              fileSize: m.file_size,
+              fileType: m.file_type,
+              fileUrl: m.file_url ? resolveMediaUrl(m.file_url) : undefined,
+            });
+            return acc;
+          }, []);
           
-          console.log(`📊 Filtered to ${filteredMessages.length} messages for ${selectedChatType} chat`);
-          
-          const mapped = filteredMessages.map((m: any) => ({
-            id: String(m.id),
-            projectId: String(m.project_id),
-            userId: String(m.user_id),
-            userName: m.user_name,
-            userRole: m.user_role,
-            message: m.message,
-            messageType: m.message_type,
-            timestamp: m.timestamp,
-            fileName: m.file_name,
-            fileSize: m.file_size,
-            fileType: m.file_type,
-            fileUrl: resolveMediaUrl(m.file_url),
-          }));
           setChatMessages(mapped);
-          console.log('✅ Messages loaded and set:', mapped.length);
         } else {
-          // If endpoint doesn't exist yet, set empty messages
-          const errorText = await response.text().catch(() => 'Unknown error');
-          console.warn('⚠️ Chat API returned error:', response.status, errorText);
           setChatMessages([]);
         }
       } catch (error) {
-        console.error('❌ Error loading chat history:', error);
+        console.error('Error loading chat history:', error);
         setChatMessages([]);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -722,12 +729,29 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         body.file_type = (editingFileData as any).fileType;
         body.message_type = (editingFileData as any).messageType;
       }
-      const res = await fetch(getChatApiUrl('edit', msg.id), {
+      
+      let url = getChatApiUrl('edit', msg.id);
+      
+      // Try new endpoint first, if 404 then try with query parameter
+      let res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
         credentials: 'include',
         body: JSON.stringify(body),
       });
+      
+      // If 404, try fallback with query parameter
+      if (!res.ok && res.status === 404) {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        url = `${API_BASE_URL}/chat/project/${projectId}/messages/${msg.id}/edit?chat_type=${selectedChatType}`;
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+          credentials: 'include',
+          body: JSON.stringify(body),
+        });
+      }
+      
       if (res.ok) {
         setChatMessages(prev => prev.map(m => m.id === msg.id ? { ...m, message: editingText + ' (edited)', fileUrl: (editingFileData as any)?.fileUrl || m.fileUrl, fileName: (editingFileData as any)?.fileName || m.fileName, fileSize: (editingFileData as any)?.fileSize ?? m.fileSize, fileType: (editingFileData as any)?.fileType || m.fileType, messageType: (editingFileData as any)?.messageType || m.messageType } : m));
         setEditingId(null); setEditingText('');
@@ -747,12 +771,28 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     if (!deleteDialog.id || !selectedChatType) return;
     try {
       const token = authAPI.getToken();
-      const res = await fetch(getChatApiUrl('delete', deleteDialog.id), {
+      let url = getChatApiUrl('delete', deleteDialog.id);
+      
+      // Try new endpoint first, if 404 then try with query parameter
+      let res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
         credentials: 'include',
         body: JSON.stringify({ scope }),
       });
+      
+      // If 404, try fallback with query parameter
+      if (!res.ok && res.status === 404) {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        url = `${API_BASE_URL}/chat/project/${projectId}/messages/${deleteDialog.id}/delete?chat_type=${selectedChatType}`;
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+          credentials: 'include',
+          body: JSON.stringify({ scope }),
+        });
+      }
+      
       if (res.ok) {
         if (scope === 'me') {
           setChatMessages(prev => prev.filter(m => String(m.id) !== String(deleteDialog.id)));
@@ -992,7 +1032,15 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-0">
-        {chatMessages.length === 0 ? (
+        {isLoading ? (
+          /* Loading state */
+          <div className="flex-1 flex items-center justify-center h-full min-h-[300px]">
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+              <p className="text-sm text-gray-600">Loading messages...</p>
+            </div>
+          </div>
+        ) : chatMessages.length === 0 ? (
           /* Empty state placeholder */
           <div className="flex-1 flex items-center justify-center h-full min-h-[300px]">
             <div className="text-center max-w-md mx-auto px-4">
@@ -1153,7 +1201,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                    !message.message.startsWith('📷 Shared an image:') && 
                    !message.message.startsWith('[Image:') && (
                     <div className="mb-2">
-                      {message.message}
+                      <LinkifiedText text={message.message} />
                     </div>
                   ))}
 
