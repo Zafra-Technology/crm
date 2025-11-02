@@ -48,7 +48,6 @@ interface CreateProjectForm {
   projectType: 'residential' | 'commercial';
   projectAddress: string;
   projectLocationUrl: string;
-  agreementFile: File | null;
   attachments: File[];
 }
 
@@ -79,7 +78,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     projectType: 'residential',
     projectAddress: '',
     projectLocationUrl: '',
-    agreementFile: null,
     attachments: []
   });
 
@@ -187,21 +185,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         };
       }));
 
-      // Include Agreement file as an attachment (so Pending Requests shows Awaiting signature)
-      let agreementAttachment: any | null = null;
-      if (formData.agreementFile) {
-        const base64 = await convertFileToBase64(formData.agreementFile);
-        agreementAttachment = {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          name: `Agreement - ${formData.agreementFile.name}`,
-          size: formData.agreementFile.size,
-          type: formData.agreementFile.type || 'application/octet-stream',
-          url: base64,
-          uploadedAt: new Date().toISOString(),
-          uploadedBy: userId
-        };
-      }
-
       const projectData = {
         name: formData.name,
         description: formData.description,
@@ -219,7 +202,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       const newProject = await projectsApi.create(projectData);
       if (newProject) {
         // Immediately upload attachments via update call
-        const finalAttachments = agreementAttachment ? [agreementAttachment, ...attachments] : attachments;
+        const finalAttachments = attachments;
         if (finalAttachments.length > 0) {
           try {
             await projectsApi.update(newProject.id, { attachments: finalAttachments });
@@ -240,7 +223,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
           projectType: 'residential',
           projectAddress: '',
           projectLocationUrl: '',
-          agreementFile: null,
           attachments: []
         });
         // Show success message
@@ -713,48 +695,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                   ))}
                   {designers.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-2">No active team members available</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Agreement File (optional) */}
-              <div className="space-y-2">
-                <Label>Agreement File (Optional)</Label>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/20 hover:bg-muted/40 transition-colors">
-                      <div className="flex flex-col items-center justify-center pt-3 pb-4">
-                        <PaperclipIcon className="w-6 h-6 mb-2 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> agreement file</p>
-                        <p className="text-xs text-muted-foreground">PDF, DOC (MAX. 10MB)</p>
-                      </div>
-                      <input
-                        type="file"
-                        onChange={(e) => setFormData({ ...formData, agreementFile: e.target.files?.[0] || null })}
-                        className="hidden"
-                        accept=".pdf,.doc,.docx"
-                      />
-                    </label>
-                  </div>
-                  {formData.agreementFile && (
-                    <div className="flex items-center justify-between p-2 bg-muted rounded-md">
-                      <div className="flex items-center space-x-2">
-                        <FileIcon size={16} className="text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{formData.agreementFile.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatFileSize(formData.agreementFile.size)}</p>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, agreementFile: null })}
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                      >
-                        <XIcon size={16} />
-                      </Button>
-                    </div>
                   )}
                 </div>
               </div>

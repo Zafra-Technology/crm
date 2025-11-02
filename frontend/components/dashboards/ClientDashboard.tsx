@@ -9,7 +9,6 @@ import { projectsApi } from '@/lib/api/projects';
 import { PlusIcon } from 'lucide-react';
 import CreateProjectModal from '@/components/modals/CreateProjectModal';
 import QuotationReviewModal from '@/components/modals/QuotationReviewModal';
-import AgreementReviewModal from '@/components/modals/AgreementReviewModal';
 import ViewFeedbackModal from '@/components/modals/ViewFeedbackModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,10 +24,8 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
   const searchParams = useSearchParams();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showQuotationModal, setShowQuotationModal] = useState(false);
-  const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showViewFeedbackModal, setShowViewFeedbackModal] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<Project | null>(null);
-  const [selectedAgreementProject, setSelectedAgreementProject] = useState<Project | null>(null);
   const [selectedFeedbackProject, setSelectedFeedbackProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -92,52 +89,9 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
     }
   };
 
-  const handleAcceptAgreement = async (signedFile?: File) => {
-    if (!selectedAgreementProject) return;
-    setLoading(true);
-    try {
-      await projectsApi.clientAcceptAgreement(selectedAgreementProject.id, '', signedFile);
-      await loadProjects();
-      setShowAgreementModal(false);
-      setSelectedAgreementProject(null);
-      setSuccessMessage('Agreement accepted successfully. Waiting for manager review.');
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (error) {
-      console.error('Error accepting agreement:', error);
-      setErrorMessage('Failed to accept agreement. Please try again.');
-      setTimeout(() => setErrorMessage(null), 5000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRejectAgreement = async () => {
-    if (!selectedAgreementProject) return;
-    setLoading(true);
-    try {
-      await projectsApi.clientRejectAgreement(selectedAgreementProject.id, '');
-      await loadProjects();
-      setShowAgreementModal(false);
-      setSelectedAgreementProject(null);
-      setSuccessMessage('Agreement rejected. Feedback has been sent.');
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (error) {
-      console.error('Error rejecting agreement:', error);
-      setErrorMessage('Failed to reject agreement. Please try again.');
-      setTimeout(() => setErrorMessage(null), 5000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const openQuotationReview = (project: Project) => {
     setSelectedQuotation(project);
     setShowQuotationModal(true);
-  };
-
-  const openAgreementReview = (project: Project) => {
-    setSelectedAgreementProject(project);
-    setShowAgreementModal(true);
   };
 
   const openViewFeedback = (project: Project) => {
@@ -214,7 +168,6 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
             showActions={true}
             onViewFeedback={openViewFeedback}
             onQuotationReview={openQuotationReview}
-            onAgreementReview={openAgreementReview}
           />
         ) : (
           <Card>
@@ -248,23 +201,6 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
           onReject={handleRejectQuotation}
           quotationMessage={selectedQuotation.quotationMessage || ''}
           quotationFile={selectedQuotation.quotationFile}
-          loading={loading}
-        />
-      )}
-
-      {selectedAgreementProject && (
-        <AgreementReviewModal
-          isOpen={showAgreementModal}
-          onClose={() => {
-            setShowAgreementModal(false);
-            setSelectedAgreementProject(null);
-          }}
-          onAccept={handleAcceptAgreement}
-          onReject={handleRejectAgreement}
-          agreementMessage={undefined}
-          agreementFiles={(selectedAgreementProject.attachments || [])
-            .filter(a => a.name?.toLowerCase().startsWith('agreement'))
-            .map(a => ({ name: a.name, url: a.url }))}
           loading={loading}
         />
       )}

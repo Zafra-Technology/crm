@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import FileViewerModal from '@/components/modals/FileViewerModal';
+import { ProjectAttachment } from '@/types';
 
 interface QuotationReviewModalProps {
   isOpen: boolean;
@@ -38,6 +40,8 @@ export default function QuotationReviewModal({
 }: QuotationReviewModalProps) {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectFeedback, setRejectFeedback] = useState('');
+  const [showFileViewer, setShowFileViewer] = useState(false);
+  const [fileViewerAttachment, setFileViewerAttachment] = useState<ProjectAttachment | null>(null);
 
   const handleAccept = () => {
     onAccept();
@@ -106,8 +110,25 @@ export default function QuotationReviewModal({
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          const url = resolveMediaUrl(quotationFile);
-                          window.open(url, '_blank', 'noopener,noreferrer');
+                          const fileName = quotationFile.split('/').pop() || 'Quotation File';
+                          const fileUrl = resolveMediaUrl(quotationFile);
+                          
+                          // Create a ProjectAttachment-like object for the file viewer
+                          const attachment: ProjectAttachment = {
+                            id: 'quotation-file',
+                            name: fileName,
+                            size: 0, // Size unknown from URL
+                            type: fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 
+                                  fileName.toLowerCase().endsWith('.doc') || fileName.toLowerCase().endsWith('.docx') ? 'application/msword' :
+                                  fileName.toLowerCase().endsWith('.xls') || fileName.toLowerCase().endsWith('.xlsx') ? 'application/vnd.ms-excel' :
+                                  'application/octet-stream',
+                            url: fileUrl,
+                            uploadedAt: new Date().toISOString(),
+                            uploadedBy: ''
+                          };
+                          
+                          setFileViewerAttachment(attachment);
+                          setShowFileViewer(true);
                         }}
                         className="h-8 w-8 p-0"
                         title="Preview file"
@@ -208,6 +229,16 @@ export default function QuotationReviewModal({
           </form>
         )}
       </DialogContent>
+      
+      {/* File Viewer Modal */}
+      <FileViewerModal
+        isOpen={showFileViewer}
+        onClose={() => {
+          setShowFileViewer(false);
+          setFileViewerAttachment(null);
+        }}
+        attachment={fileViewerAttachment}
+      />
     </Dialog>
   );
 }

@@ -201,31 +201,14 @@ export default function ProjectDetailsModal({
           )}
 
           {/* Attachments */}
-          {project.attachments && project.attachments.length > 0 && (() => {
-            const isAgreement = (name: string | undefined) => !!name && (name.toLowerCase().startsWith('agreement') || name.toLowerCase().startsWith('signed agreement'));
-            const agreementAttachments = project.attachments.filter(a => isAgreement(a.name));
-            const otherAttachments = project.attachments.filter(a => !isAgreement(a.name));
-            return (
-              <>
-                {agreementAttachments.length > 0 && (
-                  <ProjectAttachments
-                    attachments={agreementAttachments}
-                    canEdit={false}
-                    canRemove={false}
-                    title="Agreement Attachments"
-                  />
-                )}
-                {otherAttachments.length > 0 && (
-                  <ProjectAttachments
-                    attachments={otherAttachments}
-                    canEdit={false}
-                    canRemove={false}
-                    title="Project Attachments"
-                  />
-                )}
-              </>
-            )
-          })()}
+          {project.attachments && project.attachments.length > 0 && (
+            <ProjectAttachments
+              attachments={project.attachments}
+              canEdit={false}
+              canRemove={false}
+              title="Project Attachments"
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>

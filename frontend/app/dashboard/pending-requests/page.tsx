@@ -24,7 +24,6 @@ import { toast } from '@/hooks/use-toast';
 import ProjectDetailsModal from '@/components/modals/ProjectDetailsModal';
 import FeedbackModal from '@/components/modals/FeedbackModal';
 import QuotationModal from '@/components/modals/QuotationModal';
-import AgreementModal from '@/components/modals/AgreementModal';
 import { convertFileToBase64 } from '@/lib/utils/fileUtils';
 import { formatDate } from '@/lib/utils/dateUtils';
 
@@ -35,8 +34,6 @@ export default function PendingRequestsPage() {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showQuotationModal, setShowQuotationModal] = useState(false);
-  const [showAgreementModal, setShowAgreementModal] = useState(false);
-  const [showManagerRejectModal, setShowManagerRejectModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const router = useRouter();
 
@@ -120,14 +117,21 @@ export default function PendingRequestsPage() {
     }
   };
 
-  const handleApproveProject = async (projectId: string) => {
+  const handleApproveProject = async (project: Project) => {
     try {
-      await projectsApi.approveProject(projectId);
-      toast({
-        title: "Success",
-        description: "Project approved successfully",
-      });
-      loadPendingProjects();
+      await projectsApi.approveProject(project.id);
+      
+      // For commercial projects, immediately open quotation modal
+      if (project.projectType === 'commercial') {
+        openQuotationModal(project);
+      } else {
+        // For residential projects, show success message
+        toast({
+          title: "Success",
+          description: "Project approved successfully",
+        });
+        await loadPendingProjects();
+      }
     } catch (error) {
       console.error('Error approving project:', error);
       toast({
@@ -182,70 +186,6 @@ export default function PendingRequestsPage() {
     }
   };
 
-  const handleSendAgreement = async (agreementFile?: File) => {
-    if (!selectedProject) return;
-
-    try {
-      setLoading(true);
-      // Use backend endpoint so server tracks the event
-      await projectsApi.sendAgreement(selectedProject.id, '', agreementFile);
-
-      toast({
-        title: 'Agreement sent',
-        description: 'The agreement has been uploaded and shared with the client.',
-      });
-      setShowAgreementModal(false);
-      setSelectedProject(null);
-      await loadPendingProjects();
-    } catch (error) {
-      console.error('Error sending agreement:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to send agreement',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleManagerAcceptAgreement = async (project: Project) => {
-    try {
-      setLoading(true);
-      await projectsApi.managerReviewAgreement(project.id, 'accept');
-      if (project.projectType === 'commercial') {
-        // Immediately proceed to quotation for commercial projects
-        openQuotationModal(project);
-      } else {
-        // Residential moves to planning and disappears from this list
-        await loadPendingProjects();
-      }
-      toast({ title: 'Agreement accepted', description: 'Proceeding to the next step.' });
-    } catch (error) {
-      console.error('Error accepting agreement:', error);
-      toast({ title: 'Error', description: 'Failed to accept agreement', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleManagerRejectAgreement = async (feedbackMessage: string) => {
-    if (!selectedProject) return;
-    try {
-      setLoading(true);
-      await projectsApi.managerReviewAgreement(selectedProject.id, 'reject', feedbackMessage);
-      toast({ title: 'Agreement rejected', description: 'Feedback sent to client.' });
-      setShowManagerRejectModal(false);
-      setSelectedProject(null);
-      await loadPendingProjects();
-    } catch (error) {
-      console.error('Error rejecting agreement:', error);
-      toast({ title: 'Error', description: 'Failed to reject agreement', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const openRejectModal = (project: Project) => {
     setSelectedProject(project);
     setShowFeedbackModal(true);
@@ -254,16 +194,6 @@ export default function PendingRequestsPage() {
   const openQuotationModal = (project: Project) => {
     setSelectedProject(project);
     setShowQuotationModal(true);
-  };
-
-  const openAgreementModal = (project: Project) => {
-    setSelectedProject(project);
-    setShowAgreementModal(true);
-  };
-
-  const openManagerRejectModal = (project: Project) => {
-    setSelectedProject(project);
-    setShowManagerRejectModal(true);
   };
 
   const handleViewProject = (project: Project) => {
@@ -283,16 +213,6 @@ export default function PendingRequestsPage() {
 
   const handleCloseQuotationModal = () => {
     setShowQuotationModal(false);
-    setSelectedProject(null);
-  };
-
-  const handleCloseAgreementModal = () => {
-    setShowAgreementModal(false);
-    setSelectedProject(null);
-  };
-
-  const handleCloseManagerRejectModal = () => {
-    setShowManagerRejectModal(false);
     setSelectedProject(null);
   };
 
@@ -473,9 +393,8 @@ export default function PendingRequestsPage() {
                       View Details
                     </Button>
                     
-                    {/* For the new flow, stage-based actions */}
-                    {/* Stage 1: No agreement yet -> Send Agreement / Reject */}
-                    {project.status === 'inactive' && !(project.attachments || []).some(a => (a.name || '').toLowerCase().startsWith('agreement')) && (
+                    {/* Action buttons for inactive projects */}
+                    {project.status === 'inactive' && (
                       <div className="flex space-x-2">
                         <Button
                           variant="outline"
@@ -488,40 +407,11 @@ export default function PendingRequestsPage() {
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => openAgreementModal(project)}
+                          onClick={() => handleApproveProject(project)}
                           className="flex-1 bg-green-600 hover:bg-green-700"
                         >
                           <CheckCircleIcon className="h-4 w-4 mr-1" />
-                          Send Agreement
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Stage 2: Agreement sent, waiting for client -> just info badge */}
-                    {project.status === 'inactive' && (project.attachments || []).some(a => (a.name || '').toLowerCase().startsWith('agreement')) &&
-                     !(project.attachments || []).some(a => (a.name || '').toLowerCase().startsWith('signed agreement')) && (
-                      <Badge variant="secondary" className="w-full justify-center">Awaiting client signature</Badge>
-                    )}
-
-                    {/* Stage 3: Signed agreement received -> Manager Accept/Reject */}
-                    {project.status === 'inactive' && (project.attachments || []).some(a => (a.name || '').toLowerCase().startsWith('signed agreement')) && (
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openManagerRejectModal(project)}
-                          className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <XCircleIcon className="h-4 w-4 mr-1" />
-                          Reject Agreement
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleManagerAcceptAgreement(project)}
-                          className="flex-1 bg-green-600 hover:bg-green-700"
-                        >
-                          <CheckCircleIcon className="h-4 w-4 mr-1" />
-                          Accept Agreement
+                          Approve
                         </Button>
                       </div>
                     )}
@@ -565,29 +455,11 @@ export default function PendingRequestsPage() {
         loading={loading}
       />
 
-      {/* Manager Reject Agreement Modal */}
-      <FeedbackModal
-        isOpen={showManagerRejectModal}
-        onClose={handleCloseManagerRejectModal}
-        onSubmit={handleManagerRejectAgreement}
-        title="Reject Agreement"
-        placeholder="Please provide feedback for rejecting the signed agreement..."
-        loading={loading}
-      />
-
-      {/* Quotation Modal for Commercial Projects (kept for later step) */}
+      {/* Quotation Modal for Commercial Projects */}
       <QuotationModal
         isOpen={showQuotationModal}
         onClose={handleCloseQuotationModal}
         onSubmit={handleSubmitQuotation}
-        loading={loading}
-      />
-
-      {/* Agreement Modal for initial step */}
-      <AgreementModal
-        isOpen={showAgreementModal}
-        onClose={handleCloseAgreementModal}
-        onSubmit={handleSendAgreement}
         loading={loading}
       />
     </div>

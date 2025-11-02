@@ -1897,37 +1897,18 @@ export default function ProjectDetailsPage() {
                 </div>
               </div>
 
-              {/* Agreement Attachments */}
-              {Array.isArray(project.attachments) && project.attachments.length > 0 && (() => {
-                const isAgreement = (name?: string) => !!name && (name.toLowerCase().startsWith('agreement') || name.toLowerCase().startsWith('signed agreement'));
-                const agreementAttachments = project.attachments.filter(a => isAgreement(a.name));
-                const otherAttachments = project.attachments.filter(a => !isAgreement(a.name));
-                return (
-                  <>
-                    {agreementAttachments.length > 0 && (
-                      <div className="pt-6 border-t">
-                        <ProjectAttachments
-                          attachments={agreementAttachments}
-                          canEdit={false}
-                          canRemove={false}
-                          title="Agreement Attachments"
-                        />
-                      </div>
-                    )}
-
-                    {/* Project Attachments */}
-                    <div className="pt-6 border-t">
-                      <ProjectAttachments
-                        attachments={otherAttachments}
-                        canEdit={true}
-                        canRemove={user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin'}
-                        onAddAttachment={handleAddAttachment}
-                        onRemoveAttachment={handleRemoveAttachment}
-                      />
-                    </div>
-                  </>
-                );
-              })()}
+              {/* Project Attachments */}
+              {Array.isArray(project.attachments) && project.attachments.length > 0 && (
+                <div className="pt-6 border-t">
+                  <ProjectAttachments
+                    attachments={project.attachments}
+                    canEdit={true}
+                    canRemove={user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin'}
+                    onAddAttachment={handleAddAttachment}
+                    onRemoveAttachment={handleRemoveAttachment}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 

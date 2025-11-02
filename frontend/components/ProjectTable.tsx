@@ -26,7 +26,6 @@ interface ProjectTableProps {
   showActions?: boolean;
   onViewFeedback?: (project: Project) => void;
   onQuotationReview?: (project: Project) => void;
-  onAgreementReview?: (project: Project) => void;
   onAssign?: (project: Project) => void;
   onDelete?: (project: Project) => void;
   canDelete?: boolean;
@@ -73,7 +72,6 @@ export default function ProjectTable({
   showActions = true, 
   onViewFeedback, 
   onQuotationReview, 
-  onAgreementReview,
   onAssign,
   onDelete,
   canDelete = false
@@ -126,23 +124,6 @@ export default function ProjectTable({
         >
           <MessageSquare size={14} className="mr-1" />
           Review Quotation
-        </Button>
-      );
-    }
-    
-    if (project.status === 'inactive' && onAgreementReview &&
-        Array.isArray((project as any).attachments) &&
-        (project as any).attachments.some((a: any) => (a.name || '').toLowerCase().startsWith('agreement')) &&
-        !(project as any).attachments.some((a: any) => (a.name || '').toLowerCase().startsWith('signed agreement'))) {
-      return (
-        <Button
-          onClick={() => onAgreementReview(project)}
-          variant="ghost"
-          size="sm"
-          className="text-green-700 hover:text-green-800 font-medium"
-        >
-          <MessageSquare size={14} className="mr-1" />
-          Review Agreement
         </Button>
       );
     }
