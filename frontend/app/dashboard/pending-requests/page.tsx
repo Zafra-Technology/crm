@@ -26,6 +26,7 @@ import FeedbackModal from '@/components/modals/FeedbackModal';
 import QuotationModal from '@/components/modals/QuotationModal';
 import AgreementModal from '@/components/modals/AgreementModal';
 import { convertFileToBase64 } from '@/lib/utils/fileUtils';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 export default function PendingRequestsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -408,7 +409,7 @@ export default function PendingRequestsPage() {
                   </div>
                   <div className="flex items-center space-x-1">
                     <CalendarIcon className="h-4 w-4" />
-                    <span>{new Date(project.createdAt).toLocaleDateString()}</span>
+                    <span>{formatDate(project.createdAt)}</span>
                   </div>
                 </div>
               </CardHeader>
@@ -456,7 +457,7 @@ export default function PendingRequestsPage() {
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
                     <div className="flex items-center space-x-1">
                       <ClockIcon className="h-3 w-3" />
-                      <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
+                      <span>Updated {formatDate(project.updatedAt)}</span>
                     </div>
                   </div>
                   

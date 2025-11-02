@@ -21,6 +21,7 @@ import {
   LineChartIcon,
   UsersIcon,
 } from 'lucide-react';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface HomeDashboardProps {
   user: User;
@@ -255,7 +256,7 @@ export default function HomeDashboard({ user, projects, tasks }: HomeDashboardPr
                     <div key={t.id} className="p-4 flex items-center justify-between">
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-foreground truncate">{t.title}</div>
-                        <div className="text-xs text-muted-foreground mt-1">Due {new Date(t.dueDate!).toLocaleDateString()}</div>
+                        <div className="text-xs text-muted-foreground mt-1">Due {formatDate(t.dueDate!)}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary" className="text-xs capitalize">{t.priority}</Badge>
@@ -544,7 +545,7 @@ export default function HomeDashboard({ user, projects, tasks }: HomeDashboardPr
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-foreground truncate">{t.title}</div>
                       {t.dueDate && (
-                        <div className="text-xs text-muted-foreground mt-1">Due {new Date(t.dueDate).toLocaleDateString()}</div>
+                        <div className="text-xs text-muted-foreground mt-1">Due {formatDate(t.dueDate)}</div>
                       )}
                     </div>
                     <div className="flex items-center gap-2">

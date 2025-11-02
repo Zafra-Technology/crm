@@ -7,6 +7,7 @@ import { FileIcon, DownloadIcon, PaperclipIcon, XIcon, EyeIcon } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface ProjectAttachmentsProps {
   attachments: ProjectAttachment[];
@@ -145,7 +146,7 @@ export default function ProjectAttachments({
                   <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                     <span>{formatFileSize(attachment.size)}</span>
                     <span>•</span>
-                    <span>Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}</span>
+                    <span>Uploaded {formatDate(attachment.uploadedAt)}</span>
                     {attachment.type.includes('image') && !isValidBase64Url(attachment.url) && (
                       <span className="text-orange-600 font-medium">⚠️ Invalid image data</span>
                     )}

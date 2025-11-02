@@ -242,8 +242,8 @@ ${message}`;
     return colors[priority as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+  const formatTaskDate = (dateString: string) => {
+    return formatDate(dateString);
   };
 
   const getAssigneeName = (assigneeId: string) => {

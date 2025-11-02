@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { getCookie } from '@/lib/cookies';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface ProjectUpdatesProps {
   projectId: string;
@@ -257,7 +258,7 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                     </div>
                   )}
                   <div className="text-xs text-muted-foreground mt-2">
-                    {new Date(update.createdAt).toLocaleDateString()} at{' '}
+                    {formatDate(update.createdAt)} at{' '}
                     {new Date(update.createdAt).toLocaleTimeString([], { 
                       hour: '2-digit', 
                       minute: '2-digit' 

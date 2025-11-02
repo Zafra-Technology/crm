@@ -8,13 +8,14 @@ import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import { projectUpdatesApi } from '@/lib/api/project-updates';
 import { getCookie } from '@/lib/cookies';
 import { mockChatMessages } from '@/lib/data/mockData';
-import { User, Project, ProjectUpdate, ChatMessage } from '@/types';
+import { User, Project, ProjectUpdate, ChatMessage, ProjectAttachment } from '@/types';
 import { Client } from '@/types/client';
 import { Designer } from '@/types/designer';
 import ProjectChat from '@/components/chat/ProjectChat';
 import ProjectUpdates from '@/components/ProjectUpdates';
 import ProjectAttachments from '@/components/ProjectAttachments';
-import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon, ArrowLeft, Check } from 'lucide-react';
+import FileViewerModal from '@/components/modals/FileViewerModal';
+import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon, ArrowLeft, Check, UploadIcon, FileIcon, XIcon, EyeIcon, DownloadIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Dialog,
   DialogContent,
@@ -52,16 +54,34 @@ export default function ProjectDetailsPage() {
     timeline: string;
     status: Project['status'];
     projectAddress: string;
+    projectAhj: string;
   }>({
     name: '',
     description: '',
     requirements: '',
     timeline: '',
     status: 'planning',
-    projectAddress: ''
+    projectAddress: '',
+    projectAhj: ''
   });
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [locationUrl, setLocationUrl] = useState<string>('');
+  const [isEditingErrors, setIsEditingErrors] = useState(false);
+  const [errorsForm, setErrorsForm] = useState({
+    numberOfErrors: 0,
+    numberOfErrorsTeamLead: 0,
+    numberOfErrorsDrafter: 0
+  });
+  const [isEditingFinalOutput, setIsEditingFinalOutput] = useState(false);
+  const [isEditingStampedFiles, setIsEditingStampedFiles] = useState(false);
+  const [finalOutputFiles, setFinalOutputFiles] = useState<File[]>([]);
+  const [stampedFiles, setStampedFiles] = useState<File[]>([]);
+  const [dragOverFinalOutput, setDragOverFinalOutput] = useState(false);
+  const [dragOverStampedFiles, setDragOverStampedFiles] = useState(false);
+  const [showFinalOutputViewer, setShowFinalOutputViewer] = useState(false);
+  const [showStampedFilesViewer, setShowStampedFilesViewer] = useState(false);
+  const [selectedFinalOutputFile, setSelectedFinalOutputFile] = useState<ProjectAttachment | null>(null);
+  const [selectedStampedFile, setSelectedStampedFile] = useState<ProjectAttachment | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -85,6 +105,19 @@ export default function ProjectDetailsPage() {
           clientCompany: foundProject.clientCompany || (foundProject as any).client_company,
           // fallback: preserve other fields unchanged
         };
+        // Debug: Log project report and errors values from API response
+        console.log('Raw API response:', {
+          project_report: (foundProject as any).project_report,
+          projectReport: (foundProject as any).projectReport,
+          number_of_errors: (foundProject as any).number_of_errors,
+          numberOfErrors: (foundProject as any).numberOfErrors
+        });
+        console.log('Mapped project data:', {
+          projectReport: mappedProject.projectReport,
+          numberOfErrors: mappedProject.numberOfErrors,
+          numberOfErrorsTeamLead: mappedProject.numberOfErrorsTeamLead,
+          numberOfErrorsDrafter: mappedProject.numberOfErrorsDrafter
+        });
         setProject(mappedProject);
         setEditForm({
           name: mappedProject.name,
@@ -92,11 +125,17 @@ export default function ProjectDetailsPage() {
           requirements: mappedProject.requirements,
           timeline: mappedProject.timeline,
           status: mappedProject.status,
-          projectAddress: mappedProject.projectAddress || ''
+          projectAddress: mappedProject.projectAddress || '',
+          projectAhj: mappedProject.projectAhj || ''
           // NO clientName or clientCompany in editForm
           // Services and Wetstamp are edited directly on the page, not in this modal
         });
         setLocationUrl(mappedProject.projectLocationUrl || '');
+        setErrorsForm({
+          numberOfErrors: mappedProject.numberOfErrors || 0,
+          numberOfErrorsTeamLead: mappedProject.numberOfErrorsTeamLead || 0,
+          numberOfErrorsDrafter: mappedProject.numberOfErrorsDrafter || 0
+        });
 
         try {
           // Fetch all users once and derive client, designers, and manager
@@ -350,6 +389,14 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const convertFileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -358,6 +405,218 @@ export default function ProjectDetailsPage() {
       reader.onerror = error => reject(error);
     });
   };
+
+  const handleFinalOutputFileUpload = async () => {
+    if (!project || finalOutputFiles.length === 0) return;
+    
+    try {
+      // Convert files to base64 for storage
+      const newFiles = await Promise.all(finalOutputFiles.map(async (file) => {
+        const base64 = await convertFileToBase64(file);
+        return {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: base64,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: user?.id || ''
+        };
+      }));
+
+      // Add new files to existing ones
+      const updatedFiles = [...(project.finalOutputFiles || []), ...newFiles];
+      
+      // Update project
+      const updatedProject = await projectsApi.update(project.id, { finalOutputFiles: updatedFiles });
+      
+      if (updatedProject) {
+        const mappedProject = {
+          ...updatedProject,
+          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+          finalOutputFiles: updatedProject.finalOutputFiles || updatedFiles
+        };
+        setProject(mappedProject);
+        setFinalOutputFiles([]);
+        setIsEditingFinalOutput(false);
+      }
+    } catch (error) {
+      console.error('Error uploading final output files:', error);
+      alert('Failed to upload files. Please try again.');
+    }
+  };
+
+  const handleStampedFilesUpload = async () => {
+    if (!project || stampedFiles.length === 0) return;
+    
+    try {
+      // Convert files to base64 for storage
+      const newFiles = await Promise.all(stampedFiles.map(async (file) => {
+        const base64 = await convertFileToBase64(file);
+        return {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: base64,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: user?.id || ''
+        };
+      }));
+
+      // Add new files to existing ones
+      const updatedFiles = [...(project.stampedFiles || []), ...newFiles];
+      
+      // Update project
+      const updatedProject = await projectsApi.update(project.id, { stampedFiles: updatedFiles });
+      
+      if (updatedProject) {
+        const mappedProject = {
+          ...updatedProject,
+          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+          stampedFiles: updatedProject.stampedFiles || updatedFiles
+        };
+        setProject(mappedProject);
+        setStampedFiles([]);
+        setIsEditingStampedFiles(false);
+      }
+    } catch (error) {
+      console.error('Error uploading stamped files:', error);
+      alert('Failed to upload files. Please try again.');
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'finalOutput' | 'stamped') => {
+    const files = Array.from(e.target.files || []);
+    if (type === 'finalOutput') {
+      setFinalOutputFiles([...finalOutputFiles, ...files]);
+    } else {
+      setStampedFiles([...stampedFiles, ...files]);
+    }
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent, type: 'finalOutput' | 'stamped') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'finalOutput') {
+      setDragOverFinalOutput(true);
+    } else {
+      setDragOverStampedFiles(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent, type: 'finalOutput' | 'stamped') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'finalOutput') {
+      setDragOverFinalOutput(false);
+    } else {
+      setDragOverStampedFiles(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, type: 'finalOutput' | 'stamped') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'finalOutput') {
+      setDragOverFinalOutput(false);
+    } else {
+      setDragOverStampedFiles(false);
+    }
+
+    const files = Array.from(e.dataTransfer.files);
+    if (type === 'finalOutput') {
+      setFinalOutputFiles([...finalOutputFiles, ...files]);
+    } else {
+      setStampedFiles([...stampedFiles, ...files]);
+    }
+  };
+
+  const removeFileFromList = (index: number, type: 'finalOutput' | 'stamped') => {
+    if (type === 'finalOutput') {
+      setFinalOutputFiles(finalOutputFiles.filter((_, i) => i !== index));
+    } else {
+      setStampedFiles(stampedFiles.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleViewFinalOutputFile = (file: ProjectAttachment) => {
+    setSelectedFinalOutputFile(file);
+    setShowFinalOutputViewer(true);
+  };
+
+  const handleViewStampedFile = (file: ProjectAttachment) => {
+    setSelectedStampedFile(file);
+    setShowStampedFilesViewer(true);
+  };
+
+  const handleDownloadFinalOutputFile = (file: ProjectAttachment) => {
+    const link = document.createElement('a');
+    link.href = file.url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadStampedFile = (file: ProjectAttachment) => {
+    const link = document.createElement('a');
+    link.href = file.url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleRemoveFinalOutputFile = async (fileId: string) => {
+    if (!project) return;
+    
+    try {
+      const updatedFiles = (project.finalOutputFiles || []).filter(f => f.id !== fileId);
+      const updatedProject = await projectsApi.update(project.id, { finalOutputFiles: updatedFiles });
+      
+      if (updatedProject) {
+        const mappedProject = {
+          ...updatedProject,
+          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+          finalOutputFiles: updatedProject.finalOutputFiles || updatedFiles
+        };
+        setProject(mappedProject);
+      }
+    } catch (error) {
+      console.error('Error removing final output file:', error);
+      alert('Failed to remove file. Please try again.');
+    }
+  };
+
+  const handleRemoveStampedFile = async (fileId: string) => {
+    if (!project) return;
+    
+    try {
+      const updatedFiles = (project.stampedFiles || []).filter(f => f.id !== fileId);
+      const updatedProject = await projectsApi.update(project.id, { stampedFiles: updatedFiles });
+      
+      if (updatedProject) {
+        const mappedProject = {
+          ...updatedProject,
+          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+          stampedFiles: updatedProject.stampedFiles || updatedFiles
+        };
+        setProject(mappedProject);
+      }
+    } catch (error) {
+      console.error('Error removing stamped file:', error);
+      alert('Failed to remove file. Please try again.');
+    }
+  };
+
+  const canRemoveFiles = user && (user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin');
 
   const handleRemoveAttachment = async (attachmentId: string) => {
     if (!project) return;
@@ -400,6 +659,8 @@ export default function ProjectDetailsPage() {
   const canEdit = user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin';
   // Services can only be edited by admin, project_manager, and assistant_project_manager
   const canEditServices = user.role === 'admin' || user.role === 'project_manager' || user.role === 'assistant_project_manager';
+  // Errors section should not be visible to clients and client team members
+  const canViewErrors = user.role !== 'client' && user.role !== 'client_team_member';
   const canAddUpdates =
     user.role === 'designer' ||
     user.role === 'senior_designer' ||
@@ -713,6 +974,854 @@ export default function ProjectDetailsPage() {
                 </div>
               </div>
 
+              {/* Project AHJ Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Project AHJ</h3>
+                <p className="text-muted-foreground">
+                  {project.projectAhj || 'No Project AHJ provided'}
+                </p>
+              </div>
+
+              {/* Project AHJ Type Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Project AHJ Type</h3>
+                <RadioGroup
+                  value={project.projectAhjType || ''}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.projectAhjType;
+                    setProject({ ...project, projectAhjType: value as Project['projectAhjType'] });
+                    try {
+                      await projectsApi.update(project.id, {
+                        projectAhjType: value as any
+                      });
+                    } catch (error) {
+                      console.error('Error saving project AHJ type:', error);
+                      setProject({ ...project, projectAhjType: currentValue });
+                      alert('Failed to save project AHJ type. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'pitched_roof', label: 'Pitched Roof' },
+                    { value: 'ballast_ground_tilt_kit', label: 'Ballast / Ground / Tilt Kit' },
+                    { value: 'p2p', label: 'P2P' },
+                    { value: 'battery_generator_ats', label: 'Battery / Generator / ATS' },
+                    { value: 'only_generator', label: 'Only Generator' },
+                    { value: 'only_ess', label: 'Only ESS' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.projectAhjType === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`ahj-type-${option.value}`} disabled={!canEditServices} />
+                      <label
+                        htmlFor={`ahj-type-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEditServices ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Ball in Court Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Ball in court</h3>
+                <RadioGroup
+                  value={project.ballInCourt || ''}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.ballInCourt;
+                    setProject({ ...project, ballInCourt: value as Project['ballInCourt'] });
+                    try {
+                      await projectsApi.update(project.id, {
+                        ballInCourt: value as any
+                      });
+                    } catch (error) {
+                      console.error('Error saving ball in court:', error);
+                      setProject({ ...project, ballInCourt: currentValue });
+                      alert('Failed to save ball in court. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'check_inputs', label: 'Check Inputs' },
+                    { value: 'pm_court', label: 'PM\'s Court' },
+                    { value: 'waiting_client_response', label: 'Waiting for Client Response' },
+                    { value: 'engg_court', label: 'Engg\'s Court' },
+                    { value: 'pe_stamp', label: 'PE Stamp' },
+                    { value: 'project_ready', label: 'Project Ready' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'night_revision', label: 'Night Revision' },
+                    { value: 'pending_payment', label: 'Pending Payment' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.ballInCourt === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`ball-${option.value}`} disabled={!canEditServices} />
+                      <label
+                        htmlFor={`ball-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEditServices ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Structural PE Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Structural PE</h3>
+                <RadioGroup
+                  value={project?.structuralPe ?? ''}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.structuralPe;
+                    try {
+                      // Update UI optimistically
+                      const optimisticProject = {
+                        ...project,
+                        structuralPe: value as Project['structuralPe']
+                      };
+                      setProject(optimisticProject);
+                      
+                      const updatedProject = await projectsApi.update(project.id, {
+                        structuralPe: value as any
+                      });
+                      
+                      if (updatedProject) {
+                        // Merge the updated project while preserving the structuralPe value
+                        const mappedProject = {
+                          ...updatedProject,
+                          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                          // Ensure structuralPe is preserved from the response or use the value we sent
+                          structuralPe: updatedProject.structuralPe || (value as Project['structuralPe'])
+                        };
+                        setProject(mappedProject);
+                      }
+                    } catch (error) {
+                      console.error('Error saving Structural PE:', error);
+                      // Revert on error
+                      setProject({ ...project, structuralPe: currentValue });
+                      alert('Failed to save Structural PE. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'structural_pe', label: 'Structural PE' },
+                    { value: 'ev_engineer', label: 'EV Engineer' },
+                    { value: 'ahz_engineers', label: 'AHZ Engineers' },
+                    { value: 'lwm_engineering', label: 'LWM Engineering' },
+                    { value: 'vector', label: 'Vector' },
+                    { value: 'pzse', label: 'PZSE' },
+                    { value: 'current_renewables', label: 'Current Renewables' },
+                    { value: 'aos_structures', label: 'AOS Structures' },
+                    { value: 'solar_roof_check', label: 'Solar Roof Check' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.structuralPe === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`structural-pe-${option.value}`} disabled={!canEditServices} />
+                      <label
+                        htmlFor={`structural-pe-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEditServices ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Structural PE Status Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">
+                  <span className="text-destructive mr-1">*</span>Structural PE Status
+                </h3>
+                <RadioGroup
+                  value={project?.structuralPeStatus ?? 'new'}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.structuralPeStatus;
+                    try {
+                      // Update UI optimistically
+                      const optimisticProject = {
+                        ...project,
+                        structuralPeStatus: value as Project['structuralPeStatus']
+                      };
+                      setProject(optimisticProject);
+                      
+                      const updatedProject = await projectsApi.update(project.id, {
+                        structuralPeStatus: value as any
+                      });
+                      
+                      if (updatedProject) {
+                        // Merge the updated project while preserving the structuralPeStatus value
+                        const mappedProject = {
+                          ...updatedProject,
+                          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                          // Ensure structuralPeStatus is preserved from the response or use the value we sent
+                          structuralPeStatus: updatedProject.structuralPeStatus || (value as Project['structuralPeStatus'])
+                        };
+                        setProject(mappedProject);
+                      }
+                    } catch (error) {
+                      console.error('Error saving Structural PE Status:', error);
+                      // Revert on error
+                      setProject({ ...project, structuralPeStatus: currentValue });
+                      alert('Failed to save Structural PE Status. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'new', label: 'New' },
+                    { value: 'inprogress', label: 'Inprogress' },
+                    { value: 'waiting_for_input', label: 'Waiting for Input' },
+                    { value: 'completed', label: 'Completed' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.structuralPeStatus === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`structural-pe-status-${option.value}`} disabled={!canEditServices} />
+                      <label
+                        htmlFor={`structural-pe-status-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEditServices ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Electrical PE Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Electrical PE</h3>
+                <RadioGroup
+                  value={project?.electricalPe ?? ''}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.electricalPe;
+                    try {
+                      // Update UI optimistically
+                      const optimisticProject = {
+                        ...project,
+                        electricalPe: value as Project['electricalPe']
+                      };
+                      setProject(optimisticProject);
+                      
+                      const updatedProject = await projectsApi.update(project.id, {
+                        electricalPe: value as any
+                      });
+                      
+                      if (updatedProject) {
+                        // Merge the updated project while preserving the electricalPe value
+                        const mappedProject = {
+                          ...updatedProject,
+                          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                          // Ensure electricalPe is preserved from the response or use the value we sent
+                          electricalPe: updatedProject.electricalPe || (value as Project['electricalPe'])
+                        };
+                        setProject(mappedProject);
+                      }
+                    } catch (error) {
+                      console.error('Error saving Electrical PE:', error);
+                      // Revert on error
+                      setProject({ ...project, electricalPe: currentValue });
+                      alert('Failed to save Electrical PE. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'ev_engineer', label: 'EV Engineer' },
+                    { value: 'vector', label: 'Vector' },
+                    { value: 'pzse', label: 'PZSE' },
+                    { value: 'nola', label: 'NOLA' },
+                    { value: 'rivera', label: 'RIVERA' },
+                    { value: 'current_renewables', label: 'Current Renewables' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.electricalPe === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`electrical-pe-${option.value}`} disabled={!canEditServices} />
+                      <label
+                        htmlFor={`electrical-pe-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEditServices ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Electrical PE Status Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">
+                  <span className="text-destructive mr-1">*</span>Electrical PE Status
+                </h3>
+                <RadioGroup
+                  value={project?.electricalPeStatus ?? 'new'}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.electricalPeStatus;
+                    try {
+                      // Update UI optimistically
+                      const optimisticProject = {
+                        ...project,
+                        electricalPeStatus: value as Project['electricalPeStatus']
+                      };
+                      setProject(optimisticProject);
+                      
+                      const updatedProject = await projectsApi.update(project.id, {
+                        electricalPeStatus: value as any
+                      });
+                      
+                      if (updatedProject) {
+                        // Merge the updated project while preserving the electricalPeStatus value
+                        const mappedProject = {
+                          ...updatedProject,
+                          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                          // Ensure electricalPeStatus is preserved from the response or use the value we sent
+                          electricalPeStatus: updatedProject.electricalPeStatus || (value as Project['electricalPeStatus'])
+                        };
+                        setProject(mappedProject);
+                      }
+                    } catch (error) {
+                      console.error('Error saving Electrical PE Status:', error);
+                      // Revert on error
+                      setProject({ ...project, electricalPeStatus: currentValue });
+                      alert('Failed to save Electrical PE Status. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'new', label: 'New' },
+                    { value: 'active_project', label: 'Active Project' },
+                    { value: 'waiting_for_input', label: 'Waiting for Input' },
+                    { value: 'completed', label: 'Completed' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.electricalPeStatus === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`electrical-pe-status-${option.value}`} disabled={!canEditServices} />
+                      <label
+                        htmlFor={`electrical-pe-status-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEditServices ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Priority Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Priority</h3>
+                <RadioGroup
+                  value={project.priority || ''}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.priority;
+                    setProject({ ...project, priority: value as Project['priority'] });
+                    try {
+                      await projectsApi.update(project.id, {
+                        priority: value as any
+                      });
+                    } catch (error) {
+                      console.error('Error saving priority:', error);
+                      setProject({ ...project, priority: currentValue });
+                      alert('Failed to save priority. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-3 gap-3"
+                >
+                  {[
+                    { value: 'low', label: 'Low' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'high', label: 'High' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.priority === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`priority-${option.value}`} disabled={!canEditServices} />
+                      <label
+                        htmlFor={`priority-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEditServices ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Project Report Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Project Report</h3>
+                <RadioGroup
+                  value={project?.projectReport ?? ''}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.projectReport;
+                    try {
+                      // Update UI optimistically
+                      const optimisticProject = {
+                        ...project,
+                        projectReport: value as Project['projectReport']
+                      };
+                      setProject(optimisticProject);
+                      
+                      const updatedProject = await projectsApi.update(project.id, {
+                        projectReport: value as any
+                      });
+                      
+                      if (updatedProject) {
+                        // Merge the updated project while preserving the projectReport value
+                        const mappedProject = {
+                          ...updatedProject,
+                          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                          // Ensure projectReport is preserved from the response or use the value we sent
+                          projectReport: updatedProject.projectReport || (value as Project['projectReport'])
+                        };
+                        setProject(mappedProject);
+                      }
+                    } catch (error) {
+                      console.error('Error saving project report:', error);
+                      // Revert on error
+                      setProject({ ...project, projectReport: currentValue });
+                      alert('Failed to save project report. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'ext_rev_ip_change', label: 'Ext.Rev.I/P Change' },
+                    { value: 'ext_rev_design_error', label: 'Ext.Rev.Design Error' },
+                    { value: 'ahj_utility_rejection', label: 'AHJ/Utility Rejection' },
+                    { value: 'good', label: 'Good' },
+                    { value: 'better_time_management', label: 'Better time management' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.projectReport === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`report-${option.value}`} disabled={!canEditServices} />
+                      <label
+                        htmlFor={`report-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEditServices ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Design Status Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">
+                  <span className="text-destructive mr-1">*</span>Design Status
+                </h3>
+                <RadioGroup
+                  value={project?.designStatus ?? 'new'}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.designStatus;
+                    try {
+                      // Update UI optimistically
+                      const optimisticProject = {
+                        ...project,
+                        designStatus: value as Project['designStatus']
+                      };
+                      setProject(optimisticProject);
+                      
+                      const updatedProject = await projectsApi.update(project.id, {
+                        designStatus: value as any
+                      });
+                      
+                      if (updatedProject) {
+                        // Merge the updated project while preserving the designStatus value
+                        const mappedProject = {
+                          ...updatedProject,
+                          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                          // Ensure designStatus is preserved from the response or use the value we sent
+                          designStatus: updatedProject.designStatus || (value as Project['designStatus'])
+                        };
+                        setProject(mappedProject);
+                      }
+                    } catch (error) {
+                      console.error('Error saving design status:', error);
+                      // Revert on error
+                      setProject({ ...project, designStatus: currentValue });
+                      alert('Failed to save design status. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'new', label: 'New' },
+                    { value: 'in_progress', label: 'In progress' },
+                    { value: 'for_review', label: 'For Review' },
+                    { value: 'revision', label: 'Revision' },
+                    { value: 'final_review', label: 'Final Review' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'on_hold', label: 'On Hold' },
+                    { value: 'stop', label: 'Stop' },
+                    { value: 'completed_layout', label: 'Completed Layout' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.designStatus === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`design-status-${option.value}`} disabled={!canEditServices} />
+                      <label
+                        htmlFor={`design-status-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEditServices ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Errors Section */}
+              {canViewErrors && (
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">Errors</h3>
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setErrorsForm({
+                          numberOfErrors: project.numberOfErrors || 0,
+                          numberOfErrorsTeamLead: project.numberOfErrorsTeamLead || 0,
+                          numberOfErrorsDrafter: project.numberOfErrorsDrafter || 0
+                        });
+                        setIsEditingErrors(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground mb-1 block">Number of Errors</Label>
+                    <p className="text-foreground">{project?.numberOfErrors !== null && project?.numberOfErrors !== undefined ? project.numberOfErrors : 0}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground mb-1 block">Number of Errors by Team Lead</Label>
+                    <p className="text-foreground">{project?.numberOfErrorsTeamLead !== null && project?.numberOfErrorsTeamLead !== undefined ? project.numberOfErrorsTeamLead : 0}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground mb-1 block">Number of Errors by Drafter</Label>
+                    <p className="text-foreground">{project?.numberOfErrorsDrafter !== null && project?.numberOfErrorsDrafter !== undefined ? project.numberOfErrorsDrafter : 0}</p>
+                  </div>
+                </div>
+              </div>
+              )}
+
+              {/* Post Installation Letter Section */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    <span className="text-destructive mr-1">*</span>Post Installation Letter
+                  </h3>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={(project.postInstallationLetter ?? false) ? "default" : "outline"}
+                      disabled={!canEditServices}
+                      onClick={async () => {
+                        if (!canEditServices || !project || project.postInstallationLetter === true) return;
+
+                        const currentValue = project.postInstallationLetter ?? false;
+
+                        // Optimistically update UI
+                        setProject({ ...project, postInstallationLetter: true });
+
+                        // Auto-save to backend
+                        try {
+                          await projectsApi.update(project.id, {
+                            postInstallationLetter: true
+                          });
+                        } catch (error) {
+                          console.error('Error saving post installation letter:', error);
+                          // Revert on error
+                          setProject({ ...project, postInstallationLetter: currentValue });
+                          alert('Failed to save post installation letter. Please try again.');
+                        }
+                      }}
+                      className={`px-6 py-2 ${
+                        (project.postInstallationLetter ?? false)
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      YES
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={!(project.postInstallationLetter ?? false) ? "default" : "outline"}
+                      disabled={!canEditServices}
+                      onClick={async () => {
+                        if (!canEditServices || !project || project.postInstallationLetter === false) return;
+
+                        const currentValue = project.postInstallationLetter ?? false;
+
+                        // Optimistically update UI
+                        setProject({ ...project, postInstallationLetter: false });
+
+                        // Auto-save to backend
+                        try {
+                          await projectsApi.update(project.id, {
+                            postInstallationLetter: false
+                          });
+                        } catch (error) {
+                          console.error('Error saving post installation letter:', error);
+                          // Revert on error
+                          setProject({ ...project, postInstallationLetter: currentValue });
+                          alert('Failed to save post installation letter. Please try again.');
+                        }
+                      }}
+                      className={`px-6 py-2 ${
+                        !project.postInstallationLetter
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      NO
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Final Output Section */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">Final Output</h3>
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFinalOutputFiles([]);
+                        setIsEditingFinalOutput(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {project.finalOutputFiles && project.finalOutputFiles.length > 0 ? (
+                    project.finalOutputFiles.map((file) => (
+                      <div key={file.id} className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <span className="text-2xl">📄</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 flex-shrink-0">
+                          <Button
+                            onClick={() => handleViewFinalOutputFile(file)}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="View file"
+                          >
+                            <EyeIcon size={16} />
+                          </Button>
+                          <Button
+                            onClick={() => handleDownloadFinalOutputFile(file)}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Download file"
+                          >
+                            <DownloadIcon size={16} />
+                          </Button>
+                          {canRemoveFiles && (
+                            <Button
+                              onClick={() => handleRemoveFinalOutputFile(file.id)}
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              title="Remove file"
+                            >
+                              <XIcon size={16} />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No final output files</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Stamped Files Section */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">Stamped Files</h3>
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setStampedFiles([]);
+                        setIsEditingStampedFiles(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {project.stampedFiles && project.stampedFiles.length > 0 ? (
+                    project.stampedFiles.map((file) => (
+                      <div key={file.id} className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <span className="text-2xl">📄</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 flex-shrink-0">
+                          <Button
+                            onClick={() => handleViewStampedFile(file)}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="View file"
+                          >
+                            <EyeIcon size={16} />
+                          </Button>
+                          <Button
+                            onClick={() => handleDownloadStampedFile(file)}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Download file"
+                          >
+                            <DownloadIcon size={16} />
+                          </Button>
+                          {canRemoveFiles && (
+                            <Button
+                              onClick={() => handleRemoveStampedFile(file.id)}
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              title="Remove file"
+                            >
+                              <XIcon size={16} />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No stamped files</p>
+                  )}
+                </div>
+              </div>
+
               {/* Wetstamp Section */}
               <div className="pt-6 border-t">
                 <div className="flex items-center justify-between mb-4">
@@ -906,7 +2015,7 @@ export default function ProjectDetailsPage() {
 
       {/* Edit Project Modal */}
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
             <DialogDescription>
@@ -914,64 +2023,79 @@ export default function ProjectDetailsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form id="edit-project-form" onSubmit={handleSaveEdit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="project-name">Project Name</Label>
-              <Input
-                id="project-name"
-                type="text"
-                required
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                placeholder="Enter project name"
-              />
-            </div>
+          <div className="flex-1 overflow-y-auto px-1">
+            <form id="edit-project-form" onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="project-name">Project Name</Label>
+                  <Input
+                    id="project-name"
+                    type="text"
+                    required
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    placeholder="Enter project name"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="project-description">Description</Label>
-              <Textarea
-                id="project-description"
-                required
-                value={editForm.description}
-                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                placeholder="Enter project description"
-                rows={3}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="project-status">Status</Label>
+                  <Select
+                    value={editForm.status}
+                    onValueChange={(value) => setEditForm({ ...editForm, status: value as Project['status'] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="planning">Planning</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="review">In Review</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="onhold">On Hold</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="project-status">Status</Label>
-              <Select
-                value={editForm.status}
-                onValueChange={(value) => setEditForm({ ...editForm, status: value as Project['status'] })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="review">In Review</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="onhold">On Hold</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="project-description">Description</Label>
+                  <Textarea
+                    id="project-description"
+                    required
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    placeholder="Enter project description"
+                    rows={3}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="project-address">
-                <span className="text-destructive mr-1">*</span>Project Address
-              </Label>
-              <Textarea
-                id="project-address"
-                value={editForm.projectAddress}
-                onChange={(e) => setEditForm({ ...editForm, projectAddress: e.target.value })}
-                placeholder="Enter project address"
-                rows={2}
-              />
-            </div>
-          </form>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="project-address">
+                    <span className="text-destructive mr-1">*</span>Project Address
+                  </Label>
+                  <Textarea
+                    id="project-address"
+                    value={editForm.projectAddress}
+                    onChange={(e) => setEditForm({ ...editForm, projectAddress: e.target.value })}
+                    placeholder="Enter project address"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="project-ahj">Project AHJ</Label>
+                  <Input
+                    id="project-ahj"
+                    type="text"
+                    value={editForm.projectAhj}
+                    onChange={(e) => setEditForm({ ...editForm, projectAhj: e.target.value })}
+                    placeholder="Add Project AHJ..."
+                  />
+                </div>
+              </div>
+            </form>
+          </div>
 
           <DialogFooter className="flex space-x-3">
             <Button
@@ -1063,6 +2187,326 @@ export default function ProjectDetailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Errors Modal */}
+      <Dialog open={isEditingErrors} onOpenChange={setIsEditingErrors}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Errors</DialogTitle>
+            <DialogDescription>
+              Update the number of errors for this project
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="number-of-errors">Number of Errors</Label>
+              <Input
+                id="number-of-errors"
+                type="number"
+                min="0"
+                value={errorsForm.numberOfErrors}
+                onChange={(e) => setErrorsForm({ ...errorsForm, numberOfErrors: parseInt(e.target.value) || 0 })}
+                placeholder="Add Number of Errors..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="number-of-errors-team-lead">Number of Errors by Team Lead</Label>
+              <Input
+                id="number-of-errors-team-lead"
+                type="number"
+                min="0"
+                value={errorsForm.numberOfErrorsTeamLead}
+                onChange={(e) => setErrorsForm({ ...errorsForm, numberOfErrorsTeamLead: parseInt(e.target.value) || 0 })}
+                placeholder="Add Number of Errors by Team Lead..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="number-of-errors-drafter">Number of Errors by Drafter</Label>
+              <Input
+                id="number-of-errors-drafter"
+                type="number"
+                min="0"
+                value={errorsForm.numberOfErrorsDrafter}
+                onChange={(e) => setErrorsForm({ ...errorsForm, numberOfErrorsDrafter: parseInt(e.target.value) || 0 })}
+                placeholder="Add Number of Errors by Drafter..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditingErrors(false);
+                setErrorsForm({
+                  numberOfErrors: project?.numberOfErrors || 0,
+                  numberOfErrorsTeamLead: project?.numberOfErrorsTeamLead || 0,
+                  numberOfErrorsDrafter: project?.numberOfErrorsDrafter || 0
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                if (!project) return;
+                try {
+                  // Update UI optimistically
+                  const optimisticProject = {
+                    ...project,
+                    numberOfErrors: errorsForm.numberOfErrors,
+                    numberOfErrorsTeamLead: errorsForm.numberOfErrorsTeamLead,
+                    numberOfErrorsDrafter: errorsForm.numberOfErrorsDrafter
+                  };
+                  setProject(optimisticProject);
+                  
+                  const updatedProject = await projectsApi.update(project.id, {
+                    numberOfErrors: errorsForm.numberOfErrors,
+                    numberOfErrorsTeamLead: errorsForm.numberOfErrorsTeamLead,
+                    numberOfErrorsDrafter: errorsForm.numberOfErrorsDrafter
+                  });
+                  
+                  if (updatedProject) {
+                    // Merge the updated project with all fields
+                    const mappedProject = {
+                      ...updatedProject,
+                      clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                      clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                      // Ensure error fields are preserved
+                      numberOfErrors: updatedProject.numberOfErrors ?? errorsForm.numberOfErrors,
+                      numberOfErrorsTeamLead: updatedProject.numberOfErrorsTeamLead ?? errorsForm.numberOfErrorsTeamLead,
+                      numberOfErrorsDrafter: updatedProject.numberOfErrorsDrafter ?? errorsForm.numberOfErrorsDrafter
+                    };
+                    setProject(mappedProject);
+                    setErrorsForm({
+                      numberOfErrors: mappedProject.numberOfErrors || 0,
+                      numberOfErrorsTeamLead: mappedProject.numberOfErrorsTeamLead || 0,
+                      numberOfErrorsDrafter: mappedProject.numberOfErrorsDrafter || 0
+                    });
+                    setIsEditingErrors(false);
+                  }
+                } catch (error) {
+                  console.error('Error updating errors:', error);
+                  // Revert to original project state on error
+                  if (project) {
+                    setProject(project);
+                  }
+                  alert('Failed to update errors. Please try again.');
+                }
+              }}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Final Output Modal */}
+      <Dialog open={isEditingFinalOutput} onOpenChange={setIsEditingFinalOutput}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Upload Final Output Files</DialogTitle>
+            <DialogDescription>
+              Upload final output files for this project. You can drag and drop files or click to select.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Drag and Drop Area */}
+            <div
+              onDragOver={(e) => handleDragOver(e, 'finalOutput')}
+              onDragLeave={(e) => handleDragLeave(e, 'finalOutput')}
+              onDrop={(e) => handleDrop(e, 'finalOutput')}
+              className={`relative border-2 border-dashed rounded-lg transition-colors ${
+                dragOverFinalOutput
+                  ? 'border-primary bg-primary/10'
+                  : 'border-input bg-accent/50 hover:bg-accent'
+              }`}
+            >
+              <label className="flex flex-col items-center justify-center w-full h-32 cursor-pointer">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <UploadIcon className="w-8 h-8 mb-4 text-muted-foreground" />
+                  <p className="mb-2 text-sm text-muted-foreground">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-muted-foreground">PDF, DOC, Images, etc.</p>
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => handleFileInputChange(e, 'finalOutput')}
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif"
+                />
+              </label>
+            </div>
+
+            {/* Selected Files List */}
+            {finalOutputFiles.length > 0 && (
+              <div className="space-y-2">
+                <Label>Selected Files ({finalOutputFiles.length})</Label>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {finalOutputFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-accent/50 rounded-md border border-border">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <FileIcon size={20} className="text-muted-foreground flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => removeFileFromList(index, 'finalOutput')}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                      >
+                        <XIcon size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditingFinalOutput(false);
+                setFinalOutputFiles([]);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleFinalOutputFileUpload}
+              disabled={finalOutputFiles.length === 0}
+            >
+              Upload Files
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Stamped Files Modal */}
+      <Dialog open={isEditingStampedFiles} onOpenChange={setIsEditingStampedFiles}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Upload Stamped Files</DialogTitle>
+            <DialogDescription>
+              Upload stamped files for this project. You can drag and drop files or click to select.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Drag and Drop Area */}
+            <div
+              onDragOver={(e) => handleDragOver(e, 'stamped')}
+              onDragLeave={(e) => handleDragLeave(e, 'stamped')}
+              onDrop={(e) => handleDrop(e, 'stamped')}
+              className={`relative border-2 border-dashed rounded-lg transition-colors ${
+                dragOverStampedFiles
+                  ? 'border-primary bg-primary/10'
+                  : 'border-input bg-accent/50 hover:bg-accent'
+              }`}
+            >
+              <label className="flex flex-col items-center justify-center w-full h-32 cursor-pointer">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <UploadIcon className="w-8 h-8 mb-4 text-muted-foreground" />
+                  <p className="mb-2 text-sm text-muted-foreground">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-muted-foreground">PDF, DOC, Images, etc.</p>
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => handleFileInputChange(e, 'stamped')}
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif"
+                />
+              </label>
+            </div>
+
+            {/* Selected Files List */}
+            {stampedFiles.length > 0 && (
+              <div className="space-y-2">
+                <Label>Selected Files ({stampedFiles.length})</Label>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {stampedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-accent/50 rounded-md border border-border">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <FileIcon size={20} className="text-muted-foreground flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => removeFileFromList(index, 'stamped')}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                      >
+                        <XIcon size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditingStampedFiles(false);
+                setStampedFiles([]);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleStampedFilesUpload}
+              disabled={stampedFiles.length === 0}
+            >
+              Upload Files
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Viewer Modals */}
+      <FileViewerModal
+        isOpen={showFinalOutputViewer}
+        onClose={() => {
+          setShowFinalOutputViewer(false);
+          setSelectedFinalOutputFile(null);
+        }}
+        attachment={selectedFinalOutputFile}
+      />
+      <FileViewerModal
+        isOpen={showStampedFilesViewer}
+        onClose={() => {
+          setShowStampedFilesViewer(false);
+          setSelectedStampedFile(null);
+        }}
+        attachment={selectedStampedFile}
+      />
     </div>
   );
 }

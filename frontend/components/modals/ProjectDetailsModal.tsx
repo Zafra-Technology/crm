@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import ProjectAttachments from '@/components/ProjectAttachments';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface ProjectDetailsModalProps {
   isOpen: boolean;
@@ -30,14 +31,14 @@ export default function ProjectDetailsModal({
   clientInfo
 }: ProjectDetailsModalProps) {
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const formattedDate = formatDate(dateString);
+    const time = date.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
     });
+    return `${formattedDate} at ${time}`;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -78,7 +79,7 @@ export default function ProjectDetailsModal({
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock size={16} className="text-muted-foreground" />
-                      <span>Created {formatDate(project.createdAt)}</span>
+                      <span>Created {formatDateTime(project.createdAt)}</span>
                     </div>
                   </div>
                 </div>
@@ -166,7 +167,7 @@ export default function ProjectDetailsModal({
                 </CardHeader>
                 <CardContent className="pt-0">
                   <p className="text-sm">
-                    {formatDate(project.updatedAt)}
+                    {formatDateTime(project.updatedAt)}
                   </p>
                 </CardContent>
               </Card>

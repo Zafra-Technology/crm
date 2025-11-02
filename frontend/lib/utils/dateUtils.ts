@@ -49,3 +49,20 @@ export function isDifferentDay(timestamp1: string, timestamp2: string): boolean 
   );
 }
 
+/**
+ * Formats a date string or Date object to d/m/y format (DD/MM/YYYY)
+ * @param date - Date string or Date object
+ * @returns Formatted date string in DD/MM/YYYY format
+ */
+export function formatDate(date: string | Date): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) {
+    return '';
+  }
+  
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const year = dateObj.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+

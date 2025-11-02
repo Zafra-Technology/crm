@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface TaskTableProps {
   project: Project;
@@ -98,9 +99,9 @@ export default function TaskTable({ project, currentUser, designers, loadingDesi
     return labels[status as keyof typeof labels] || status;
   };
 
-  const formatDate = (dateString?: string) => {
+  const formatTaskDate = (dateString?: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString();
+    return formatDate(dateString);
   };
 
   const handleSort = (field: typeof sortField) => {
@@ -230,7 +231,7 @@ export default function TaskTable({ project, currentUser, designers, loadingDesi
                 getPriorityColor={getPriorityColor}
                 getStatusColor={getStatusColor}
                 getStatusLabel={getStatusLabel}
-                formatDate={formatDate}
+                formatDate={formatTaskDate}
                 statusOptions={statusOptions}
                 serialNumber={index + 1}
               />

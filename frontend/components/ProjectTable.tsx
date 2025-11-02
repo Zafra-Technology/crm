@@ -5,6 +5,7 @@ import { CalendarIcon, UsersIcon, ClockIcon, MessageSquare, MoreVertical, XIcon 
 import { Project } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatDate } from '@/lib/utils/dateUtils';
 import {
   Table,
   TableBody,
@@ -218,7 +219,7 @@ export default function ProjectTable({
                 <TableCell>
                   <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                     <ClockIcon size={12} />
-                    <span>{new Date(project.updatedAt).toLocaleDateString()}</span>
+                    <span>{formatDate(project.updatedAt)}</span>
                   </div>
                 </TableCell>
                 {showActions && (

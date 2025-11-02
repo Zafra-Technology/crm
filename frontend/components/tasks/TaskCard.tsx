@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import ConfirmModal from '@/components/modals/ConfirmModal';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface TaskCardProps {
   task: Task;
@@ -66,9 +67,9 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
     return labels[status as keyof typeof labels] || status;
   };
 
-  const formatDate = (dateString?: string) => {
+  const formatTaskDate = (dateString?: string) => {
     if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString();
+    return formatDate(dateString);
   };
 
   const getAssigneeName = (assigneeId: string) => {
@@ -248,7 +249,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
           {task.dueDate && (
             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
               <CalendarIcon size={12} />
-              <span>{formatDate(task.dueDate)}</span>
+              <span>{formatTaskDate(task.dueDate)}</span>
             </div>
           )}
 
@@ -345,7 +346,7 @@ export default function TaskCard({ task, onStatusUpdate, onDelete, onTagInMessag
                       {task.dueDate && (
                         <>
                           <span className="hidden sm:inline">•</span>
-                          <span>Due: {formatDate(task.dueDate)}</span>
+                          <span>Due: {formatTaskDate(task.dueDate)}</span>
                         </>
                       )}
                     </div>

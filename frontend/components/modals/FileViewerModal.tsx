@@ -1,9 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { XIcon, DownloadIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { DownloadIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
 import { ProjectAttachment } from '@/types';
 import { resolveMediaUrl } from '@/lib/api/auth';
+import { formatDate } from '@/lib/utils/dateUtils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface FileViewerModalProps {
   isOpen: boolean;
@@ -13,6 +24,78 @@ interface FileViewerModalProps {
 
 export default function FileViewerModal({ isOpen, onClose, attachment }: FileViewerModalProps) {
   const [zoom, setZoom] = useState(100);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loadingError, setLoadingError] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+
+  // Create blob URL for base64 files (especially large ones) to avoid browser memory issues
+  useEffect(() => {
+    if (!attachment || !isOpen) return;
+
+    // Clean up previous blob URL
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+      setBlobUrl(null);
+    }
+
+    // If file is base64 (especially for large files), create blob URL for better performance
+    if (attachment.url.startsWith('data:')) {
+      setIsConverting(true);
+      try {
+        // Extract base64 data
+        const base64Data = attachment.url.split(',')[1];
+        if (base64Data) {
+          // Use a more memory-efficient approach for large files
+          // Process in chunks to avoid blocking the main thread
+          const processBase64 = async () => {
+            try {
+              const byteCharacters = atob(base64Data);
+              const byteNumbers = new Array(byteCharacters.length);
+              
+              // Process in chunks to avoid blocking
+              const chunkSize = 8192; // Process 8KB at a time
+              for (let i = 0; i < byteCharacters.length; i += chunkSize) {
+                const chunk = byteCharacters.slice(i, i + chunkSize);
+                const chunkStart = i;
+                for (let j = 0; j < chunk.length; j++) {
+                  byteNumbers[chunkStart + j] = chunk.charCodeAt(j);
+                }
+                // Yield to browser between chunks
+                if (i % (chunkSize * 10) === 0) {
+                  await new Promise(resolve => setTimeout(resolve, 0));
+                }
+              }
+              
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: attachment.type });
+              const url = URL.createObjectURL(blob);
+              setBlobUrl(url);
+              setIsConverting(false);
+            } catch (error) {
+              console.error('Error creating blob URL:', error);
+              setLoadingError(true);
+              setIsConverting(false);
+            }
+          };
+          
+          processBase64();
+        }
+      } catch (error) {
+        console.error('Error processing base64:', error);
+        setLoadingError(true);
+        setIsConverting(false);
+      }
+    } else {
+      setIsConverting(false);
+    }
+
+    // Cleanup on unmount or when attachment changes
+    return () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [attachment, isOpen]);
 
   if (!isOpen || !attachment) return null;
 
@@ -63,6 +146,16 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
   const getValidImageUrl = (url: string) => {
     if (!url) return url;
     
+    // If blob URL exists, use it (better performance for large base64 files)
+    if (blobUrl) {
+      return blobUrl;
+    }
+    
+    // If still converting, return original URL (will fallback if needed)
+    if (isConverting && url.startsWith('data:')) {
+      return url;
+    }
+    
     // If it's already a full URL or base64, return as is
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
       return url;
@@ -70,7 +163,7 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
     
     // For media files, we need to point directly to Django backend
     // Django serves media files at http://localhost:8000/media/...
-    const djangoBaseUrl = 'http://localhost:8000';
+    const djangoBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
     const resolvedUrl = url.startsWith('/') ? `${djangoBaseUrl}${url}` : `${djangoBaseUrl}/${url}`;
     
     console.log('Resolving media URL:', {
@@ -83,64 +176,94 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
   };
 
   const renderFileContent = () => {
+    // Show loading state while converting large base64 to blob
+    if (isConverting && attachment.url.startsWith('data:')) {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center space-y-4 p-8">
+            <Skeleton className="h-12 w-12 rounded-full mx-auto" />
+            <div className="space-y-2">
+              <p className="text-foreground">Loading file preview...</p>
+              <p className="text-sm text-muted-foreground">
+                Processing large file ({(attachment.size / 1024 / 1024).toFixed(2)} MB)
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Show error message only if conversion failed
+    if (loadingError && attachment.url.startsWith('data:')) {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center space-y-4 p-8">
+            <div className="text-6xl mb-4">📄</div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-foreground">{attachment.name}</h3>
+              <p className="text-muted-foreground">
+                This file could not be loaded for preview ({(attachment.size / 1024 / 1024).toFixed(2)} MB).
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Please download the file to view it on your device.
+              </p>
+            </div>
+            <Button
+              onClick={handleDownload}
+              className="mt-4"
+            >
+              <DownloadIcon className="mr-2 h-4 w-4" />
+              Download File
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     if (isImage) {
       const validUrl = getValidImageUrl(attachment.url);
       
       // Check if the URL is valid
-      if (!isValidBase64Url(validUrl) && !validUrl.startsWith('http')) {
+      if (!isValidBase64Url(validUrl) && !validUrl.startsWith('http') && !validUrl.startsWith('blob:')) {
         return (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
+          <div className="flex items-center justify-center h-full min-h-[400px]">
+            <div className="text-center space-y-4 p-8">
               <div className="text-6xl mb-4">🖼️</div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Invalid Image URL</h3>
-              <p className="text-gray-600 mb-4">
-                The image URL appears to be invalid or inaccessible.
-              </p>
-              <p className="text-sm text-gray-500 mb-4">
-                URL: {attachment.url}
-              </p>
-              <button
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-foreground">Invalid Image URL</h3>
+                <p className="text-muted-foreground">
+                  The image URL appears to be invalid or inaccessible.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  URL: {attachment.url.substring(0, 100)}...
+                </p>
+              </div>
+              <Button
                 onClick={handleDownload}
-                className="btn-primary flex items-center space-x-2 mx-auto"
+                className="mt-4"
               >
-                <DownloadIcon size={16} />
-                <span>Download File</span>
-              </button>
+                <DownloadIcon className="mr-2 h-4 w-4" />
+                Download File
+              </Button>
             </div>
           </div>
         );
       }
 
       return (
-        <div className="flex items-center justify-center h-full overflow-auto">
+        <div className="flex items-center justify-center h-full min-h-[400px] overflow-auto bg-muted/30">
           <img
             src={validUrl}
             alt={attachment.name}
             style={{ transform: `scale(${zoom / 100})` }}
             className="max-w-full max-h-full object-contain transition-transform"
             onError={(e) => {
-              // Hide the image and show error message
+              setLoadingError(true);
               const img = e.currentTarget;
               img.style.display = 'none';
-              const parent = img.parentElement;
-              if (parent) {
-                parent.innerHTML = `
-                  <div class="flex items-center justify-center h-full">
-                    <div class="text-center">
-                      <div class="text-6xl mb-4">🖼️</div>
-                      <h3 class="text-lg font-semibold text-gray-800 mb-2">Image Failed to Load</h3>
-                      <p class="text-gray-600 mb-4">The image could not be displayed.</p>
-                      <button onclick="this.parentElement.parentElement.parentElement.querySelector('button[onclick*=\"handleDownload\"]').click()" class="btn-primary flex items-center space-x-2 mx-auto">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        <span>Download File</span>
-                      </button>
-                    </div>
-                  </div>
-                `;
-              }
             }}
             onLoad={() => {
-              // Image loaded successfully
+              setLoadingError(false);
             }}
           />
         </div>
@@ -150,18 +273,26 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
     if (isPdf) {
       const validUrl = getValidImageUrl(attachment.url);
       return (
-        <iframe
-          src={validUrl}
-          className="w-full h-full border-0"
-          title={attachment.name}
-        />
+        <div className="w-full h-full min-h-[400px] bg-muted/30">
+          <iframe
+            src={validUrl}
+            className="w-full h-full border-0"
+            title={attachment.name}
+            onError={() => {
+              setLoadingError(true);
+            }}
+            onLoad={() => {
+              setLoadingError(false);
+            }}
+          />
+        </div>
       );
     }
 
     if (isText) {
       return (
-        <div className="h-full overflow-auto bg-gray-50 p-4">
-          <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">
+        <div className="h-full min-h-[400px] overflow-auto bg-muted/30 p-4">
+          <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">
             {/* Note: In a real app, you'd fetch and display the text content */}
             Loading text content...
           </pre>
@@ -171,20 +302,22 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
 
     if (isOfficeDoc) {
       return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center space-y-4 p-8">
             <div className="text-6xl mb-4">📄</div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">{attachment.name}</h3>
-            <p className="text-gray-600 mb-4">
-              This file type cannot be previewed in the browser.
-            </p>
-            <button
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-foreground">{attachment.name}</h3>
+              <p className="text-muted-foreground">
+                This file type cannot be previewed in the browser.
+              </p>
+            </div>
+            <Button
               onClick={handleDownload}
-              className="btn-primary flex items-center space-x-2 mx-auto"
+              className="mt-4"
             >
-              <DownloadIcon size={16} />
-              <span>Download to View</span>
-            </button>
+              <DownloadIcon className="mr-2 h-4 w-4" />
+              Download to View
+            </Button>
           </div>
         </div>
       );
@@ -192,111 +325,121 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
 
     // Default case for unknown file types
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="text-center space-y-4 p-8">
           <div className="text-6xl mb-4">📁</div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">{attachment.name}</h3>
-          <p className="text-gray-600 mb-4">
-            Preview not available for this file type.
-          </p>
-          <button
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-foreground">{attachment.name}</h3>
+            <p className="text-muted-foreground">
+              Preview not available for this file type.
+            </p>
+          </div>
+          <Button
             onClick={handleDownload}
-            className="btn-primary flex items-center space-x-2 mx-auto"
+            className="mt-4"
           >
-            <DownloadIcon size={16} />
-            <span>Download File</span>
-          </button>
+            <DownloadIcon className="mr-2 h-4 w-4" />
+            Download File
+          </Button>
         </div>
       </div>
     );
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
-      <div className="bg-white rounded-lg w-full h-full max-w-6xl max-h-[95vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white rounded-t-lg">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-black truncate">{attachment.name}</h3>
-            <p className="text-sm text-gray-500">
-              {(attachment.size / 1024 / 1024).toFixed(2)} MB • {attachment.type}
-            </p>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[95vh] w-full h-full flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0 pr-4">
+              <DialogTitle className="truncate">{attachment.name}</DialogTitle>
+              <DialogDescription className="mt-1">
+                {formatFileSize(attachment.size)} • {attachment.type}
+              </DialogDescription>
+            </div>
+            <div className="flex items-center space-x-2">
+              {/* Zoom controls for images */}
+              {isImage && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleZoomOut}
+                    title="Zoom Out"
+                    disabled={zoom <= 50}
+                  >
+                    <ZoomOutIcon className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground min-w-[3rem] text-center">
+                    {zoom}%
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleZoomIn}
+                    title="Zoom In"
+                    disabled={zoom >= 200}
+                  >
+                    <ZoomInIcon className="h-4 w-4" />
+                  </Button>
+                  <div className="w-px h-6 bg-border mx-2"></div>
+                </>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleDownload}
+                title="Download"
+              >
+                <DownloadIcon className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-
-          <div className="flex items-center space-x-2 ml-4">
-            {/* Zoom controls for images */}
-            {isImage && (
-              <>
-                <button
-                  onClick={handleZoomOut}
-                  className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Zoom Out"
-                >
-                  <ZoomOutIcon size={20} />
-                </button>
-                <span className="text-sm text-gray-600 min-w-[4rem] text-center">
-                  {zoom}%
-                </span>
-                <button
-                  onClick={handleZoomIn}
-                  className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Zoom In"
-                >
-                  <ZoomInIcon size={20} />
-                </button>
-                <div className="w-px h-6 bg-gray-300 mx-2"></div>
-              </>
-            )}
-
-            <button
-              onClick={handleDownload}
-              className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
-              title="Download"
-            >
-              <DownloadIcon size={20} />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
-              title="Close"
-            >
-              <XIcon size={20} />
-            </button>
-          </div>
-        </div>
+        </DialogHeader>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden bg-gray-100">
+        <div className="flex-1 overflow-hidden">
           {renderFileContent()}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 bg-white rounded-b-lg">
-          <div className="flex items-center justify-between text-sm text-gray-600">
+        <DialogFooter className="px-6 py-4 border-t">
+          <div className="flex items-center justify-between w-full text-sm text-muted-foreground">
             <div>
-              Uploaded on {new Date(attachment.uploadedAt).toLocaleDateString()} at{' '}
+              Uploaded on {formatDate(attachment.uploadedAt)} at{' '}
               {new Date(attachment.uploadedAt).toLocaleTimeString([], { 
                 hour: '2-digit', 
                 minute: '2-digit' 
               })}
             </div>
-            <div className="flex items-center space-x-4">
-              <button
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleDownload}
-                className="btn-secondary text-sm"
               >
-                Download File
-              </button>
-              <button
+                <DownloadIcon className="mr-2 h-4 w-4" />
+                Download
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
                 onClick={onClose}
-                className="btn-primary text-sm"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

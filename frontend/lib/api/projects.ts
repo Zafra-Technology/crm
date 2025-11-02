@@ -47,6 +47,38 @@ export const projectsApi = {
       wetstamp: Boolean(p.wetstamp ?? false),
       projectAddress: p.project_address || p.projectAddress || undefined,
       projectLocationUrl: p.project_location_url || p.projectLocationUrl || undefined,
+      projectAhj: p.project_ahj || p.projectAhj || undefined,
+      projectAhjType: (p.project_ahj_type || p.projectAhjType) as Project['projectAhjType'] | undefined,
+      ballInCourt: (p.ball_in_court || p.ballInCourt) as Project['ballInCourt'] | undefined,
+      structuralPe: (p.structural_pe != null && p.structural_pe !== '' ? p.structural_pe : (p.structuralPe != null && p.structuralPe !== '' ? p.structuralPe : undefined)) as Project['structuralPe'] | undefined,
+      structuralPeStatus: (p.structural_pe_status != null && p.structural_pe_status !== '' ? p.structural_pe_status : (p.structuralPeStatus != null && p.structuralPeStatus !== '' ? p.structuralPeStatus : 'new')) as Project['structuralPeStatus'],
+      electricalPe: (p.electrical_pe != null && p.electrical_pe !== '' ? p.electrical_pe : (p.electricalPe != null && p.electricalPe !== '' ? p.electricalPe : undefined)) as Project['electricalPe'] | undefined,
+      electricalPeStatus: (p.electrical_pe_status != null && p.electrical_pe_status !== '' ? p.electrical_pe_status : (p.electricalPeStatus != null && p.electricalPeStatus !== '' ? p.electricalPeStatus : 'new')) as Project['electricalPeStatus'],
+      postInstallationLetter: Boolean(p.post_installation_letter ?? false),
+      priority: (p.priority || p.priority) as Project['priority'] | undefined,
+      projectReport: (p.project_report != null && p.project_report !== '' ? p.project_report : (p.projectReport != null && p.projectReport !== '' ? p.projectReport : undefined)) as Project['projectReport'] | undefined,
+      designStatus: (p.design_status != null && p.design_status !== '' ? p.design_status : (p.designStatus != null && p.designStatus !== '' ? p.designStatus : 'new')) as Project['designStatus'],
+      numberOfErrors: p.number_of_errors != null ? Number(p.number_of_errors) : (p.numberOfErrors != null ? Number(p.numberOfErrors) : 0),
+      numberOfErrorsTeamLead: p.number_of_errors_team_lead != null ? Number(p.number_of_errors_team_lead) : (p.numberOfErrorsTeamLead != null ? Number(p.numberOfErrorsTeamLead) : 0),
+      numberOfErrorsDrafter: p.number_of_errors_drafter != null ? Number(p.number_of_errors_drafter) : (p.numberOfErrorsDrafter != null ? Number(p.numberOfErrorsDrafter) : 0),
+      finalOutputFiles: Array.isArray(p.final_output_files) ? p.final_output_files.map((f: any) => ({
+        id: String(f.id || f.name || Date.now()),
+        name: String(f.name || ''),
+        size: Number(f.size || 0),
+        type: String(f.type || f.file_type || ''),
+        url: String(f.url || f.file || ''),
+        uploadedAt: String(f.uploadedAt || f.uploaded_at || ''),
+        uploadedBy: String(f.uploadedBy || f.uploaded_by || ''),
+      })) : (Array.isArray(p.finalOutputFiles) ? p.finalOutputFiles : []),
+      stampedFiles: Array.isArray(p.stamped_files) ? p.stamped_files.map((f: any) => ({
+        id: String(f.id || f.name || Date.now()),
+        name: String(f.name || ''),
+        size: Number(f.size || 0),
+        type: String(f.type || f.file_type || ''),
+        url: String(f.url || f.file || ''),
+        uploadedAt: String(f.uploadedAt || f.uploaded_at || ''),
+        uploadedBy: String(f.uploadedBy || f.uploaded_by || ''),
+      })) : (Array.isArray(p.stampedFiles) ? p.stampedFiles : []),
       feedbackMessage: p.feedback_message || p.feedbackMessage || undefined,
       quotationMessage: p.quotation_message || p.quotationMessage || undefined,
       quotationFile: p.quotation_file || p.quotationFile || undefined,
@@ -205,6 +237,11 @@ export const projectsApi = {
     wetstamp?: boolean;
     projectAddress?: string;
     projectLocationUrl?: string;
+    projectAhj?: string;
+    projectAhjType?: string;
+    ballInCourt?: string;
+    pe?: string;
+    priority?: string;
     clientId: string;
     managerId: string;
     designerIds?: string[];
@@ -223,6 +260,11 @@ export const projectsApi = {
         wetstamp: projectData.wetstamp ?? false,
         project_address: projectData.projectAddress || undefined,
         project_location_url: projectData.projectLocationUrl || undefined,
+        project_ahj: projectData.projectAhj || undefined,
+        project_ahj_type: projectData.projectAhjType || undefined,
+        ball_in_court: projectData.ballInCourt || undefined,
+        pe: projectData.pe || undefined,
+        priority: projectData.priority || undefined,
         client_id: projectData.clientId ? parseInt(projectData.clientId) : undefined,
         manager_id: projectData.managerId ? parseInt(projectData.managerId) : undefined,
         designer_ids: Array.isArray(projectData.designerIds)
@@ -281,6 +323,22 @@ export const projectsApi = {
       if (updateData.wetstamp !== undefined) payload.wetstamp = updateData.wetstamp;
       if (updateData.projectAddress !== undefined) payload.project_address = updateData.projectAddress;
       if (updateData.projectLocationUrl !== undefined) payload.project_location_url = updateData.projectLocationUrl;
+      if (updateData.projectAhj !== undefined) payload.project_ahj = updateData.projectAhj;
+      if (updateData.projectAhjType !== undefined) payload.project_ahj_type = updateData.projectAhjType;
+      if (updateData.ballInCourt !== undefined) payload.ball_in_court = updateData.ballInCourt;
+      if (updateData.structuralPe !== undefined) payload.structural_pe = updateData.structuralPe;
+      if (updateData.structuralPeStatus !== undefined) payload.structural_pe_status = updateData.structuralPeStatus;
+      if (updateData.electricalPe !== undefined) payload.electrical_pe = updateData.electricalPe;
+      if (updateData.electricalPeStatus !== undefined) payload.electrical_pe_status = updateData.electricalPeStatus;
+      if (updateData.postInstallationLetter !== undefined) payload.post_installation_letter = updateData.postInstallationLetter;
+      if (updateData.priority !== undefined) payload.priority = updateData.priority;
+      if (updateData.projectReport !== undefined) payload.project_report = updateData.projectReport;
+      if (updateData.designStatus !== undefined) payload.design_status = updateData.designStatus;
+      if (updateData.numberOfErrors !== undefined) payload.number_of_errors = updateData.numberOfErrors;
+      if (updateData.numberOfErrorsTeamLead !== undefined) payload.number_of_errors_team_lead = updateData.numberOfErrorsTeamLead;
+      if (updateData.numberOfErrorsDrafter !== undefined) payload.number_of_errors_drafter = updateData.numberOfErrorsDrafter;
+      if (updateData.finalOutputFiles !== undefined) payload.final_output_files = updateData.finalOutputFiles;
+      if (updateData.stampedFiles !== undefined) payload.stamped_files = updateData.stampedFiles;
 
       const clientId = (updateData as any).clientId;
       if (clientId !== undefined) payload.client_id = clientId ? parseInt(String(clientId)) : null;

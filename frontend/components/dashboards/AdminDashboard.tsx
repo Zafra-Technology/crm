@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface AdminDashboardProps {
   user: User;
@@ -473,7 +474,7 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {userData.date_of_joining ? new Date(userData.date_of_joining).toLocaleDateString() : '-'}
+                      {userData.date_of_joining ? formatDate(userData.date_of_joining) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">

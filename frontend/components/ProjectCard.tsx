@@ -6,6 +6,7 @@ import { Project } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface ProjectCardProps {
   project: Project;
@@ -128,7 +129,7 @@ export default function ProjectCard({ project, showActions = true, onViewFeedbac
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
             <div className="flex items-center space-x-1 flex-1 min-w-0">
               <ClockIcon size={12} />
-              <span className="truncate">Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
+              <span className="truncate">Updated {formatDate(project.updatedAt)}</span>
             </div>
             {showActions && (
               <>

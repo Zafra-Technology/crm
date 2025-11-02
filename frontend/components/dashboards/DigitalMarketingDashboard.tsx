@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface DigitalMarketingDashboardProps {
   user: User;
@@ -279,7 +280,7 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
                     <span>{client.company}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Onboarded: {new Date(client.createdAt).toLocaleDateString()}
+                    Onboarded: {formatDate(client.createdAt)}
                   </div>
                   {client.status === 'pending' && (
                     <Button

@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import ConfirmModal from '@/components/modals/ConfirmModal';
+import { formatDate } from '@/lib/utils/dateUtils';
 
 interface TeamMember {
   id: number;
@@ -126,12 +127,8 @@ export default function TeamMemberList({
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const formatTeamDate = (dateString: string) => {
+    return formatDate(dateString);
   };
 
   if (loading) {
@@ -268,8 +265,8 @@ export default function TeamMemberList({
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     <span>
-                      Joined {formatDate(member.date_of_joining ||'')}
-                      {member.date_of_exit ? ` · Exit ${formatDate(member.date_of_exit)}` : ''}
+                      Joined {formatTeamDate(member.date_of_joining ||'')}
+                      {member.date_of_exit ? ` · Exit ${formatTeamDate(member.date_of_exit)}` : ''}
                     </span>
                   </div>
                 </div>
