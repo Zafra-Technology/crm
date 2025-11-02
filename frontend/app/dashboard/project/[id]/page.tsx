@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { projectsApi } from '@/lib/api/projects';
 import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
@@ -14,7 +14,7 @@ import { Designer } from '@/types/designer';
 import ProjectChat from '@/components/chat/ProjectChat';
 import ProjectUpdates from '@/components/ProjectUpdates';
 import ProjectAttachments from '@/components/ProjectAttachments';
-import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon } from 'lucide-react';
+import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon, ArrowLeft, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ import {
 
 export default function ProjectDetailsPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params?.id as string;
   
   const [user, setUser] = useState<User | null>(null);
@@ -43,13 +45,23 @@ export default function ProjectDetailsPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<{
+    name: string;
+    description: string;
+    requirements: string;
+    timeline: string;
+    status: Project['status'];
+    projectAddress: string;
+  }>({
     name: '',
     description: '',
     requirements: '',
     timeline: '',
-    status: 'planning' as Project['status']
+    status: 'planning',
+    projectAddress: ''
   });
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [locationUrl, setLocationUrl] = useState<string>('');
 
   useEffect(() => {
     (async () => {
@@ -79,9 +91,12 @@ export default function ProjectDetailsPage() {
           description: mappedProject.description,
           requirements: mappedProject.requirements,
           timeline: mappedProject.timeline,
-          status: mappedProject.status
+          status: mappedProject.status,
+          projectAddress: mappedProject.projectAddress || ''
           // NO clientName or clientCompany in editForm
+          // Services and Wetstamp are edited directly on the page, not in this modal
         });
+        setLocationUrl(mappedProject.projectLocationUrl || '');
 
         try {
           // Fetch all users once and derive client, designers, and manager
@@ -271,7 +286,9 @@ export default function ProjectDetailsPage() {
     e.preventDefault();
     if (project) {
       try {
-        const updatedProject = await projectsApi.update(project.id, editForm);
+        const updatedProject = await projectsApi.update(project.id, {
+          ...editForm
+        });
         if (updatedProject) {
           setProject(updatedProject);
           setIsEditing(false);
@@ -379,7 +396,10 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  const canEdit = user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin' || user.role === 'designer';
+  // Project managers and assistant project managers can edit project details
+  const canEdit = user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin';
+  // Services can only be edited by admin, project_manager, and assistant_project_manager
+  const canEditServices = user.role === 'admin' || user.role === 'project_manager' || user.role === 'assistant_project_manager';
   const canAddUpdates =
     user.role === 'designer' ||
     user.role === 'senior_designer' ||
@@ -401,6 +421,8 @@ export default function ProjectDetailsPage() {
     inactive: 'bg-gray-100 text-gray-800',
     rejected: 'bg-red-100 text-red-800',
     quotation_submitted: 'bg-slate-100 text-slate-800',
+    cancelled: 'bg-red-200 text-red-900',
+    onhold: 'bg-orange-100 text-orange-800',
   };
 
   const statusLabels: Record<Project['status'] | 'inactive' | 'rejected' | 'quotation_submitted', string> = {
@@ -411,17 +433,29 @@ export default function ProjectDetailsPage() {
     inactive: 'Pending',
     rejected: 'Rejected',
     quotation_submitted: 'Quotation Submitted',
+    cancelled: 'Cancelled',
+    onhold: 'On Hold',
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-black">{project.name}</h1>
-          <p className="text-gray-600 mt-1">Project management and team collaboration</p>
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={() => router.back()}
+            variant="ghost"
+            size="icon"
+            className="flex items-center justify-center"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-black">{project.name}</h1>
+            <p className="text-gray-600 mt-1">Project management and team collaboration</p>
+          </div>
         </div>
-        {canEdit && !isClient && !isDesigner && (
+        {canEdit && (
           <Button
             onClick={() => setIsEditing(true)}
             variant="outline"
@@ -488,6 +522,269 @@ export default function ProjectDetailsPage() {
                 <h3 className="text-lg font-semibold text-foreground mb-4">Project Requirements</h3>
                 <div className="prose prose-sm max-w-none">
                   <p className="text-muted-foreground leading-relaxed">{project.requirements}</p>
+                </div>
+              </div>
+
+              {/* Project Address Section */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center gap-4 mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    <span className="text-destructive mr-1">*</span>Project Address
+                  </h3>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <p className="text-muted-foreground">
+                      {project.projectAddress || 'No address provided'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Location Section */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">Location</h3>
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setLocationUrl(project.projectLocationUrl || '');
+                        setIsEditingLocation(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <p className="text-muted-foreground">
+                    {project.projectAddress || 'No address provided'}
+                  </p>
+                  {project.projectLocationUrl ? (() => {
+                    // Check if URL is a valid Google Maps embed URL
+                    const isEmbedUrl = project.projectLocationUrl.includes('google.com/maps/embed');
+                    
+                    // Convert regular Google Maps URL to embed format
+                    const convertToEmbedUrl = (url: string): string => {
+                      if (isEmbedUrl) {
+                        return url;
+                      }
+                      
+                      try {
+                        const urlObj = new URL(url);
+                        
+                        // Format: https://www.google.com/maps/place/... or https://maps.google.com/maps?q=...
+                        // Extract the query or place information
+                        let embedSrc = '';
+                        
+                        // Check for place URL format
+                        if (urlObj.pathname.includes('/place/')) {
+                          // Extract place from URL like /maps/place/Place+Name/@lat,lng
+                          const placeMatch = urlObj.pathname.match(/\/place\/([^/@]+)/);
+                          if (placeMatch) {
+                            const place = placeMatch[1].replace(/\+/g, ' ');
+                            embedSrc = `https://www.google.com/maps?q=${encodeURIComponent(place)}&output=embed`;
+                          }
+                        }
+                        // Check for query parameter
+                        else if (urlObj.searchParams.has('q')) {
+                          const query = urlObj.searchParams.get('q');
+                          embedSrc = `https://www.google.com/maps?q=${encodeURIComponent(query || '')}&output=embed`;
+                        }
+                        // Check for coordinates in URL like /maps/@lat,lng,zoom
+                        else if (urlObj.pathname.match(/^\/maps\/@/)) {
+                          const coords = urlObj.pathname.replace('/maps/@', '').split(',');
+                          if (coords.length >= 2) {
+                            embedSrc = `https://www.google.com/maps?q=${coords[0]},${coords[1]}&output=embed`;
+                          }
+                        }
+                        // Try to extract from any query or path
+                        else {
+                          // Last resort: use the full URL with output=embed
+                          embedSrc = url.split('?')[0] + (url.includes('?') ? url.split('?')[1] + '&output=embed' : '?output=embed');
+                        }
+                        
+                        return embedSrc || url;
+                      } catch (e) {
+                        // If URL parsing fails, try to add output=embed parameter
+                        const separator = url.includes('?') ? '&' : '?';
+                        return `${url}${separator}output=embed`;
+                      }
+                    };
+                    
+                    const embedUrl = convertToEmbedUrl(project.projectLocationUrl);
+                    
+                    return (
+                      <div className="w-full border rounded-lg overflow-hidden">
+                        <iframe
+                          src={embedUrl}
+                          width="100%"
+                          height="400"
+                          style={{ border: 0 }}
+                          allowFullScreen
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                          className="w-full"
+                          onError={(e) => {
+                            console.error('Error loading map iframe:', e);
+                          }}
+                        />
+                      </div>
+                    );
+                  })() : (
+                    <div className="w-full border rounded-lg bg-muted/30 h-[400px] flex items-center justify-center">
+                      <p className="text-muted-foreground">No location map available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Services Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">
+                  Services<span className="text-destructive ml-1">*</span>
+                </h3>
+                <div className="grid grid-cols-2 gap-2 border rounded-lg bg-muted/30 p-3">
+                  {[
+                    { code: 'single_line_diagram', label: 'Single Line Diagram' },
+                    { code: 'permit_package', label: 'Permit Package' },
+                    { code: 'psa', label: 'PSA' },
+                    { code: 'pe_stamp_structural', label: 'PE Stamp Structural' },
+                    { code: 'pe_stamp_electrical', label: 'PE Stamp Electrical' },
+                    { code: 'generator_plan', label: 'Generator Plan' },
+                    { code: 'ev_plan', label: 'EV Plan' },
+                    { code: 'design_review_quality_check', label: 'Design Review-Quality Check' },
+                  ].map((service) => {
+                    const isSelected = (project.services || []).includes(service.code as any);
+                    return (
+                      <label
+                        key={service.code}
+                        className={`flex items-center gap-3 py-2.5 px-3 rounded-md transition-colors ${
+                          !canEditServices ? 'cursor-default opacity-100' : 'cursor-pointer'
+                        } ${
+                          isSelected 
+                            ? 'bg-primary/10' + (canEditServices ? ' hover:bg-primary/15' : '') 
+                            : canEditServices ? 'hover:bg-accent' : ''
+                        }`}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          disabled={!canEditServices}
+                          onCheckedChange={async (checked) => {
+                            if (!canEditServices || !project) return;
+                            
+                            const currentServices = [...(project.services || [])];
+                            let updatedServices: string[];
+                            
+                            if (checked) {
+                              updatedServices = [...currentServices, service.code as any];
+                            } else {
+                              updatedServices = currentServices.filter((s) => s !== service.code);
+                            }
+                            
+                            // Optimistically update UI
+                            setProject({ ...project, services: updatedServices as any });
+                            
+                            // Auto-save to backend
+                            try {
+                              await projectsApi.update(project.id, {
+                                services: updatedServices as any
+                              });
+                            } catch (error) {
+                              console.error('Error saving services:', error);
+                              // Revert on error
+                              setProject({ ...project, services: currentServices as any });
+                              alert('Failed to save services. Please try again.');
+                            }
+                          }}
+                          className="flex-shrink-0"
+                        />
+                        <span className={`text-sm font-medium flex-1 ${
+                          isSelected ? 'text-foreground' : 'text-muted-foreground'
+                        }`}>
+                          {service.label}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Wetstamp Section */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    <span className="text-destructive mr-1">*</span>WETSTAMP
+                  </h3>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={(project.wetstamp ?? false) ? "default" : "outline"}
+                      disabled={!canEditServices}
+                      onClick={async () => {
+                        if (!canEditServices || !project || project.wetstamp === true) return;
+                        
+                        const currentWetstamp = project.wetstamp ?? false;
+                        
+                        // Optimistically update UI
+                        setProject({ ...project, wetstamp: true });
+                        
+                        // Auto-save to backend
+                        try {
+                          await projectsApi.update(project.id, {
+                            wetstamp: true
+                          });
+                        } catch (error) {
+                          console.error('Error saving wetstamp:', error);
+                          // Revert on error
+                          setProject({ ...project, wetstamp: currentWetstamp });
+                          alert('Failed to save wetstamp. Please try again.');
+                        }
+                      }}
+                      className={`px-6 py-2 ${
+                        (project.wetstamp ?? false)
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      YES
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={!(project.wetstamp ?? false) ? "default" : "outline"}
+                      disabled={!canEditServices}
+                      onClick={async () => {
+                        if (!canEditServices || !project || project.wetstamp === false) return;
+                        
+                        const currentWetstamp = project.wetstamp ?? false;
+                        
+                        // Optimistically update UI
+                        setProject({ ...project, wetstamp: false });
+                        
+                        // Auto-save to backend
+                        try {
+                          await projectsApi.update(project.id, {
+                            wetstamp: false
+                          });
+                        } catch (error) {
+                          console.error('Error saving wetstamp:', error);
+                          // Revert on error
+                          setProject({ ...project, wetstamp: currentWetstamp });
+                          alert('Failed to save wetstamp. Please try again.');
+                        }
+                      }}
+                      className={`px-6 py-2 ${
+                        !project.wetstamp
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      NO
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -656,8 +953,23 @@ export default function ProjectDetailsPage() {
                   <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="review">In Review</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="onhold">On Hold</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="project-address">
+                <span className="text-destructive mr-1">*</span>Project Address
+              </Label>
+              <Textarea
+                id="project-address"
+                value={editForm.projectAddress}
+                onChange={(e) => setEditForm({ ...editForm, projectAddress: e.target.value })}
+                placeholder="Enter project address"
+                rows={2}
+              />
             </div>
           </form>
 
@@ -676,6 +988,77 @@ export default function ProjectDetailsPage() {
               className="flex-1"
             >
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Location URL Modal */}
+      <Dialog open={isEditingLocation} onOpenChange={setIsEditingLocation}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Location URL</DialogTitle>
+            <DialogDescription>
+              Enter the Google Maps embed URL for the project location
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="location-url">Location URL</Label>
+              <Input
+                id="location-url"
+                type="url"
+                value={locationUrl}
+                onChange={(e) => setLocationUrl(e.target.value)}
+                placeholder="https://www.google.com/maps/embed?pb=..."
+              />
+              <p className="text-xs text-muted-foreground">
+                <strong>Location URL:</strong> You can paste either a Google Maps embed URL or a regular Google Maps link. Both will work.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <strong>Tip:</strong> For embed URL, click "Share" → "Embed a map" in Google Maps. Regular links will be automatically converted.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditingLocation(false);
+                setLocationUrl(project?.projectLocationUrl || '');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                if (!project) return;
+                
+                // Accept any Google Maps URL (embed or regular)
+                if (locationUrl && !locationUrl.includes('google.com') && !locationUrl.includes('maps.google.com')) {
+                  alert('Please enter a valid Google Maps URL (embed URL or regular link).');
+                  return;
+                }
+                
+                try {
+                  const updatedProject = await projectsApi.update(project.id, {
+                    projectLocationUrl: locationUrl || undefined
+                  });
+                  if (updatedProject) {
+                    setProject(updatedProject);
+                    setIsEditingLocation(false);
+                  }
+                } catch (error) {
+                  console.error('Error updating location URL:', error);
+                  alert('Failed to update location URL. Please try again.');
+                }
+              }}
+            >
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>

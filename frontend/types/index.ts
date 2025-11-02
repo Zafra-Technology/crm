@@ -19,14 +19,28 @@ export interface ProjectAttachment {
   uploadedBy: string;
 }
 
+export type ServiceCode = 
+  | 'single_line_diagram'
+  | 'permit_package'
+  | 'psa'
+  | 'pe_stamp_structural'
+  | 'pe_stamp_electrical'
+  | 'generator_plan'
+  | 'ev_plan'
+  | 'design_review_quality_check';
+
 export interface Project {
   id: string;
   name: string;
   description: string;
   requirements: string;
   timeline: string;
-  status: 'inactive' | 'rejected' | 'quotation_submitted' | 'planning' | 'in_progress' | 'review' | 'completed';
+  status: 'inactive' | 'rejected' | 'quotation_submitted' | 'planning' | 'in_progress' | 'review' | 'completed' | 'cancelled' | 'onhold';
   projectType: 'residential' | 'commercial';
+  services?: ServiceCode[];
+  wetstamp?: boolean;
+  projectAddress?: string;
+  projectLocationUrl?: string;
   feedbackMessage?: string;
   quotationMessage?: string;
   quotationFile?: string;

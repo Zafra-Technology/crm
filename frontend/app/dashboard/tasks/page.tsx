@@ -168,10 +168,15 @@ export default function TasksPage() {
 
   const getProjectStatusColor = (status: string) => {
     const colors = {
-      planning: 'bg-yellow-100 text-yellow-800',
-      in_progress: 'bg-blue-100 text-blue-800',
+      inactive: 'bg-gray-100 text-gray-800',
+      rejected: 'bg-red-100 text-red-800',
+      quotation_submitted: 'bg-slate-100 text-slate-800',
+      planning: 'bg-blue-100 text-blue-800',
+      in_progress: 'bg-yellow-100 text-yellow-800',
       review: 'bg-purple-100 text-purple-800',
       completed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-200 text-red-900',
+      onhold: 'bg-orange-100 text-orange-800',
     };
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };

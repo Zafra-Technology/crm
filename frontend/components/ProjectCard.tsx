@@ -23,16 +23,20 @@ const statusVariants = {
   in_progress: 'secondary',
   review: 'destructive',
   completed: 'default',
+  cancelled: 'destructive',
+  onhold: 'secondary',
 } as const;
 
 const statusStyles = {
-  inactive: 'bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-300',
+  inactive: 'bg-gray-100 text-gray-800 hover:bg-gray-100 border-gray-300',
   rejected: 'bg-red-100 text-red-800 hover:bg-red-100 border-red-300',
   quotation_submitted: 'bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-300',
-  planning: 'bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-300',
-  in_progress: 'bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-300',
-  review: 'bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-300',
+  planning: 'bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-300',
+  in_progress: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-yellow-300',
+  review: 'bg-purple-100 text-purple-800 hover:bg-purple-100 border-purple-300',
   completed: 'bg-green-100 text-green-800 hover:bg-green-100 border-green-300',
+  cancelled: 'bg-red-200 text-red-900 hover:bg-red-200 border-red-400',
+  onhold: 'bg-orange-100 text-orange-800 hover:bg-orange-100 border-orange-300',
 } as const;
 
 const statusLabels = {
@@ -43,6 +47,8 @@ const statusLabels = {
   in_progress: 'In Progress',
   review: 'In Review',
   completed: 'Completed',
+  cancelled: 'Cancelled',
+  onhold: 'On Hold',
 };
 
 export default function ProjectCard({ project, showActions = true, onViewFeedback, onQuotationReview, onAgreementReview }: ProjectCardProps) {

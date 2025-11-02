@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Project } from '@/types';
 import { Designer } from '@/types/designer';
 import ProjectCard from '@/components/ProjectCard';
+import ProjectTable from '@/components/ProjectTable';
 import ConfirmModal from '@/components/modals/ConfirmModal';
 import AssignDesignersModal from '@/components/modals/AssignDesignersModal';
 import FeedbackModal from '@/components/modals/FeedbackModal';
@@ -45,6 +46,8 @@ interface CreateProjectForm {
   clientId: string;
   designerIds: string[];
   projectType: 'residential' | 'commercial';
+  projectAddress: string;
+  projectLocationUrl: string;
   agreementFile: File | null;
   attachments: File[];
 }
@@ -74,6 +77,8 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     clientId: '',
     designerIds: [],
     projectType: 'residential',
+    projectAddress: '',
+    projectLocationUrl: '',
     agreementFile: null,
     attachments: []
   });
@@ -203,6 +208,8 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         requirements: formData.requirements,
         timeline: formData.timeline,
         projectType: formData.projectType,
+        projectAddress: formData.projectAddress || undefined,
+        projectLocationUrl: formData.projectLocationUrl || undefined,
         clientId: formData.clientId,
         managerId: userId,
         designerIds: formData.designerIds
@@ -231,6 +238,8 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
           clientId: '',
           designerIds: [],
           projectType: 'residential',
+          projectAddress: '',
+          projectLocationUrl: '',
           agreementFile: null,
           attachments: []
         });
@@ -512,38 +521,16 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       {/* All Projects */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-foreground">All Projects</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {managedProjects.map((project) => (
-            <div key={project.id} className="relative group">
-              <ProjectCard 
-                project={project} 
-                onViewFeedback={openViewFeedbackModal}
-              />
-              
-              {/* Action buttons - appear on hover */}
-              <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                <button
-                  onClick={() => openAssignModal(project)}
-                  className="p-2 bg-background rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-border"
-                  title="Assign Team Members"
-                >
-                  <UsersIcon size={16} className="text-blue-600" />
-                </button>
-                {canDelete && (
-                  <button
-                    onClick={() => openDeleteModal(project)}
-                    className="p-2 bg-background rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-border"
-                    title="Delete Project"
-                  >
-                    <XIcon size={16} className="text-red-600" />
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {managedProjects.length === 0 && (
+        {managedProjects.length > 0 ? (
+          <ProjectTable
+            projects={managedProjects}
+            showActions={true}
+            onViewFeedback={openViewFeedbackModal}
+            onAssign={openAssignModal}
+            onDelete={openDeleteModal}
+            canDelete={canDelete}
+          />
+        ) : (
           <Card>
             <CardContent className="text-center py-12">
               <div className="text-muted-foreground mb-4">
@@ -663,6 +650,38 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                   rows={2}
                   placeholder="List project requirements"
                 />
+              </div>
+
+              {/* Project Address - Full Width */}
+              <div className="space-y-2">
+                <Label htmlFor="projectAddress">
+                  <span className="text-destructive mr-1">*</span>Project Address
+                </Label>
+                <Textarea
+                  id="projectAddress"
+                  value={formData.projectAddress}
+                  onChange={(e) => setFormData({ ...formData, projectAddress: e.target.value })}
+                  rows={2}
+                  placeholder="Enter project address"
+                />
+              </div>
+
+              {/* Location URL - Full Width */}
+              <div className="space-y-2">
+                <Label htmlFor="projectLocationUrl">Location URL</Label>
+                <Input
+                  id="projectLocationUrl"
+                  type="url"
+                  value={formData.projectLocationUrl}
+                  onChange={(e) => setFormData({ ...formData, projectLocationUrl: e.target.value })}
+                  placeholder="https://www.google.com/maps/embed?pb=..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  <strong>Optional:</strong> Paste any Google Maps URL (embed URL or regular link). Both formats are accepted and will work.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <strong>Tip:</strong> For embed URL, click "Share" → "Embed a map" in Google Maps. Regular links will be automatically converted.
+                </p>
               </div>
               
               {/* Team Member Selection */}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Project } from '@/types';
 import ProjectCard from '@/components/ProjectCard';
+import ProjectTable from '@/components/ProjectTable';
 import { projectsApi } from '@/lib/api/projects';
 import { PlusIcon } from 'lucide-react';
 import CreateProjectModal from '@/components/modals/CreateProjectModal';
@@ -204,22 +205,17 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
         </Card>
       </div>
 
-      {/* Projects Grid */}
+      {/* Projects Table */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-foreground">All Projects</h2>
         {clientProjects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {clientProjects.map((project) => (
-              <div key={project.id} className="h-full">
-                <ProjectCard 
-                  project={project} 
-                  onViewFeedback={openViewFeedback}
-                  onQuotationReview={openQuotationReview}
-                  onAgreementReview={openAgreementReview}
-                />
-              </div>
-            ))}
-          </div>
+          <ProjectTable
+            projects={clientProjects}
+            showActions={true}
+            onViewFeedback={openViewFeedback}
+            onQuotationReview={openQuotationReview}
+            onAgreementReview={openAgreementReview}
+          />
         ) : (
           <Card>
             <CardContent className="text-center py-12">

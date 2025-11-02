@@ -32,6 +32,8 @@ interface ProjectFormData {
   requirements: string;
   timeline: string;
   projectType: 'residential' | 'commercial';
+  projectAddress: string;
+  projectLocationUrl: string;
   attachments: File[];
 }
 
@@ -42,6 +44,8 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
     requirements: '',
     timeline: '',
     projectType: 'residential',
+    projectAddress: '',
+    projectLocationUrl: '',
     attachments: [],
   });
   const [loading, setLoading] = useState(false);
@@ -79,6 +83,8 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
         requirements: formData.requirements,
         timeline: formData.timeline,
         projectType: formData.projectType,
+        projectAddress: formData.projectAddress || undefined,
+        projectLocationUrl: formData.projectLocationUrl || undefined,
         status: 'inactive',
         clientId: userId,
         managerId: '1', // This will be handled by the backend
@@ -103,6 +109,8 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
         requirements: '',
         timeline: '',
         projectType: 'residential',
+        projectAddress: '',
+        projectLocationUrl: '',
         attachments: [],
       });
     } catch (error) {
@@ -228,6 +236,38 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
                   <SelectItem value="commercial">Commercial</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="projectAddress">
+                <span className="text-destructive mr-1">*</span>Project Address
+              </Label>
+              <Textarea
+                id="projectAddress"
+                name="projectAddress"
+                value={formData.projectAddress}
+                onChange={handleChange}
+                rows={2}
+                placeholder="Enter project address"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="projectLocationUrl">Location URL</Label>
+              <Input
+                id="projectLocationUrl"
+                name="projectLocationUrl"
+                type="url"
+                value={formData.projectLocationUrl}
+                onChange={handleChange}
+                placeholder="https://www.google.com/maps/embed?pb=..."
+              />
+              <p className="text-xs text-muted-foreground">
+                <strong>Optional:</strong> Paste any Google Maps URL (embed URL or regular link). Both formats are accepted and will work.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <strong>Tip:</strong> For embed URL, click "Share" → "Embed a map" in Google Maps. Regular links will be automatically converted.
+              </p>
             </div>
 
             <div className="space-y-2">

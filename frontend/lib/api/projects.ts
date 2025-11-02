@@ -43,6 +43,10 @@ export const projectsApi = {
       timeline: String(p.timeline || ''),
       status: (p.status || 'inactive') as Project['status'],
       projectType: (p.project_type || p.projectType || 'residential') as Project['projectType'],
+      services: Array.isArray(p.services) ? p.services : [],
+      wetstamp: Boolean(p.wetstamp ?? false),
+      projectAddress: p.project_address || p.projectAddress || undefined,
+      projectLocationUrl: p.project_location_url || p.projectLocationUrl || undefined,
       feedbackMessage: p.feedback_message || p.feedbackMessage || undefined,
       quotationMessage: p.quotation_message || p.quotationMessage || undefined,
       quotationFile: p.quotation_file || p.quotationFile || undefined,
@@ -197,6 +201,10 @@ export const projectsApi = {
     timeline: string;
     projectType?: string;
     status?: string;
+    services?: string[];
+    wetstamp?: boolean;
+    projectAddress?: string;
+    projectLocationUrl?: string;
     clientId: string;
     managerId: string;
     designerIds?: string[];
@@ -211,6 +219,10 @@ export const projectsApi = {
         timeline: projectData.timeline,
         project_type: projectData.projectType || 'residential',
         status: projectData.status || 'inactive',
+        services: projectData.services || [],
+        wetstamp: projectData.wetstamp ?? false,
+        project_address: projectData.projectAddress || undefined,
+        project_location_url: projectData.projectLocationUrl || undefined,
         client_id: projectData.clientId ? parseInt(projectData.clientId) : undefined,
         manager_id: projectData.managerId ? parseInt(projectData.managerId) : undefined,
         designer_ids: Array.isArray(projectData.designerIds)
@@ -265,6 +277,10 @@ export const projectsApi = {
       if (updateData.requirements !== undefined) payload.requirements = updateData.requirements;
       if (updateData.timeline !== undefined) payload.timeline = updateData.timeline;
       if ((updateData as any).status !== undefined) payload.status = (updateData as any).status;
+      if (updateData.services !== undefined) payload.services = updateData.services;
+      if (updateData.wetstamp !== undefined) payload.wetstamp = updateData.wetstamp;
+      if (updateData.projectAddress !== undefined) payload.project_address = updateData.projectAddress;
+      if (updateData.projectLocationUrl !== undefined) payload.project_location_url = updateData.projectLocationUrl;
 
       const clientId = (updateData as any).clientId;
       if (clientId !== undefined) payload.client_id = clientId ? parseInt(String(clientId)) : null;
