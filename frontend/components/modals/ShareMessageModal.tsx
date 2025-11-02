@@ -94,7 +94,7 @@ export default function ShareMessageModal({ isOpen, onClose, onConfirm, loading 
       ].includes(userRole);
       
       const canSeeTeamChat = userRole && (
-        ['admin', 'project_manager', 'assistant_project_manager'].includes(userRole) || 
+        ['admin', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead'].includes(userRole) || 
         isAssignedMember
       );
       

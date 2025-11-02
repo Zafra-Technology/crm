@@ -66,11 +66,13 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     'client_team_member'
   ].includes(currentUser?.role || '');
 
-  // Team chat visible to: admin, project_manager, assistant_project_manager, and assigned members
+  // Team chat visible to: admin, project_manager, assistant_project_manager, team_head, team_lead, and assigned members
   const canSeeTeamChat = [
     'admin',
     'project_manager',
-    'assistant_project_manager'
+    'assistant_project_manager',
+    'team_head',
+    'team_lead'
   ].includes(currentUser?.role || '') || isAssignedMember;
   
   // Debug logging for team chat visibility
