@@ -72,14 +72,64 @@ export const detectLinks = (text: string): Array<{ type: 'text' | 'link'; conten
  */
 export const LinkifiedText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => {
   const parts = detectLinks(text);
-  
+
+  // Helper to render mentions inside a plain text chunk
+  const renderMentionsInside = (chunk: string, keyPrefix: string) => {
+    // Match tokens beginning with @, stopping at whitespace or punctuation
+    // Prefer matching mentions that were inserted by our input: they end with a
+    // zero-width space (\u200b). This guarantees we don't over-highlight text after it.
+    const DELIMITED_MENTION = /@(?:[A-Za-z0-9][A-Za-z0-9._\-]*)(?:\s+(?:[A-Za-z0-9][A-Za-z0-9._\-]*))*(?=\u200b)/g;
+    // Fallback for legacy messages (no delimiter). Conservative: allow up to 2 words max
+    // and stop at the first whitespace/punctuation boundary.
+    const LEGACY_MENTION = /@(?:[A-Za-z0-9][A-Za-z0-9._\-]*)(?:\s+(?:[A-Za-z0-9][A-Za-z0-9._\-]*)){0,1}(?=\s|$|[.,!?;:])/g;
+    const nodes: React.ReactNode[] = [];
+    let last = 0;
+    let m: RegExpExecArray | null;
+    // First, match all delimited mentions; then, if none found, try legacy.
+    let regex: RegExp = DELIMITED_MENTION;
+    regex.lastIndex = 0;
+    while ((m = regex.exec(chunk)) !== null) {
+      if (m.index > last) {
+        nodes.push(<span key={`${keyPrefix}-t-${last}`}>{chunk.slice(last, m.index)}</span>);
+      }
+      const mentionText = m[0];
+      nodes.push(
+        <span key={`${keyPrefix}-m-${m.index}`} className="text-blue-700 bg-blue-100 rounded px-1 py-0.5">
+          {mentionText}
+        </span>
+      );
+      last = m.index + mentionText.length;
+    }
+    if (last === 0) {
+      // No delimited mentions found; try legacy pattern once
+      regex = LEGACY_MENTION;
+      regex.lastIndex = 0;
+      while ((m = regex.exec(chunk)) !== null) {
+        if (m.index > last) {
+          nodes.push(<span key={`${keyPrefix}-lt-${last}`}>{chunk.slice(last, m.index)}</span>);
+        }
+        const mentionText = m[0];
+        nodes.push(
+          <span key={`${keyPrefix}-lm-${m.index}`} className="text-blue-700 bg-blue-100 rounded px-1 py-0.5">
+            {mentionText}
+          </span>
+        );
+        last = m.index + mentionText.length;
+      }
+    }
+    if (last < chunk.length) {
+      nodes.push(<span key={`${keyPrefix}-t-end`}>{chunk.slice(last)}</span>);
+    }
+    return nodes;
+  };
+
   return (
     <span className={className}>
       {parts.map((part, index) => {
         if (part.type === 'link') {
           return (
             <a
-              key={index}
+              key={`l-${index}`}
               href={part.url}
               target="_blank"
               rel="noopener noreferrer"
@@ -90,7 +140,8 @@ export const LinkifiedText: React.FC<{ text: string; className?: string }> = ({ 
             </a>
           );
         }
-        return <span key={index}>{part.content}</span>;
+        // Plain text: further split to highlight mentions
+        return <React.Fragment key={`p-${index}`}>{renderMentionsInside(part.content, String(index))}</React.Fragment>;
       })}
     </span>
   );

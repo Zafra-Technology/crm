@@ -20,6 +20,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { formatChatDate, isDifferentDay } from '@/lib/utils/dateUtils';
 import { LinkifiedText } from '@/lib/utils/linkUtils';
+import MentionInput from '@/components/chat/MentionInput';
+import { projectsApi } from '@/lib/api/projects';
 
 interface ProjectChatProps {
   projectId: string;
@@ -59,6 +61,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
   const [editingText, setEditingText] = useState<string>('');
   const [editingFileData, setEditingFileData] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id?: string; timestamp?: string }>({ open: false });
+  const [mentionOptions, setMentionOptions] = useState<Array<{ id: string; name: string; role?: string; avatar?: string }>>([]);
   
   // Determine which chats to show based on user role
   const canSeeClientChat = [
@@ -278,6 +281,62 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     
     loadPreference();
   }, [projectId]);
+
+  // Load mention options for the active chat type
+  useEffect(() => {
+    const loadMembers = async () => {
+      try {
+        if (!selectedChatType) { setMentionOptions([]); return; }
+        const project = await projectsApi.getById(projectId);
+        if (!project) { setMentionOptions([]); return; }
+
+        const allUsers = await authAPI.getUsers();
+        const idToUser = new Map(allUsers.map((u: any) => [String(u.id), u]));
+
+        const options: Array<{ id: string; name: string; role?: string; avatar?: string }> = [];
+        const pushUnique = (u: any) => {
+          if (!u) return;
+          const id = String(u.id);
+          if (!id || id === String(currentUser?.id || '')) return; // skip self
+          if (options.some(o => String(o.id) === id)) return;
+          options.push({ id, name: u.full_name, role: u.role_display || u.role, avatar: resolveMediaUrl(u.profile_pic) });
+        };
+
+        if (selectedChatType === 'client') {
+          // Client + client team members + admin/PM/APM/PE
+          const clientId = String(project.clientId || '');
+          if (clientId && idToUser.get(clientId)) pushUnique(idToUser.get(clientId));
+          try {
+            const team = await authAPI.getTeamMembersByClient(project.clientId || '');
+            team.filter((u:any)=>u.is_active).forEach((u: any) => pushUnique({ ...u, role: 'client_team_member', role_display: 'Client Team' }));
+          } catch (_) {}
+          const extraRoles = new Set(['admin','project_manager','assistant_project_manager','professional_engineer']);
+          (allUsers || []).filter((u:any)=>u.is_active && extraRoles.has(u.role)).forEach(pushUnique);
+        } else if (selectedChatType === 'team') {
+          // Manager + assigned designers + admin/APM/PE/team_head/team_lead
+          const managerId = String(project.managerId || '');
+          if (managerId && idToUser.get(managerId)) pushUnique(idToUser.get(managerId));
+          // Add assigned designers (fallback to project.designers array if designerIds is missing)
+          const assignedIds: string[] = Array.isArray((project as any).designerIds) && (project as any).designerIds.length
+            ? (project as any).designerIds.map((d: any) => String(d))
+            : (Array.isArray((project as any).designers)
+              ? (project as any).designers.map((d: any) => (typeof d === 'object' && d !== null ? String(d.id) : String(d)))
+              : []);
+          assignedIds.forEach((id) => pushUnique(idToUser.get(String(id))));
+          const extraRoles = new Set(['admin','assistant_project_manager','professional_engineer','team_head','team_lead','project_manager']);
+          (allUsers || []).filter((u:any)=>u.is_active && extraRoles.has(u.role)).forEach(pushUnique);
+        }
+
+        // De-duplicate by id
+        const me = String(currentUser?.id || '');
+        const unique = Array.from(new Map(options.map(o => [o.id, o])).values()).filter(o => String(o.id) !== me);
+        setMentionOptions(unique);
+      } catch {
+        setMentionOptions([]);
+      }
+    };
+    loadMembers();
+  }, [selectedChatType, projectId]);
 
   // Restore last explicit selection from sessionStorage (sticky selection to prevent auto-switch)
   useEffect(() => {
@@ -1347,13 +1406,13 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         />
         
         <div className="flex-1 flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-md focus-within:ring-black focus-within:border-black">
-          <input
-            type="text"
+          <MentionInput
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={setNewMessage}
+            options={mentionOptions}
             placeholder="Type your message..."
-            className="flex-1 outline-none text-sm"
             disabled={uploadingFile}
+            className="flex-1"
           />
           
           <button

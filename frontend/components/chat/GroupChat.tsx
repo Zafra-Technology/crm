@@ -16,6 +16,7 @@ import { groupChatApi } from '@/lib/api/chat-groups';
 import { individualChatApi } from '@/lib/api/individual-chat';
 import { formatChatDate, isDifferentDay } from '@/lib/utils/dateUtils';
 import { LinkifiedText } from '@/lib/utils/linkUtils';
+import MentionInput from '@/components/chat/MentionInput';
 
 interface GroupChatProps {
   groupId: string;
@@ -58,6 +59,7 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
   const [userMeta, setUserMeta] = useState<Record<string, { name: string; role: string; avatar?: string }>>({});
   const [confirmRemove, setConfirmRemove] = useState<{ open: boolean; userId?: string; userName?: string }>({ open: false });
   const [memberSearch, setMemberSearch] = useState('');
+  const [mentionOptions, setMentionOptions] = useState<Array<{ id: string; name: string; role?: string; avatar?: string }>>([]);
   const { toast } = useToast();
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
@@ -293,6 +295,21 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
     };
     fetchMembers();
   }, [infoOpen, addModalOpen, groupId]);
+
+  // Build @mention options from current members metadata
+  useEffect(() => {
+    const me = String(currentUser?.id || '');
+    const opts = groupMembers.filter(m => String(m.id) !== me).map(m => {
+      const meta = userMeta[String(m.id)];
+      return {
+        id: String(m.id),
+        name: meta?.name || m.name,
+        role: meta?.role,
+        avatar: meta?.avatar,
+      };
+    });
+    setMentionOptions(opts);
+  }, [groupMembers, userMeta]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -742,7 +759,7 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.xls,.ppt,.pptx" />
         <div className="flex space-x-2">
           <div className="flex-1 flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg focus-within:ring-blue-500 focus-within:border-blue-500">
-            <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type your message..." className="flex-1 outline-none text-sm" disabled={uploadingFile} />
+            <MentionInput value={newMessage} onChange={setNewMessage} options={mentionOptions} placeholder="Type your message..." className="flex-1" disabled={uploadingFile} />
             <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="text-gray-500 hover:text-gray-700 disabled:opacity-50"><PaperclipIcon size={16} /></button>
           </div>
           <button type="submit" disabled={!newMessage.trim() || uploadingFile} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50">
