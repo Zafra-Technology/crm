@@ -40,6 +40,7 @@ interface ProjectManagerDashboardProps {
 
 interface CreateProjectForm {
   name: string;
+  projectCode: string;
   description: string;
   requirements: string;
   timeline: string;
@@ -70,6 +71,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateProjectForm>({
     name: '',
+    projectCode: '',
     description: '',
     requirements: '',
     timeline: '',
@@ -187,6 +189,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
 
       const projectData = {
         name: formData.name,
+        projectCode: formData.projectCode || undefined,
         description: formData.description,
         requirements: formData.requirements,
         timeline: formData.timeline,
@@ -215,6 +218,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         // Reset form data
         setFormData({
           name: '',
+          projectCode: '',
           description: '',
           requirements: '',
           timeline: '',
@@ -553,6 +557,17 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Enter project name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="projectCode">Project Code</Label>
+                <Input
+                  id="projectCode"
+                  type="text"
+                  value={formData.projectCode}
+                  onChange={(e) => setFormData({ ...formData, projectCode: e.target.value })}
+                  placeholder="Enter project code"
                 />
               </div>
 

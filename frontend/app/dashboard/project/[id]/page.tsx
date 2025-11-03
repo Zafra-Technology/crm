@@ -49,6 +49,7 @@ export default function ProjectDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [editForm, setEditForm] = useState<{
     name: string;
+    projectCode?: string;
     description: string;
     requirements: string;
     timeline: string;
@@ -57,6 +58,7 @@ export default function ProjectDetailsPage() {
     projectAhj: string;
   }>({
     name: '',
+    projectCode: '',
     description: '',
     requirements: '',
     timeline: '',
@@ -121,6 +123,7 @@ export default function ProjectDetailsPage() {
         setProject(mappedProject);
         setEditForm({
           name: mappedProject.name,
+          projectCode: (mappedProject as any).projectCode || '',
           description: mappedProject.description,
           requirements: mappedProject.requirements,
           timeline: mappedProject.timeline,
@@ -780,7 +783,10 @@ export default function ProjectDetailsPage() {
             <ArrowLeft size={20} />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-black">{project.name}</h1>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-black whitespace-nowrap">{(project as any).projectCode || (project as any).project_code || ''}</span>
+              <h1 className="text-2xl font-bold text-black">{project.name.charAt(0).toUpperCase() + project.name.slice(1)}</h1>
+            </div>
             <p className="text-gray-600 mt-1">Project management and team collaboration</p>
           </div>
         </div>
@@ -2086,6 +2092,17 @@ export default function ProjectDetailsPage() {
                     placeholder="Enter project name"
                   />
                 </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="project-code">Project Code</Label>
+                <Input
+                  id="project-code"
+                  type="text"
+                  value={editForm.projectCode || ''}
+                  onChange={(e) => setEditForm({ ...editForm, projectCode: e.target.value })}
+                  placeholder="Enter project code"
+                />
+              </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="project-status">Status</Label>

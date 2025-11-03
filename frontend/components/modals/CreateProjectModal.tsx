@@ -28,6 +28,7 @@ interface CreateProjectModalProps {
 
 interface ProjectFormData {
   name: string;
+  projectCode: string;
   description: string;
   requirements: string;
   timeline: string;
@@ -40,6 +41,7 @@ interface ProjectFormData {
 export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, userId }: CreateProjectModalProps) {
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
+    projectCode: '',
     description: '',
     requirements: '',
     timeline: '',
@@ -79,6 +81,7 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
 
       const projectData = {
         name: formData.name,
+        projectCode: formData.projectCode || undefined,
         description: formData.description,
         requirements: formData.requirements,
         timeline: formData.timeline,
@@ -105,6 +108,7 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
       // Reset form
       setFormData({
         name: '',
+        projectCode: '',
         description: '',
         requirements: '',
         timeline: '',
@@ -179,6 +183,18 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
                 onChange={handleChange}
                 required
                 placeholder="Enter project name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="projectCode">Project Code</Label>
+              <Input
+                id="projectCode"
+                name="projectCode"
+                type="text"
+                value={formData.projectCode}
+                onChange={handleChange}
+                placeholder="Enter project code"
               />
             </div>
 

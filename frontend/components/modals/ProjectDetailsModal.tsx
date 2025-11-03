@@ -1,6 +1,7 @@
 'use client';
 
 import { Calendar, User, FileText, Clock, Building, Home, Mail, Phone } from 'lucide-react';
+import { useEffect } from 'react';
 import { Project } from '@/types';
 import { User as APIUser } from '@/lib/api/auth';
 import {
@@ -51,6 +52,14 @@ export default function ProjectDetailsModal({
 
   if (!isOpen || !project) return null;
 
+  // Debug: log whether project code is available when modal opens or project changes
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line no-console
+      console.log('ProjectDetailsModal -> projectCode:', (project as any)?.projectCode ?? (project as any)?.project_code, 'project:', project);
+    } catch {}
+  }, [project, isOpen]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -67,7 +76,14 @@ export default function ProjectDetailsModal({
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <CardTitle className="text-2xl">{project.name}</CardTitle>
+                  <CardTitle className="text-2xl flex items-center gap-3">
+                    {((project as any).projectCode || (project as any).project_code) && (
+                      <span className="text-2xl font-semibold whitespace-nowrap">
+                        {(project as any).projectCode || (project as any).project_code}
+                      </span>
+                    )}
+                    <span className="text-2xl font-semibold"> {project.name.charAt(0).toUpperCase() + project.name.slice(1)}</span>
+                  </CardTitle>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
                     <div className="flex items-center gap-1">
                       {project.projectType === 'commercial' ? (

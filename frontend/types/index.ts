@@ -32,6 +32,7 @@ export type ServiceCode =
 export interface Project {
   id: string;
   name: string;
+  projectCode?: string;
   description: string;
   requirements: string;
   timeline: string;

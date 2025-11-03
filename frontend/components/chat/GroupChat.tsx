@@ -658,7 +658,7 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
                 {editingId === String(m.id) ? (
                   <div className="mb-2 space-y-2">
                     <div className="flex items-center gap-2">
-                      <input value={editingText} onChange={(e)=>setEditingText(e.target.value)} className="flex-1 border px-2 py-1 rounded text-black" />
+                      <MentionInput value={editingText} onChange={setEditingText} options={mentionOptions} placeholder="Edit message..." className="flex-1 border rounded" innerClassName="px-2 py-1" multiline liveHighlight={false} ceHighlight={true} />
                       <Button size="sm" onClick={async () => {
                         const payload: any = { message: editingText };
                         if (editingFileData) {

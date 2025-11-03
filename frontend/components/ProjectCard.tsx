@@ -83,7 +83,10 @@ export default function ProjectCard({ project, showActions = true, onViewFeedbac
     <Card className="hover:shadow-md transition-shadow h-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <CardTitle className="text-lg line-clamp-2 flex-1 mr-2">{project.name}</CardTitle>
+          <CardTitle className="text-lg line-clamp-2 flex-1 mr-2">
+            <span className="mr-2 text-foreground font-medium whitespace-nowrap">{(project as any).projectCode || (project as any).project_code || ''}</span>
+            {project.name}
+          </CardTitle>
           <Badge variant="outline" className={`whitespace-nowrap ${statusStyles[project.status]}`}>
             {statusLabels[project.status]}
           </Badge>

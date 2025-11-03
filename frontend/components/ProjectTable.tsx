@@ -155,7 +155,7 @@ export default function ProjectTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[300px]">Project Name</TableHead>
+            <TableHead className="w+[300px]">Project Name</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[250px]">Description</TableHead>
             <TableHead>Timeline</TableHead>
@@ -173,7 +173,10 @@ export default function ProjectTable({
             return (
               <TableRow key={project.id} className="hover:bg-muted/50 transition-colors">
                 <TableCell>
-                  <div className="font-medium text-foreground">{project.name}</div>
+                  <div className="font-medium text-foreground flex items-center gap-2">
+                    <span className="text-foreground font-medium whitespace-nowrap">{(project as any).projectCode || (project as any).project_code || ''}</span>
+                    <span>{project.name}</span>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className={`whitespace-nowrap ${statusStyles[project.status]}`}>

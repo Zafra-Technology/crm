@@ -38,6 +38,7 @@ export const projectsApi = {
     const project: Project = {
       id: String(p.id),
       name: String(p.name || ''),
+      projectCode: (p.project_code || p.projectCode || '') || undefined,
       description: String(p.description || ''),
       requirements: String(p.requirements || ''),
       timeline: String(p.timeline || ''),
@@ -228,6 +229,7 @@ export const projectsApi = {
   // Create new project
   create: async (projectData: {
     name: string;
+    projectCode?: string;
     description: string;
     requirements: string;
     timeline: string;
@@ -251,6 +253,7 @@ export const projectsApi = {
       // Map to backend-expected snake_case keys
       const payload: Record<string, any> = {
         name: projectData.name,
+        project_code: projectData.projectCode || undefined,
         description: projectData.description,
         requirements: projectData.requirements,
         timeline: projectData.timeline,
@@ -315,6 +318,7 @@ export const projectsApi = {
       const payload: Record<string, any> = {};
 
       if (updateData.name !== undefined) payload.name = updateData.name;
+      if ((updateData as any).projectCode !== undefined) payload.project_code = (updateData as any).projectCode;
       if (updateData.description !== undefined) payload.description = updateData.description;
       if (updateData.requirements !== undefined) payload.requirements = updateData.requirements;
       if (updateData.timeline !== undefined) payload.timeline = updateData.timeline;
