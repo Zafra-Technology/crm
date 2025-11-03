@@ -591,49 +591,51 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
                     </>
                   )}
                   <span className="text-xs text-gray-500">{formatTime(m.timestamp)}</span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="text-gray-600 hover:bg-gray-200 p-1 rounded" title="More">
-                        <MoreVertical size={14} />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align={own ? 'start' : 'end'} className="w-40">
-                      <DropdownMenuItem onClick={() => { 
-                        if (m.fileUrl) {
-                          setShareTarget({
-                            fileUrl: m.fileUrl,
-                            fileName: m.fileName,
-                            fileSize: m.fileSize,
-                            fileType: m.fileType,
-                          });
-                        } else {
-                          setShareTarget({ message: m.message });
-                        }
-                        setShareOpen(true);
-                      }}>
-                        <span className="inline-flex items-center gap-2">
-                          <Forward size={14} />
-                          <span>Share</span>
-                        </span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { setIsSelectMode(true); setSelectedMessageIds(prev => new Set(prev).add(String(m.id))); }}>
-                        <span className="inline-flex items-center gap-2">
-                          <CheckSquare size={14} />
-                          <span>Select</span>
-                        </span>
-                      </DropdownMenuItem>
-                      {own && canEdit(m) && (
-                        <DropdownMenuItem onClick={() => { setEditingId(String(m.id)); setEditingText(m.message); setEditingFileData(null); }}>
-                          <span className="inline-flex items-center gap-2"><Pencil size={14} /><span>Edit</span></span>
+                  {m.message?.toLowerCase() !== 'this message has been deleted' && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="text-gray-600 hover:bg-gray-200 p-1 rounded" title="More">
+                          <MoreVertical size={14} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align={own ? 'start' : 'end'} className="w-40">
+                        <DropdownMenuItem onClick={() => { 
+                          if (m.fileUrl) {
+                            setShareTarget({
+                              fileUrl: m.fileUrl,
+                              fileName: m.fileName,
+                              fileSize: m.fileSize,
+                              fileType: m.fileType,
+                            });
+                          } else {
+                            setShareTarget({ message: m.message });
+                          }
+                          setShareOpen(true);
+                        }}>
+                          <span className="inline-flex items-center gap-2">
+                            <Forward size={14} />
+                            <span>Share</span>
+                          </span>
                         </DropdownMenuItem>
-                      )}
-                      {own && (
-                        <DropdownMenuItem onClick={() => setDeleteDialog({ open: true, id: String(m.id), timestamp: m.timestamp })}>
-                          <span className="inline-flex items-center gap-2"><Trash2 size={14} /><span>Delete</span></span>
+                        <DropdownMenuItem onClick={() => { setIsSelectMode(true); setSelectedMessageIds(prev => new Set(prev).add(String(m.id))); }}>
+                          <span className="inline-flex items-center gap-2">
+                            <CheckSquare size={14} />
+                            <span>Select</span>
+                          </span>
                         </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        {own && canEdit(m) && (
+                          <DropdownMenuItem onClick={() => { setEditingId(String(m.id)); setEditingText(m.message); setEditingFileData(null); }}>
+                            <span className="inline-flex items-center gap-2"><Pencil size={14} /><span>Edit</span></span>
+                          </DropdownMenuItem>
+                        )}
+                        {own && (
+                          <DropdownMenuItem onClick={() => setDeleteDialog({ open: true, id: String(m.id), timestamp: m.timestamp })}>
+                            <span className="inline-flex items-center gap-2"><Trash2 size={14} /><span>Delete</span></span>
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
                 <div className={`inline-block text-sm break-all ${own ? 'bg-gray-300 text-black rounded-l-xl rounded-tr-xl rounded-br-sm px-3 py-2' : 'bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl rounded-bl-sm px-3 py-2'}`}>
                 {editingId === String(m.id) ? (

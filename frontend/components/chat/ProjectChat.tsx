@@ -33,6 +33,7 @@ type ChatType = 'client' | 'team' | null;
 export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false }: ProjectChatProps) {
   const [selectedChatType, setSelectedChatType] = useState<ChatType>(null);
   const [userHasSelected, setUserHasSelected] = useState(false); // Track if user explicitly selected
+  const lastExplicitSelectionRef = useRef<ChatType>(null);
   const [isLoading, setIsLoading] = useState(false);
   const endpointCacheRef = useRef<{ [key: string]: 'new' | 'fallback' }>({}); // Cache which endpoint format works
   
@@ -277,6 +278,39 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     
     loadPreference();
   }, [projectId]);
+
+  // Restore last explicit selection from sessionStorage (sticky selection to prevent auto-switch)
+  useEffect(() => {
+    try {
+      const key = `projectChat:lastSelection:${projectId}`;
+      const saved = sessionStorage.getItem(key) as ChatType | null;
+      if ((saved === 'client' || saved === 'team') && !userHasSelected && !selectedChatType) {
+        setSelectedChatType(saved);
+        setUserHasSelected(true);
+        lastExplicitSelectionRef.current = saved;
+      }
+    } catch (_) {}
+  }, [projectId]);
+
+  // Persist explicit selection to sessionStorage
+  useEffect(() => {
+    try {
+      const key = `projectChat:lastSelection:${projectId}`;
+      if (userHasSelected && (selectedChatType === 'client' || selectedChatType === 'team')) {
+        sessionStorage.setItem(key, selectedChatType);
+        lastExplicitSelectionRef.current = selectedChatType;
+      }
+    } catch (_) {}
+  }, [projectId, selectedChatType, userHasSelected]);
+
+  // Guard: if some render path accidentally flips the selection, snap back to the last explicit selection
+  useEffect(() => {
+    if (!userHasSelected) return;
+    const explicit = lastExplicitSelectionRef.current;
+    if ((explicit === 'client' || explicit === 'team') && selectedChatType && selectedChatType !== explicit) {
+      setSelectedChatType(explicit);
+    }
+  }, [selectedChatType, userHasSelected]);
   
   // Save chat preference to backend when user explicitly selects a chat type
   useEffect(() => {
@@ -884,6 +918,8 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                 console.log('👆 User clicked Client Chat - explicitly opening');
                 setUserHasSelected(true);
                 setSelectedChatType('client');
+                lastExplicitSelectionRef.current = 'client';
+                try { sessionStorage.setItem(`projectChat:lastSelection:${projectId}`, 'client'); } catch(_) {}
               }}
               className="w-full group relative text-left rounded-xl border border-border bg-card text-card-foreground shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-200 overflow-hidden"
             >
@@ -914,6 +950,8 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                 console.log('👆 User clicked Team Chat - explicitly opening');
                 setUserHasSelected(true);
                 setSelectedChatType('team');
+                lastExplicitSelectionRef.current = 'team';
+                try { sessionStorage.setItem(`projectChat:lastSelection:${projectId}`, 'team'); } catch(_) {}
               }}
               className="w-full group relative text-left rounded-xl border border-border bg-card text-card-foreground shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-200 overflow-hidden"
             >
@@ -976,6 +1014,8 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
           <button
             onClick={() => {
               setSelectedChatType(null);
+              lastExplicitSelectionRef.current = null;
+              try { sessionStorage.removeItem(`projectChat:lastSelection:${projectId}`); } catch(_) {}
               // Don't clear userHasSelected - keep it so preference is still saved
             }}
             className="text-gray-600 hover:text-gray-900 transition-colors"
@@ -996,6 +1036,8 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             <button
               onClick={() => {
                 setSelectedChatType(null);
+                lastExplicitSelectionRef.current = null;
+                try { sessionStorage.removeItem(`projectChat:lastSelection:${projectId}`); } catch(_) {}
                 // Don't clear userHasSelected - keep it so preference is still saved
               }}
               className="text-gray-600 hover:text-gray-900 transition-colors"
@@ -1111,55 +1153,57 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                   <span className="text-xs text-gray-500">
                     {formatTime(message.timestamp)}
                   </span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-gray-600 hover:bg-gray-200 p-1 rounded transition-colors"
-                        title="More"
-                      >
-                        <MoreVertical size={14} />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'} className="w-40">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          if (message.fileUrl) {
-                            setShareTarget({ url: message.fileUrl, name: message.fileName, type: message.fileType, size: message.fileSize, isImage: isImageFile(message.fileType) });
-                          } else {
-                            setShareTarget({ text: message.message });
-                          }
-                          setShareOpen(true);
-                        }}
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          <Forward size={14} />
-                          <span>Share</span>
-                        </span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setIsSelectMode(true);
-                          setSelectedMessageIds(prev => new Set(prev).add(String(message.id)));
-                        }}
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          <CheckSquare size={14} />
-                          <span>Select</span>
-                        </span>
-                      </DropdownMenuItem>
-                      {isOwnMessage && canEdit(message) && (
-                        <DropdownMenuItem onClick={() => { setEditingId(String(message.id)); setEditingText(message.message); }}>
-                          <span className="inline-flex items-center gap-2"><Pencil size={14} /><span>Edit</span></span>
+                  {message.message?.toLowerCase() !== 'this message has been deleted' && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-gray-600 hover:bg-gray-200 p-1 rounded transition-colors"
+                          title="More"
+                        >
+                          <MoreVertical size={14} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'} className="w-40">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (message.fileUrl) {
+                              setShareTarget({ url: message.fileUrl, name: message.fileName, type: message.fileType, size: message.fileSize, isImage: isImageFile(message.fileType) });
+                            } else {
+                              setShareTarget({ text: message.message });
+                            }
+                            setShareOpen(true);
+                          }}
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Forward size={14} />
+                            <span>Share</span>
+                          </span>
                         </DropdownMenuItem>
-                      )}
-                      {isOwnMessage && (
-                        <DropdownMenuItem onClick={() => setDeleteDialog({ open: true, id: String(message.id), timestamp: message.timestamp })}>
-                          <span className="inline-flex items-center gap-2"><Trash2 size={14} /><span>Delete</span></span>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setIsSelectMode(true);
+                            setSelectedMessageIds(prev => new Set(prev).add(String(message.id)));
+                          }}
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <CheckSquare size={14} />
+                            <span>Select</span>
+                          </span>
                         </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        {isOwnMessage && canEdit(message) && (
+                          <DropdownMenuItem onClick={() => { setEditingId(String(message.id)); setEditingText(message.message); }}>
+                            <span className="inline-flex items-center gap-2"><Pencil size={14} /><span>Edit</span></span>
+                          </DropdownMenuItem>
+                        )}
+                        {isOwnMessage && (
+                          <DropdownMenuItem onClick={() => setDeleteDialog({ open: true, id: String(message.id), timestamp: message.timestamp })}>
+                            <span className="inline-flex items-center gap-2"><Trash2 size={14} /><span>Delete</span></span>
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
                 <div
                   className={`inline-block text-sm break-all ${
