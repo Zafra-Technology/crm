@@ -6,6 +6,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { projectsApi } from '@/lib/api/projects';
 import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import { projectUpdatesApi } from '@/lib/api/project-updates';
+import { utilitiesApi, Utility } from '@/lib/api/utilities';
+import AddModelsModal from '@/components/modals/AddModelsModal';
 import { getCookie } from '@/lib/cookies';
 import { mockChatMessages } from '@/lib/data/mockData';
 import { User, Project, ProjectUpdate, ChatMessage, ProjectAttachment } from '@/types';
@@ -15,7 +17,7 @@ import ProjectChat from '@/components/chat/ProjectChat';
 import ProjectUpdates from '@/components/ProjectUpdates';
 import ProjectAttachments from '@/components/ProjectAttachments';
 import FileViewerModal from '@/components/modals/FileViewerModal';
-import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon, ArrowLeft, Check, UploadIcon, FileIcon, XIcon, EyeIcon, DownloadIcon } from 'lucide-react';
+import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon, ArrowLeft, Check, UploadIcon, FileIcon, XIcon, EyeIcon, DownloadIcon, PlusIcon, PackageIcon, ZapIcon, AnchorIcon, BatteryIcon, TrashIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -84,6 +86,41 @@ export default function ProjectDetailsPage() {
   const [showStampedFilesViewer, setShowStampedFilesViewer] = useState(false);
   const [selectedFinalOutputFile, setSelectedFinalOutputFile] = useState<ProjectAttachment | null>(null);
   const [selectedStampedFile, setSelectedStampedFile] = useState<ProjectAttachment | null>(null);
+  const [projectUtilities, setProjectUtilities] = useState<{
+    Module: Utility[];
+    Inventor: Utility[];
+    Mounting: Utility[];
+    Battery: Utility[];
+  }>({
+    Module: [],
+    Inventor: [],
+    Mounting: [],
+    Battery: [],
+  });
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addModalCategory, setAddModalCategory] = useState<'Inventor' | 'Module' | 'Mounting' | 'Battery'>('Module');
+
+  const loadProjectUtilities = async () => {
+    if (!projectId) return;
+    
+    try {
+      const [moduleUtils, inventorUtils, mountingUtils, batteryUtils] = await Promise.all([
+        utilitiesApi.getProjectUtilities(parseInt(projectId), 'Module'),
+        utilitiesApi.getProjectUtilities(parseInt(projectId), 'Inventor'),
+        utilitiesApi.getProjectUtilities(parseInt(projectId), 'Mounting'),
+        utilitiesApi.getProjectUtilities(parseInt(projectId), 'Battery'),
+      ]);
+      
+      setProjectUtilities({
+        Module: moduleUtils,
+        Inventor: inventorUtils,
+        Mounting: mountingUtils,
+        Battery: batteryUtils,
+      });
+    } catch (error) {
+      console.error('Error loading project utilities:', error);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -92,6 +129,13 @@ export default function ProjectDetailsPage() {
       await loadProjectData();
     })();
   }, [projectId]);
+
+  useEffect(() => {
+    if (project && projectId) {
+      loadProjectUtilities();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, projectId]);
 
   const loadProjectData = async () => {
     try {
@@ -858,6 +902,30 @@ export default function ProjectDetailsPage() {
                 <div className="prose prose-sm max-w-none">
                   <p className="text-muted-foreground leading-relaxed">{project.requirements}</p>
                 </div>
+              </div>
+
+              {/* Project Attachments */}
+              {Array.isArray(project.attachments) && project.attachments.length > 0 && (
+                <div className="pt-6 border-t">
+                  <ProjectAttachments
+                    attachments={project.attachments}
+                    canEdit={true}
+                    canRemove={user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin'}
+                    onAddAttachment={handleAddAttachment}
+                    onRemoveAttachment={handleRemoveAttachment}
+                  />
+                </div>
+              )}
+
+              {/* Project Updates - All roles can add updates */}
+              <div className="pt-6 border-t">
+                <ProjectUpdates
+                  projectId={projectId}
+                  updates={updates}
+                  currentUser={user}
+                  canEdit={canAddUpdates}
+                  onUpdateAdded={loadProjectData}
+                />
               </div>
 
               {/* Project Address Section */}
@@ -1971,29 +2039,240 @@ export default function ProjectDetailsPage() {
                 </div>
               </div>
 
-              {/* Project Attachments */}
-              {Array.isArray(project.attachments) && project.attachments.length > 0 && (
-                <div className="pt-6 border-t">
-                  <ProjectAttachments
-                    attachments={project.attachments}
-                    canEdit={true}
-                    canRemove={user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin'}
-                    onAddAttachment={handleAddAttachment}
-                    onRemoveAttachment={handleRemoveAttachment}
-                  />
+              {/* Datasheet Sections */}
+              <div className="pt-6 border-t space-y-6">
+                <h3 className="text-lg font-semibold text-foreground">Datasheets</h3>
+                
+                {/* Module Datasheet Section */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <PackageIcon className="h-5 w-5 text-green-600" />
+                      <h4 className="font-semibold text-foreground">Module Datasheet</h4>
+                    </div>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAddModalCategory('Module');
+                          setShowAddModal(true);
+                        }}
+                      >
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Model
+                      </Button>
+                    )}
+                  </div>
+                  {projectUtilities.Module.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {projectUtilities.Module.map((utility) => (
+                        <div
+                          key={utility.id}
+                          className="flex items-center justify-between p-2 bg-accent/50 rounded-md"
+                        >
+                          <span className="text-sm text-foreground">{utility.model_name}</span>
+                          {canEdit && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={async () => {
+                                try {
+                                  await utilitiesApi.removeFromProject(parseInt(projectId), utility.id);
+                                  loadProjectUtilities();
+                                } catch (error) {
+                                  console.error('Error removing utility:', error);
+                                  alert('Failed to remove model');
+                                }
+                              }}
+                            >
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No module models added</p>
+                  )}
                 </div>
-              )}
+
+                {/* Inventor Datasheet Section */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <ZapIcon className="h-5 w-5 text-yellow-600" />
+                      <h4 className="font-semibold text-foreground">Inventor Datasheet</h4>
+                    </div>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAddModalCategory('Inventor');
+                          setShowAddModal(true);
+                        }}
+                      >
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Model
+                      </Button>
+                    )}
+                  </div>
+                  {projectUtilities.Inventor.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {projectUtilities.Inventor.map((utility) => (
+                        <div
+                          key={utility.id}
+                          className="flex items-center justify-between p-2 bg-accent/50 rounded-md"
+                        >
+                          <span className="text-sm text-foreground">{utility.model_name}</span>
+                          {canEdit && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={async () => {
+                                try {
+                                  await utilitiesApi.removeFromProject(parseInt(projectId), utility.id);
+                                  loadProjectUtilities();
+                                } catch (error) {
+                                  console.error('Error removing utility:', error);
+                                  alert('Failed to remove model');
+                                }
+                              }}
+                            >
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No inventor models added</p>
+                  )}
+                </div>
+
+                {/* Mounting Datasheet Section */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <AnchorIcon className="h-5 w-5 text-purple-600" />
+                      <h4 className="font-semibold text-foreground">Mounting Datasheet</h4>
+                    </div>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAddModalCategory('Mounting');
+                          setShowAddModal(true);
+                        }}
+                      >
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Model
+                      </Button>
+                    )}
+                  </div>
+                  {projectUtilities.Mounting.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {projectUtilities.Mounting.map((utility) => (
+                        <div
+                          key={utility.id}
+                          className="flex items-center justify-between p-2 bg-accent/50 rounded-md"
+                        >
+                          <span className="text-sm text-foreground">{utility.model_name}</span>
+                          {canEdit && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={async () => {
+                                try {
+                                  await utilitiesApi.removeFromProject(parseInt(projectId), utility.id);
+                                  loadProjectUtilities();
+                                } catch (error) {
+                                  console.error('Error removing utility:', error);
+                                  alert('Failed to remove model');
+                                }
+                              }}
+                            >
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No mounting models added</p>
+                  )}
+                </div>
+
+                {/* Battery Datasheet Section */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <BatteryIcon className="h-5 w-5 text-orange-600" />
+                      <h4 className="font-semibold text-foreground">Battery Datasheet</h4>
+                    </div>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAddModalCategory('Battery');
+                          setShowAddModal(true);
+                        }}
+                      >
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Model
+                      </Button>
+                    )}
+                  </div>
+                  {projectUtilities.Battery.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {projectUtilities.Battery.map((utility) => (
+                        <div
+                          key={utility.id}
+                          className="flex items-center justify-between p-2 bg-accent/50 rounded-md"
+                        >
+                          <span className="text-sm text-foreground">{utility.model_name}</span>
+                          {canEdit && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={async () => {
+                                try {
+                                  await utilitiesApi.removeFromProject(parseInt(projectId), utility.id);
+                                  loadProjectUtilities();
+                                } catch (error) {
+                                  console.error('Error removing utility:', error);
+                                  alert('Failed to remove model');
+                                }
+                              }}
+                            >
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No battery models added</p>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
-
-          {/* Project Updates - All roles can add updates */}
-          <ProjectUpdates
-            projectId={projectId}
-            updates={updates}
-            currentUser={user}
-            canEdit={canAddUpdates}
-            onUpdateAdded={loadProjectData}
-          />
 
           {/* Team Members */}
           <Card>
@@ -2573,6 +2852,17 @@ export default function ProjectDetailsPage() {
         }}
         attachment={selectedStampedFile}
       />
+
+      {/* Add Models Modal */}
+      {project && (
+        <AddModelsModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onModelsAdded={loadProjectUtilities}
+          projectId={parseInt(projectId)}
+          category={addModalCategory}
+        />
+      )}
     </div>
   );
 }

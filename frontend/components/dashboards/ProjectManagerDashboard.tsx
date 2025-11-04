@@ -15,7 +15,7 @@ import ViewFeedbackModal from '@/components/modals/ViewFeedbackModal';
 import { projectsApi } from '@/lib/api/projects';
 import { authAPI, User as APIUser } from '@/lib/api/auth';
 // Designers fetched via authAPI in AssignDesignersModal and here if needed
-import { PlusIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, UsersIcon, XIcon, PaperclipIcon, FileIcon, DownloadIcon, Check, XCircle, MessageSquare, Eye } from 'lucide-react';
+import { PlusIcon, TrendingUpIcon, ClockIcon, CheckCircleIcon, UsersIcon, XIcon, PaperclipIcon, FileIcon, DownloadIcon, Check, XCircle, MessageSquare, Eye, FolderOpen, BarChart3, SearchIcon, PencilIcon, TrashIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -69,6 +69,9 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [clientFilter, setClientFilter] = useState<string>('all');
   const [formData, setFormData] = useState<CreateProjectForm>({
     name: '',
     projectCode: '',
@@ -167,6 +170,18 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   const managedProjects = isTeamRole
     ? projects.filter(p => visibleStatusesForTeam.includes(p.status as any))
     : projects;
+
+  // Filter projects based on search term, status, and client
+  const filteredProjects = managedProjects.filter((project) => {
+    const matchesSearch = project.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase()) ||
+      project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (project as any).projectCode?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+    const matchesClient = clientFilter === 'all' || project.clientId === clientFilter;
+    return matchesSearch && matchesStatus && matchesClient;
+  });
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -428,110 +443,195 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         </Alert>
       )}
       
-      {/* Sticky Header */}
-      <div className="sticky top-0 bg-background z-20 pb-4 mb-2 -mx-6 px-6">
-        <div className="flex items-center justify-between bg-background pt-2">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Project Management</h1>
-            <p className="text-muted-foreground mt-1">Manage and oversee all active projects</p>
-          </div>
-          {canCreate && (
-            <Button
-              onClick={() => setShowCreateForm(true)}
-              className="flex items-center space-x-2 shadow-md"
-            >
-              <PlusIcon size={20} />
-              <span>Create Project</span>
-            </Button>
-          )}
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Project Management</h1>
+          <p className="text-muted-foreground">Manage and oversee all active projects</p>
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card className="text-center">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center mb-2">
-              <TrendingUpIcon size={24} className="text-blue-600" />
-            </div>
-            <div className="text-2xl font-bold text-foreground">{managedProjects.length}</div>
-            <div className="text-sm text-muted-foreground">Total Projects</div>
-          </CardContent>
-        </Card>
-        <Card className="text-center">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center mb-2">
-              <ClockIcon size={24} className="text-muted-foreground" />
-            </div>
-            <div className="text-2xl font-bold text-muted-foreground">
-              {managedProjects.filter(p => p.status === 'inactive').length}
-            </div>
-            <div className="text-sm text-muted-foreground">Pending</div>
-          </CardContent>
-        </Card>
-        <Card className="text-center">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center mb-2">
-              <ClockIcon size={24} className="text-yellow-600" />
-            </div>
-            <div className="text-2xl font-bold text-yellow-600">
-              {managedProjects.filter(p => p.status === 'in_progress').length}
-            </div>
-            <div className="text-sm text-muted-foreground">In Progress</div>
-          </CardContent>
-        </Card>
-        <Card className="text-center">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center mb-2">
-              <ClockIcon size={24} className="text-purple-600" />
-            </div>
-            <div className="text-2xl font-bold text-purple-600">
-              {managedProjects.filter(p => p.status === 'review').length}
-            </div>
-            <div className="text-sm text-muted-foreground">In Review</div>
-          </CardContent>
-        </Card>
-        <Card className="text-center">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center mb-2">
-              <CheckCircleIcon size={24} className="text-green-600" />
-            </div>
-            <div className="text-2xl font-bold text-green-600">
-              {managedProjects.filter(p => p.status === 'completed').length}
-            </div>
-            <div className="text-sm text-muted-foreground">Completed</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* All Projects */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">All Projects</h2>
-        {managedProjects.length > 0 ? (
-          <ProjectTable
-            projects={managedProjects}
-            showActions={true}
-            onViewFeedback={openViewFeedbackModal}
-            onAssign={openAssignModal}
-            onDelete={openDeleteModal}
-            canDelete={canDelete}
-          />
-        ) : (
-          <Card>
-            <CardContent className="text-center py-12">
-              <div className="text-muted-foreground mb-4">
-                <PlusIcon size={48} className="mx-auto" />
-              </div>
-              <h3 className="text-lg font-medium text-muted-foreground mb-2">No projects yet</h3>
-              {canCreate ? (
-                <p className="text-muted-foreground">Create your first project to get started.</p>
-              ) : (
-                <p className="text-muted-foreground">You'll see projects here once they enter Planning.</p>
-              )}
-            </CardContent>
-          </Card>
+        {canCreate && (
+          <Button
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2 shadow-md"
+          >
+            <PlusIcon size={18} />
+            <span>Create Project</span>
+          </Button>
         )}
       </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <Card className="hover:shadow-sm transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="bg-blue-500 p-3 rounded-lg">
+                <FolderOpen className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-muted-foreground">Total Projects</p>
+                <p className="text-2xl font-bold text-foreground">{managedProjects.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-sm transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="bg-gray-500 p-3 rounded-lg">
+                <ClockIcon className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {managedProjects.filter(p => p.status === 'inactive').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-sm transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="bg-yellow-500 p-3 rounded-lg">
+                <TrendingUpIcon className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-muted-foreground">In Progress</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {managedProjects.filter(p => p.status === 'in_progress').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-sm transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="bg-purple-500 p-3 rounded-lg">
+                <BarChart3 className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-muted-foreground">In Review</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {managedProjects.filter(p => p.status === 'review').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-sm transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="bg-green-500 p-3 rounded-lg">
+                <CheckCircleIcon className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-muted-foreground">Completed</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {managedProjects.filter(p => p.status === 'completed').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Projects Management */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Project Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+            <div className="flex gap-4 w-full sm:w-auto">
+              <div className="w-48">
+                <Label className="text-xs">Status</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="inactive">Pending</SelectItem>
+                    <SelectItem value="quotation_submitted">Quotation Submitted</SelectItem>
+                    <SelectItem value="planning">Planning</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="review">In Review</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="onhold">On Hold</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-48">
+                <Label className="text-xs">Client</Label>
+                <Select value={clientFilter} onValueChange={setClientFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Clients" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Clients</SelectItem>
+                    {Array.from(new Set(managedProjects.map(p => p.clientId))).map((clientId) => {
+                      const client = allUsers.find(u => u.id.toString() === clientId);
+                      return (
+                        <SelectItem key={clientId} value={clientId}>
+                          {client?.full_name || client?.email || `Client ${clientId}`}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[240px]">
+                <Label htmlFor="project-search" className="text-xs">Search</Label>
+                <Input
+                  id="project-search"
+                  type="text"
+                  placeholder="Search projects..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={loadProjects}>Apply</Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStatusFilter('all');
+                  setClientFilter('all');
+                  setSearchTerm('');
+                  loadProjects();
+                }}
+              >
+                Reset
+              </Button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto mt-4">
+            {loading ? (
+              <div className="p-8 text-center text-muted-foreground">Loading projects...</div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                {managedProjects.length === 0
+                  ? 'No projects found. Create your first project to get started.'
+                  : 'No projects match your filters.'}
+              </div>
+            ) : (
+              <ProjectTable
+                projects={filteredProjects}
+                showActions={true}
+                onViewFeedback={openViewFeedbackModal}
+                onAssign={openAssignModal}
+                onDelete={openDeleteModal}
+                canDelete={canDelete}
+              />
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Create Project Modal */}
       {canCreate && (

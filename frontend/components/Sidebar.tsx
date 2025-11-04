@@ -17,7 +17,8 @@ import {
   UserPlus2Icon,
   UserPlusIcon,
   ClockIcon,
-  HomeIcon
+  HomeIcon,
+  WrenchIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -86,6 +87,13 @@ export default function Sidebar({ userRole }: SidebarProps) {
       href: '/dashboard/designers',
       active: pathname === '/dashboard/designers',
       roles: ['project_manager', 'assistant_project_manager', 'operation_manager', 'admin']
+    },
+    { 
+      icon: WrenchIcon, 
+      label: 'Utility', 
+      href: '/dashboard/utilities',
+      active: pathname === '/dashboard/utilities',
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
     },
     { 
       icon: MessageSquareIcon, 
