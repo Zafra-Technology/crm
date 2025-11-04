@@ -30,6 +30,7 @@ interface Message {
   fileSize?: number;
   fileType?: string;
   messageType?: 'text' | 'file' | 'image';
+  edited?: boolean;
 }
 
 interface IndividualChatProps {
@@ -480,7 +481,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack, onNewM
                           }
                           const ok = await individualChatApi.editMessage(Number(targetUser.id), Number(message.id), payload);
                           if (ok) {
-                            setMessages(prev => prev.map(m => m.id === message.id ? { ...m, message: editingText + ' (edited)', fileUrl: payload.file_url || m.fileUrl, fileName: payload.file_name || m.fileName, fileSize: (payload.file_size ?? m.fileSize), fileType: payload.file_type || m.fileType, messageType: payload.message_type || m.messageType } as any : m));
+                            setMessages(prev => prev.map(m => m.id === message.id ? { ...m, message: editingText, edited: true, fileUrl: payload.file_url || m.fileUrl, fileName: payload.file_name || m.fileName, fileSize: (payload.file_size ?? m.fileSize), fileType: payload.file_type || m.fileType, messageType: payload.message_type || m.messageType } as any : m));
                             setEditingId(null); setEditingText(''); setEditingFileData(null);
                             if (isConnected) send({ type: 'chat_message', sender: String(currentUser.id) });
                           } else {
@@ -509,7 +510,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack, onNewM
                     </div>
                   ) : (
                     <div className="text-sm whitespace-pre-line">
-                      <LinkifiedText text={message.message} />
+                      <LinkifiedText text={(message.message || '').replace(/\s*\(edited\)$/i, '')} />
                     </div>
                   )}
                 
@@ -618,7 +619,7 @@ export default function IndividualChat({ currentUser, targetUser, onBack, onNewM
                   )}
                   
                   <div className={`text-xs mt-1 text-gray-500`}>
-                    {formatTime(message.timestamp)}
+                    {formatTime(message.timestamp)}{((message as any).edited || /\(edited\)$/i.test(message.message || '')) ? ' • Edited' : ''}
                     {isSelectMode && (
                       <Checkbox
                         checked={selectedMessageIds.has(String(message.id))}

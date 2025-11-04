@@ -40,6 +40,7 @@ interface GroupMessage {
   fileName?: string;
   fileSize?: number;
   fileType?: string;
+  edited?: boolean;
 }
 
 export default function GroupChat({ groupId, groupName, groupImage, members = [], currentUser, onNewMessage }: GroupChatProps) {
@@ -476,7 +477,7 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
   const handleEditSave = async (m: GroupMessage) => {
     const ok = await groupChatApi.editMessage(Number(groupId), Number(m.id), { message: editingText });
     if (ok) {
-      setMessages(prev => prev.map(mm => mm.id === m.id ? { ...mm, message: editingText } : mm));
+      setMessages(prev => prev.map(mm => mm.id === m.id ? { ...mm, message: editingText, edited: true } : mm));
       setEditingId(null); setEditingText('');
     } else {
       toast({ title: 'Edit failed', description: 'Unable to edit message', variant: 'destructive' as any });
@@ -607,7 +608,7 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
                       </span>
                     </>
                   )}
-                  <span className="text-xs text-gray-500">{formatTime(m.timestamp)}</span>
+                  <span className="text-xs text-gray-500">{formatTime(m.timestamp)}{((m as any).edited || /\(edited\)$/i.test(m.message || '')) ? ' • Edited' : ''}</span>
                   {m.message?.toLowerCase() !== 'this message has been deleted' && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -675,7 +676,7 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
                           body: JSON.stringify(payload),
                         }).then(r=>r.ok);
                         if (ok) {
-                          setMessages(prev => prev.map(mm => mm.id === m.id ? { ...mm, message: editingText + ' (edited)', fileUrl: editingFileData?.fileUrl || mm.fileUrl, fileName: editingFileData?.fileName || mm.fileName, fileSize: (editingFileData?.fileSize ?? mm.fileSize), fileType: editingFileData?.fileType || mm.fileType, messageType: editingFileData?.messageType || mm.messageType } : mm));
+                          setMessages(prev => prev.map(mm => mm.id === m.id ? { ...mm, message: editingText, edited: true, fileUrl: editingFileData?.fileUrl || mm.fileUrl, fileName: editingFileData?.fileName || mm.fileName, fileSize: (editingFileData?.fileSize ?? mm.fileSize), fileType: editingFileData?.fileType || mm.fileType, messageType: editingFileData?.messageType || mm.messageType } : mm));
                           setEditingId(null); setEditingText(''); setEditingFileData(null);
                           if (isConnected) send({ type: 'chat_message', sender: String(currentUser.id) });
                         } else {
@@ -705,7 +706,7 @@ export default function GroupChat({ groupId, groupName, groupImage, members = []
                 ) : (
                   m.message && (
                     <div className="text-sm whitespace-pre-line">
-                      <LinkifiedText text={m.message} />
+                      <LinkifiedText text={(m.message || '').replace(/\s*\(edited\)$/i, '')} />
                     </div>
                   )
                 )}

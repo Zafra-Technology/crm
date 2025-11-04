@@ -798,22 +798,17 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     if (fileType.includes('excel') || fileType.includes('sheet')) return <FileIcon size={16} className="text-green-500" />;
     return <FileIcon size={16} />;
   };
-  const isProjectUpdateNotification = (message: ChatMessage) => {
-    // Check if message is a system-generated project update notification
-    return message.message?.startsWith('📋 Project Update:') || false;
-  };
+  // Project update notification flow removed from frontend
   
   const canEdit = (message: ChatMessage) => {
     if (String(message.userId) !== String(currentUser.id)) return false;
-    // Don't allow editing project update notifications
-    if (isProjectUpdateNotification(message)) return false;
+    
     const dt = new Date(message.timestamp).getTime();
     return Date.now() - dt <= 24 * 3600 * 1000;
   };
   const canDeleteEveryone = (message: ChatMessage) => {
     if (String(message.userId) !== String(currentUser.id)) return false;
-    // Don't allow deleting project update notifications
-    if (isProjectUpdateNotification(message)) return false;
+    
     const dt = new Date(message.timestamp).getTime();
     return Date.now() - dt <= 1 * 3600 * 1000;
   };
@@ -855,7 +850,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
       }
       
       if (res.ok) {
-        setChatMessages(prev => prev.map(m => m.id === msg.id ? { ...m, message: editingText + ' (edited)', fileUrl: (editingFileData as any)?.fileUrl || m.fileUrl, fileName: (editingFileData as any)?.fileName || m.fileName, fileSize: (editingFileData as any)?.fileSize ?? m.fileSize, fileType: (editingFileData as any)?.fileType || m.fileType, messageType: (editingFileData as any)?.messageType || m.messageType } : m));
+        setChatMessages(prev => prev.map(m => m.id === msg.id ? { ...m, message: editingText, edited: true, fileUrl: (editingFileData as any)?.fileUrl || m.fileUrl, fileName: (editingFileData as any)?.fileName || m.fileName, fileSize: (editingFileData as any)?.fileSize ?? m.fileSize, fileType: (editingFileData as any)?.fileType || m.fileType, messageType: (editingFileData as any)?.messageType || m.messageType } : m));
         setEditingId(null); setEditingText('');
         setEditingFileData(null);
         if (isConnected) {
@@ -1219,7 +1214,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                     </>
                   )}
                   <span className="text-xs text-gray-500">
-                    {formatTime(message.timestamp)}
+                    {formatTime(message.timestamp)}{((message as any).edited || /\(edited\)$/i.test(message.message || '')) ? ' • Edited' : ''}
                   </span>
                   {message.message?.toLowerCase() !== 'this message has been deleted' && (
                     <DropdownMenu>
@@ -1259,12 +1254,12 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                             <span>Select</span>
                           </span>
                         </DropdownMenuItem>
-                        {isOwnMessage && canEdit(message) && !isProjectUpdateNotification(message) && (
+                        {isOwnMessage && canEdit(message) && (
                           <DropdownMenuItem onClick={() => { setEditingId(String(message.id)); setEditingText(message.message); }}>
                             <span className="inline-flex items-center gap-2"><Pencil size={14} /><span>Edit</span></span>
                           </DropdownMenuItem>
                         )}
-                        {isOwnMessage && !isProjectUpdateNotification(message) && (
+                        {isOwnMessage && (
                           <DropdownMenuItem onClick={() => setDeleteDialog({ open: true, id: String(message.id), timestamp: message.timestamp })}>
                             <span className="inline-flex items-center gap-2"><Trash2 size={14} /><span>Delete</span></span>
                           </DropdownMenuItem>
@@ -1313,7 +1308,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                    !message.message.startsWith('📷 Shared an image:') && 
                    !message.message.startsWith('[Image:') && (
                     <div className="mb-2">
-                      <LinkifiedText text={message.message} />
+                      <LinkifiedText text={(message.message || '').replace(/\s*\(edited\)$/i, '')} />
                     </div>
                   ))}
 
