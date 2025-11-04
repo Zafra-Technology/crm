@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import ProjectAttachments from '@/components/ProjectAttachments';
 import { formatDate } from '@/lib/utils/dateUtils';
 
@@ -151,20 +153,6 @@ export default function ProjectDetailsModal({
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Project Type
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm capitalize">
-                    {project.projectType || 'Not specified'}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
                     <Clock className="w-4 h-4" />
                     Last Updated
                   </CardTitle>
@@ -187,6 +175,28 @@ export default function ProjectDetailsModal({
               <p className="text-sm whitespace-pre-wrap leading-relaxed">
                 {project.description || 'No description provided'}
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Project Type (Radio) - Placed above Requirements */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Project Type
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <RadioGroup value={project.projectType} disabled>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem id="project-type-residential" value="residential" />
+                  <Label htmlFor="project-type-residential">Residential</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem id="project-type-commercial" value="commercial" />
+                  <Label htmlFor="project-type-commercial">Commercial</Label>
+                </div>
+              </RadioGroup>
             </CardContent>
           </Card>
 

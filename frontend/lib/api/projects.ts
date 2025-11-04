@@ -318,6 +318,7 @@ export const projectsApi = {
       if ((updateData as any).projectCode !== undefined) payload.project_code = (updateData as any).projectCode;
       if (updateData.description !== undefined) payload.description = updateData.description;
       if (updateData.requirements !== undefined) payload.requirements = updateData.requirements;
+      if (updateData.projectType !== undefined) payload.project_type = updateData.projectType;
       if ((updateData as any).status !== undefined) payload.status = (updateData as any).status;
       if (updateData.services !== undefined) payload.services = updateData.services;
       if (updateData.wetstamp !== undefined) payload.wetstamp = updateData.wetstamp;

@@ -788,6 +788,7 @@ export default function ProjectDetailsPage() {
   const canEdit = user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin';
   // Services can only be edited by admin, project_manager, and assistant_project_manager
   const canEditServices = user.role === 'admin' || user.role === 'project_manager' || user.role === 'assistant_project_manager';
+  const isClientOrClientTeam = user.role === 'client' || user.role === 'client_team_member';
   // Errors section should not be visible to clients and client team members
   const canViewErrors = user.role !== 'client' && user.role !== 'client_team_member';
   const canAddUpdates =
@@ -874,12 +875,11 @@ export default function ProjectDetailsPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              
+              {/* Project Overview Section */}
               <div className="space-y-4">
                 <div>
                   <p className="text-muted-foreground leading-relaxed">{project.description}</p>
                 </div>
-                
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
                   <div>
                     <h4 className="font-medium text-foreground mb-2">Client</h4>
@@ -903,15 +903,56 @@ export default function ProjectDetailsPage() {
                 </div>
               </div>
 
-              {/* Project Requirements */}
+              {/* Project Type Section */}
               <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Project Requirements</h3>
-                <div className="prose prose-sm max-w-none">
-                  <p className="text-muted-foreground leading-relaxed">{project.requirements}</p>
-                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-4">Project Type</h3>
+                <RadioGroup
+                  value={project.projectType}
+                  onValueChange={async (value) => {
+                    if (!canEdit || !project) return;
+                    const currentValue = project.projectType;
+                    setProject({ ...project, projectType: value as any });
+                    try {
+                      const updatedProject = await projectsApi.update(project.id, { projectType: value as any });
+                      if (updatedProject) {
+                        setProject({ ...updatedProject, projectType: value as any });
+                      }
+                    } catch (error) {
+                      console.error('Error saving project type:', error);
+                      setProject({ ...project, projectType: currentValue });
+                      alert('Failed to save project type. Please try again.');
+                    }
+                  }}
+                  disabled={!canEdit}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'residential', label: 'Residential' },
+                    { value: 'commercial', label: 'Commercial' },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        project.projectType === option.value
+                          ? 'bg-primary/10 border-primary'
+                          : 'border-border hover:bg-accent'
+                      } ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <RadioGroupItem value={option.value} id={`project-type-${option.value}`} disabled={!canEdit} />
+                      <label
+                        htmlFor={`project-type-${option.value}`}
+                        className={`text-sm font-medium flex-1 cursor-pointer ${
+                          !canEdit ? 'cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
               </div>
 
-              {/* Project Attachments */}
+              {/* Project Attachments Section */}
               {Array.isArray(project.attachments) && project.attachments.length > 0 && (
                 <div className="pt-6 border-t">
                   <ProjectAttachments
@@ -924,7 +965,7 @@ export default function ProjectDetailsPage() {
                 </div>
               )}
 
-              {/* Project Updates - All roles can add updates */}
+              {/* Project Updates Section */}
               <div className="pt-6 border-t">
                 <ProjectUpdates
                   projectId={projectId}
@@ -935,124 +976,8 @@ export default function ProjectDetailsPage() {
                 />
               </div>
 
-              {/* Project Address Section */}
-              <div className="pt-6 border-t">
-                <div className="flex items-center gap-4 mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    <span className="text-destructive mr-1">*</span>Project Address
-                  </h3>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <p className="text-muted-foreground">
-                      {project.projectAddress || 'No address provided'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Location Section */}
-              <div className="pt-6 border-t">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">Location</h3>
-                  {canEdit && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setLocationUrl(project.projectLocationUrl || '');
-                        setIsEditingLocation(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                </div>
-                <div className="space-y-3">
-                  <p className="text-muted-foreground">
-                    {project.projectAddress || 'No address provided'}
-                  </p>
-                  {project.projectLocationUrl ? (() => {
-                    // Check if URL is a valid Google Maps embed URL
-                    const isEmbedUrl = project.projectLocationUrl.includes('google.com/maps/embed');
-                    
-                    // Convert regular Google Maps URL to embed format
-                    const convertToEmbedUrl = (url: string): string => {
-                      if (isEmbedUrl) {
-                        return url;
-                      }
-                      
-                      try {
-                        const urlObj = new URL(url);
-                        
-                        // Format: https://www.google.com/maps/place/... or https://maps.google.com/maps?q=...
-                        // Extract the query or place information
-                        let embedSrc = '';
-                        
-                        // Check for place URL format
-                        if (urlObj.pathname.includes('/place/')) {
-                          // Extract place from URL like /maps/place/Place+Name/@lat,lng
-                          const placeMatch = urlObj.pathname.match(/\/place\/([^/@]+)/);
-                          if (placeMatch) {
-                            const place = placeMatch[1].replace(/\+/g, ' ');
-                            embedSrc = `https://www.google.com/maps?q=${encodeURIComponent(place)}&output=embed`;
-                          }
-                        }
-                        // Check for query parameter
-                        else if (urlObj.searchParams.has('q')) {
-                          const query = urlObj.searchParams.get('q');
-                          embedSrc = `https://www.google.com/maps?q=${encodeURIComponent(query || '')}&output=embed`;
-                        }
-                        // Check for coordinates in URL like /maps/@lat,lng,zoom
-                        else if (urlObj.pathname.match(/^\/maps\/@/)) {
-                          const coords = urlObj.pathname.replace('/maps/@', '').split(',');
-                          if (coords.length >= 2) {
-                            embedSrc = `https://www.google.com/maps?q=${coords[0]},${coords[1]}&output=embed`;
-                          }
-                        }
-                        // Try to extract from any query or path
-                        else {
-                          // Last resort: use the full URL with output=embed
-                          embedSrc = url.split('?')[0] + (url.includes('?') ? url.split('?')[1] + '&output=embed' : '?output=embed');
-                        }
-                        
-                        return embedSrc || url;
-                      } catch (e) {
-                        // If URL parsing fails, try to add output=embed parameter
-                        const separator = url.includes('?') ? '&' : '?';
-                        return `${url}${separator}output=embed`;
-                      }
-                    };
-                    
-                    const embedUrl = convertToEmbedUrl(project.projectLocationUrl);
-                    
-                    return (
-                      <div className="w-full border rounded-lg overflow-hidden">
-                        <iframe
-                          src={embedUrl}
-                          width="100%"
-                          height="400"
-                          style={{ border: 0 }}
-                          allowFullScreen
-                          loading="lazy"
-                          referrerPolicy="no-referrer-when-downgrade"
-                          className="w-full"
-                          onError={(e) => {
-                            console.error('Error loading map iframe:', e);
-                          }}
-                        />
-                      </div>
-                    );
-                  })() : (
-                    <div className="w-full border rounded-lg bg-muted/30 h-[400px] flex items-center justify-center">
-                      <p className="text-muted-foreground">No location map available</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Services Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
                 <h3 className="text-lg font-semibold text-foreground mb-4">
                   Services<span className="text-destructive ml-1">*</span>
@@ -1085,45 +1010,28 @@ export default function ProjectDetailsPage() {
                           disabled={!canEditServices}
                           onCheckedChange={async (checked) => {
                             if (!canEditServices || !project) return;
-                            
                             const currentServices = [...(project.services || [])];
                             let updatedServices: string[];
-                            
                             if (checked) {
                               updatedServices = [...currentServices, service.code as any];
                             } else {
                               updatedServices = currentServices.filter((s) => s !== service.code);
                             }
-                            
-                            const oldProject = { ...project };
-                            // Optimistically update UI
                             setProject({ ...project, services: updatedServices as any });
-                            
-                            // Auto-save to backend
                             try {
-                              const updatedProject = await projectsApi.update(project.id, {
-                                services: updatedServices as any
-                              });
+                              const updatedProject = await projectsApi.update(project.id, { services: updatedServices as any });
                               if (updatedProject) {
-                                const finalProject = {
-                                  ...updatedProject,
-                                  services: updatedServices as any
-                                };
-                                setProject(finalProject);
-                                // Backend handles notification automatically
+                                setProject({ ...updatedProject, services: updatedServices as any });
                               }
                             } catch (error) {
                               console.error('Error saving services:', error);
-                              // Revert on error
                               setProject({ ...project, services: currentServices as any });
                               alert('Failed to save services. Please try again.');
                             }
                           }}
                           className="flex-shrink-0"
                         />
-                        <span className={`text-sm font-medium flex-1 ${
-                          isSelected ? 'text-foreground' : 'text-muted-foreground'
-                        }`}>
+                        <span className={`text-sm font-medium flex-1 ${isSelected ? 'text-foreground' : 'text-muted-foreground'}`}>
                           {service.label}
                         </span>
                       </label>
@@ -1131,36 +1039,183 @@ export default function ProjectDetailsPage() {
                   })}
                 </div>
               </div>
+              )}
 
-              {/* Project AHJ Section */}
+              {/* Wetstamp Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Project AHJ</h3>
-                <p className="text-muted-foreground">
-                  {project.projectAhj || 'No Project AHJ provided'}
-                </p>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    <span className="text-destructive mr-1">*</span>WETSTAMP
+                  </h3>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={(project.wetstamp ?? false) ? "default" : "outline"}
+                      disabled={!canEditServices}
+                      onClick={async () => {
+                        if (!canEditServices || !project || project.wetstamp === true) return;
+                        const currentWetstamp = project.wetstamp ?? false;
+                        setProject({ ...project, wetstamp: true });
+                        try {
+                          await projectsApi.update(project.id, { wetstamp: true });
+                        } catch (error) {
+                          console.error('Error saving wetstamp:', error);
+                          setProject({ ...project, wetstamp: currentWetstamp });
+                          alert('Failed to save wetstamp. Please try again.');
+                        }
+                      }}
+                      className={`px-6 py-2 ${
+                        (project.wetstamp ?? false)
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      YES
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={!(project.wetstamp ?? false) ? "default" : "outline"}
+                      disabled={!canEditServices}
+                      onClick={async () => {
+                        if (!canEditServices || !project || project.wetstamp === false) return;
+                        const currentWetstamp = project.wetstamp ?? false;
+                        setProject({ ...project, wetstamp: false });
+                        try {
+                          await projectsApi.update(project.id, { wetstamp: false });
+                        } catch (error) {
+                          console.error('Error saving wetstamp:', error);
+                          setProject({ ...project, wetstamp: currentWetstamp });
+                          alert('Failed to save wetstamp. Please try again.');
+                        }
+                      }}
+                      className={`px-6 py-2 ${
+                        !project.wetstamp
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
+                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      NO
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              )}
+
+              {/* Project Address Section */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center gap-4 mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    <span className="text-destructive mr-1">*</span>Project Address
+                  </h3>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <p className="text-muted-foreground">
+                      {project.projectAddress || 'No address provided'}
+                    </p>
+                  </div>
+                </div>
               </div>
 
+              {/* Project Location Section */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">Location</h3>
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setLocationUrl(project.projectLocationUrl || '');
+                        setIsEditingLocation(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <p className="text-muted-foreground">
+                    {project.projectAddress || 'No address provided'}
+                  </p>
+                  {project.projectLocationUrl ? (() => {
+                    const isEmbedUrl = project.projectLocationUrl.includes('google.com/maps/embed');
+                    const convertToEmbedUrl = (url: string): string => {
+                      if (isEmbedUrl) return url;
+                      try {
+                        const urlObj = new URL(url);
+                        let embedSrc = '';
+                        if (urlObj.pathname.includes('/place/')) {
+                          const placeMatch = urlObj.pathname.match(/\/place\/([^/@]+)/);
+                          if (placeMatch) {
+                            const place = placeMatch[1].replace(/\+/g, ' ');
+                            embedSrc = `https://www.google.com/maps?q=${encodeURIComponent(place)}&output=embed`;
+                          }
+                        } else if (urlObj.searchParams.has('q')) {
+                          const query = urlObj.searchParams.get('q');
+                          embedSrc = `https://www.google.com/maps?q=${encodeURIComponent(query || '')}&output=embed`;
+                        } else if (urlObj.pathname.match(/^\/maps\/@/)) {
+                          const coords = urlObj.pathname.replace('/maps/@', '').split(',');
+                          if (coords.length >= 2) {
+                            embedSrc = `https://www.google.com/maps?q=${coords[0]},${coords[1]}&output=embed`;
+                          }
+                        } else {
+                          embedSrc = url.split('?')[0] + (url.includes('?') ? url.split('?')[1] + '&output=embed' : '?output=embed');
+                        }
+                        return embedSrc || url;
+                      } catch {
+                        const separator = url.includes('?') ? '&' : '?';
+                        return `${url}${separator}output=embed`;
+                      }
+                    };
+                    const embedUrl = convertToEmbedUrl(project.projectLocationUrl);
+                    return (
+                      <div className="w-full border rounded-lg overflow-hidden">
+                        <iframe
+                          src={embedUrl}
+                          width="100%"
+                          height="400"
+                          style={{ border: 0 }}
+                          allowFullScreen
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                          className="w-full"
+                          onError={(e) => { console.error('Error loading map iframe:', e); }}
+                        />
+                      </div>
+                    );
+                  })() : (
+                    <div className="w-full border rounded-lg bg-muted/30 h-[400px] flex items-center justify-center">
+                      <p className="text-muted-foreground">No location map available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Project AHJ Section */}
+              {!isClientOrClientTeam && (
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Project AHJ</h3>
+                <p className="text-muted-foreground">{project.projectAhj || 'No Project AHJ provided'}</p>
+              </div>
+              )}
+
               {/* Project AHJ Type Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Project AHJ Type</h3>
                 <RadioGroup
                   value={project.projectAhjType || ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
-                    const oldProject = { ...project };
                     const currentValue = project.projectAhjType;
                     setProject({ ...project, projectAhjType: value as Project['projectAhjType'] });
                     try {
-                      const updatedProject = await projectsApi.update(project.id, {
-                        projectAhjType: value as any
-                      });
+                      const updatedProject = await projectsApi.update(project.id, { projectAhjType: value as any });
                       if (updatedProject) {
-                        const finalProject = {
-                          ...updatedProject,
-                          projectAhjType: value as Project['projectAhjType']
-                        };
-                        setProject(finalProject);
-                        // Backend handles notification automatically
+                        setProject({ ...updatedProject, projectAhjType: value as Project['projectAhjType'] });
                       }
                     } catch (error) {
                       console.error('Error saving project AHJ type:', error);
@@ -1182,46 +1237,33 @@ export default function ProjectDetailsPage() {
                     <label
                       key={option.value}
                       className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                        project.projectAhjType === option.value
-                          ? 'bg-primary/10 border-primary'
-                          : 'border-border hover:bg-accent'
+                        project.projectAhjType === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'
                       } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                       <RadioGroupItem value={option.value} id={`ahj-type-${option.value}`} disabled={!canEditServices} />
-                      <label
-                        htmlFor={`ahj-type-${option.value}`}
-                        className={`text-sm font-medium flex-1 cursor-pointer ${
-                          !canEditServices ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
+                      <label htmlFor={`ahj-type-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
                   ))}
                 </RadioGroup>
               </div>
+              )}
 
               {/* Ball in Court Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Ball in court</h3>
                 <RadioGroup
                   value={project.ballInCourt || ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
-                    const oldProject = { ...project };
                     const currentValue = project.ballInCourt;
                     setProject({ ...project, ballInCourt: value as Project['ballInCourt'] });
                     try {
-                      const updatedProject = await projectsApi.update(project.id, {
-                        ballInCourt: value as any
-                      });
+                      const updatedProject = await projectsApi.update(project.id, { ballInCourt: value as any });
                       if (updatedProject) {
-                        const finalProject = {
-                          ...updatedProject,
-                          ballInCourt: value as Project['ballInCourt']
-                        };
-                        setProject(finalProject);
-                        // Backend handles notification automatically
+                        setProject({ ...updatedProject, ballInCourt: value as Project['ballInCourt'] });
                       }
                     } catch (error) {
                       console.error('Error saving ball in court:', error);
@@ -1246,61 +1288,41 @@ export default function ProjectDetailsPage() {
                     <label
                       key={option.value}
                       className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                        project.ballInCourt === option.value
-                          ? 'bg-primary/10 border-primary'
-                          : 'border-border hover:bg-accent'
+                        project.ballInCourt === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'
                       } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                       <RadioGroupItem value={option.value} id={`ball-${option.value}`} disabled={!canEditServices} />
-                      <label
-                        htmlFor={`ball-${option.value}`}
-                        className={`text-sm font-medium flex-1 cursor-pointer ${
-                          !canEditServices ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
+                      <label htmlFor={`ball-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
                   ))}
                 </RadioGroup>
               </div>
+              )}
 
               {/* Structural PE Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Structural PE</h3>
                 <RadioGroup
                   value={project?.structuralPe ?? ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
-                    const oldProject = { ...project };
                     const currentValue = project.structuralPe;
                     try {
-                      // Update UI optimistically
-                      const optimisticProject = {
-                        ...project,
-                        structuralPe: value as Project['structuralPe']
-                      };
-                      setProject(optimisticProject);
-                      
-                      const updatedProject = await projectsApi.update(project.id, {
-                        structuralPe: value as any
-                      });
-                      
+                      setProject({ ...project, structuralPe: value as Project['structuralPe'] });
+                      const updatedProject = await projectsApi.update(project.id, { structuralPe: value as any });
                       if (updatedProject) {
-                        // Merge the updated project while preserving the structuralPe value
-                        const mappedProject = {
+                        setProject({
                           ...updatedProject,
                           clientName: updatedProject.clientName || (updatedProject as any).client_name,
                           clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
-                          // Ensure structuralPe is preserved from the response or use the value we sent
                           structuralPe: updatedProject.structuralPe || (value as Project['structuralPe'])
-                        };
-                        setProject(mappedProject);
-                        // Backend handles notification automatically
+                        });
                       }
                     } catch (error) {
                       console.error('Error saving Structural PE:', error);
-                      // Revert on error
                       setProject({ ...project, structuralPe: currentValue });
                       alert('Failed to save Structural PE. Please try again.');
                     }
@@ -1319,66 +1341,39 @@ export default function ProjectDetailsPage() {
                     { value: 'aos_structures', label: 'AOS Structures' },
                     { value: 'solar_roof_check', label: 'Solar Roof Check' },
                   ].map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                        project.structuralPe === option.value
-                          ? 'bg-primary/10 border-primary'
-                          : 'border-border hover:bg-accent'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
+                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.structuralPe === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`structural-pe-${option.value}`} disabled={!canEditServices} />
-                      <label
-                        htmlFor={`structural-pe-${option.value}`}
-                        className={`text-sm font-medium flex-1 cursor-pointer ${
-                          !canEditServices ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
+                      <label htmlFor={`structural-pe-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
                   ))}
                 </RadioGroup>
               </div>
+              )}
 
               {/* Structural PE Status Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">
-                  <span className="text-destructive mr-1">*</span>Structural PE Status
-                </h3>
+                <h3 className="text-lg font-semibold text-foreground mb-4"><span className="text-destructive mr-1">*</span>Structural PE Status</h3>
                 <RadioGroup
                   value={project?.structuralPeStatus ?? 'new'}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
-                    const oldProject = { ...project };
                     const currentValue = project.structuralPeStatus;
                     try {
-                      // Update UI optimistically
-                      const optimisticProject = {
-                        ...project,
-                        structuralPeStatus: value as Project['structuralPeStatus']
-                      };
-                      setProject(optimisticProject);
-                      
-                      const updatedProject = await projectsApi.update(project.id, {
-                        structuralPeStatus: value as any
-                      });
-                      
+                      setProject({ ...project, structuralPeStatus: value as Project['structuralPeStatus'] });
+                      const updatedProject = await projectsApi.update(project.id, { structuralPeStatus: value as any });
                       if (updatedProject) {
-                        // Merge the updated project while preserving the structuralPeStatus value
-                        const mappedProject = {
+                        setProject({
                           ...updatedProject,
                           clientName: updatedProject.clientName || (updatedProject as any).client_name,
                           clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
-                          // Ensure structuralPeStatus is preserved from the response or use the value we sent
                           structuralPeStatus: updatedProject.structuralPeStatus || (value as Project['structuralPeStatus'])
-                        };
-                        setProject(mappedProject);
-                        // Backend handles notification automatically
+                        });
                       }
                     } catch (error) {
                       console.error('Error saving Structural PE Status:', error);
-                      // Revert on error
                       setProject({ ...project, structuralPeStatus: currentValue });
                       alert('Failed to save Structural PE Status. Please try again.');
                     }
@@ -1392,64 +1387,39 @@ export default function ProjectDetailsPage() {
                     { value: 'waiting_for_input', label: 'Waiting for Input' },
                     { value: 'completed', label: 'Completed' },
                   ].map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                        project.structuralPeStatus === option.value
-                          ? 'bg-primary/10 border-primary'
-                          : 'border-border hover:bg-accent'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
+                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.structuralPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`structural-pe-status-${option.value}`} disabled={!canEditServices} />
-                      <label
-                        htmlFor={`structural-pe-status-${option.value}`}
-                        className={`text-sm font-medium flex-1 cursor-pointer ${
-                          !canEditServices ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
+                      <label htmlFor={`structural-pe-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
                   ))}
                 </RadioGroup>
               </div>
+              )}
 
               {/* Electrical PE Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Electrical PE</h3>
                 <RadioGroup
                   value={project?.electricalPe ?? ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
-                    const oldProject = { ...project };
                     const currentValue = project.electricalPe;
                     try {
-                      // Update UI optimistically
-                      const optimisticProject = {
-                        ...project,
-                        electricalPe: value as Project['electricalPe']
-                      };
-                      setProject(optimisticProject);
-                      
-                      const updatedProject = await projectsApi.update(project.id, {
-                        electricalPe: value as any
-                      });
-                      
+                      setProject({ ...project, electricalPe: value as Project['electricalPe'] });
+                      const updatedProject = await projectsApi.update(project.id, { electricalPe: value as any });
                       if (updatedProject) {
-                        // Merge the updated project while preserving the electricalPe value
-                        const mappedProject = {
+                        setProject({
                           ...updatedProject,
                           clientName: updatedProject.clientName || (updatedProject as any).client_name,
                           clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
-                          // Ensure electricalPe is preserved from the response or use the value we sent
                           electricalPe: updatedProject.electricalPe || (value as Project['electricalPe'])
-                        };
-                        setProject(mappedProject);
-                        // Backend handles notification automatically
+                        });
                       }
                     } catch (error) {
                       console.error('Error saving Electrical PE:', error);
-                      // Revert on error
                       setProject({ ...project, electricalPe: currentValue });
                       alert('Failed to save Electrical PE. Please try again.');
                     }
@@ -1465,66 +1435,39 @@ export default function ProjectDetailsPage() {
                     { value: 'rivera', label: 'RIVERA' },
                     { value: 'current_renewables', label: 'Current Renewables' },
                   ].map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                        project.electricalPe === option.value
-                          ? 'bg-primary/10 border-primary'
-                          : 'border-border hover:bg-accent'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
+                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.electricalPe === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`electrical-pe-${option.value}`} disabled={!canEditServices} />
-                      <label
-                        htmlFor={`electrical-pe-${option.value}`}
-                        className={`text-sm font-medium flex-1 cursor-pointer ${
-                          !canEditServices ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
+                      <label htmlFor={`electrical-pe-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
                   ))}
                 </RadioGroup>
               </div>
+              )}
 
               {/* Electrical PE Status Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">
-                  <span className="text-destructive mr-1">*</span>Electrical PE Status
-                </h3>
+                <h3 className="text-lg font-semibold text-foreground mb-4"><span className="text-destructive mr-1">*</span>Electrical PE Status</h3>
                 <RadioGroup
                   value={project?.electricalPeStatus ?? 'new'}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
-                    const oldProject = { ...project };
                     const currentValue = project.electricalPeStatus;
                     try {
-                      // Update UI optimistically
-                      const optimisticProject = {
-                        ...project,
-                        electricalPeStatus: value as Project['electricalPeStatus']
-                      };
-                      setProject(optimisticProject);
-                      
-                      const updatedProject = await projectsApi.update(project.id, {
-                        electricalPeStatus: value as any
-                      });
-                      
+                      setProject({ ...project, electricalPeStatus: value as Project['electricalPeStatus'] });
+                      const updatedProject = await projectsApi.update(project.id, { electricalPeStatus: value as any });
                       if (updatedProject) {
-                        // Merge the updated project while preserving the electricalPeStatus value
-                        const mappedProject = {
+                        setProject({
                           ...updatedProject,
                           clientName: updatedProject.clientName || (updatedProject as any).client_name,
                           clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
-                          // Ensure electricalPeStatus is preserved from the response or use the value we sent
                           electricalPeStatus: updatedProject.electricalPeStatus || (value as Project['electricalPeStatus'])
-                        };
-                        setProject(mappedProject);
-                        // Backend handles notification automatically
+                        });
                       }
                     } catch (error) {
                       console.error('Error saving Electrical PE Status:', error);
-                      // Revert on error
                       setProject({ ...project, electricalPeStatus: currentValue });
                       alert('Failed to save Electrical PE Status. Please try again.');
                     }
@@ -1538,49 +1481,31 @@ export default function ProjectDetailsPage() {
                     { value: 'waiting_for_input', label: 'Waiting for Input' },
                     { value: 'completed', label: 'Completed' },
                   ].map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                        project.electricalPeStatus === option.value
-                          ? 'bg-primary/10 border-primary'
-                          : 'border-border hover:bg-accent'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
+                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.electricalPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`electrical-pe-status-${option.value}`} disabled={!canEditServices} />
-                      <label
-                        htmlFor={`electrical-pe-status-${option.value}`}
-                        className={`text-sm font-medium flex-1 cursor-pointer ${
-                          !canEditServices ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
+                      <label htmlFor={`electrical-pe-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
                   ))}
                 </RadioGroup>
               </div>
+              )}
 
               {/* Priority Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Priority</h3>
                 <RadioGroup
                   value={project.priority || ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
-                    const oldProject = { ...project };
                     const currentValue = project.priority;
                     setProject({ ...project, priority: value as Project['priority'] });
                     try {
-                      const updatedProject = await projectsApi.update(project.id, {
-                        priority: value as any
-                      });
+                      const updatedProject = await projectsApi.update(project.id, { priority: value as any });
                       if (updatedProject) {
-                        const finalProject = {
-                          ...updatedProject,
-                          priority: value as Project['priority']
-                        };
-                        setProject(finalProject);
-                        // Backend handles notification automatically
+                        setProject({ ...updatedProject, priority: value as Project['priority'] });
                       }
                     } catch (error) {
                       console.error('Error saving priority:', error);
@@ -1596,64 +1521,47 @@ export default function ProjectDetailsPage() {
                     { value: 'medium', label: 'Medium' },
                     { value: 'high', label: 'High' },
                   ].map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                        project.priority === option.value
-                          ? 'bg-primary/10 border-primary'
-                          : 'border-border hover:bg-accent'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
+                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.priority === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`priority-${option.value}`} disabled={!canEditServices} />
-                      <label
-                        htmlFor={`priority-${option.value}`}
-                        className={`text-sm font-medium flex-1 cursor-pointer ${
-                          !canEditServices ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
+                      <label htmlFor={`priority-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
                   ))}
                 </RadioGroup>
               </div>
+              )}
+
+              {/* Project Requirements Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Project Requirements</h3>
+                <div className="prose prose-sm max-w-none">
+                  <p className="text-muted-foreground leading-relaxed">{project.requirements}</p>
+                </div>
+              </div>
 
               {/* Project Report Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Project Report</h3>
                 <RadioGroup
                   value={project?.projectReport ?? ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
-                    const oldProject = { ...project };
                     const currentValue = project.projectReport;
                     try {
-                      // Update UI optimistically
-                      const optimisticProject = {
-                        ...project,
-                        projectReport: value as Project['projectReport']
-                      };
-                      setProject(optimisticProject);
-                      
-                      const updatedProject = await projectsApi.update(project.id, {
-                        projectReport: value as any
-                      });
-                      
+                      setProject({ ...project, projectReport: value as Project['projectReport'] });
+                      const updatedProject = await projectsApi.update(project.id, { projectReport: value as any });
                       if (updatedProject) {
-                        // Merge the updated project while preserving the projectReport value
-                        const mappedProject = {
+                        setProject({
                           ...updatedProject,
                           clientName: updatedProject.clientName || (updatedProject as any).client_name,
                           clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
-                          // Ensure projectReport is preserved from the response or use the value we sent
                           projectReport: updatedProject.projectReport || (value as Project['projectReport'])
-                        };
-                        setProject(mappedProject);
-                        // Backend handles notification automatically
+                        });
                       }
                     } catch (error) {
                       console.error('Error saving project report:', error);
-                      // Revert on error
                       setProject({ ...project, projectReport: currentValue });
                       alert('Failed to save project report. Please try again.');
                     }
@@ -1668,125 +1576,24 @@ export default function ProjectDetailsPage() {
                     { value: 'good', label: 'Good' },
                     { value: 'better_time_management', label: 'Better time management' },
                   ].map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                        project.projectReport === option.value
-                          ? 'bg-primary/10 border-primary'
-                          : 'border-border hover:bg-accent'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
+                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.projectReport === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`report-${option.value}`} disabled={!canEditServices} />
-                      <label
-                        htmlFor={`report-${option.value}`}
-                        className={`text-sm font-medium flex-1 cursor-pointer ${
-                          !canEditServices ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
+                      <label htmlFor={`report-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
                   ))}
                 </RadioGroup>
               </div>
-
-              {/* Design Status Section */}
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">
-                  <span className="text-destructive mr-1">*</span>Design Status
-                </h3>
-                <RadioGroup
-                  value={project?.designStatus ?? 'new'}
-                  onValueChange={async (value) => {
-                    if (!canEditServices || !project) return;
-                    const oldProject = { ...project };
-                    const currentValue = project.designStatus;
-                    try {
-                      // Update UI optimistically
-                      const optimisticProject = {
-                        ...project,
-                        designStatus: value as Project['designStatus']
-                      };
-                      setProject(optimisticProject);
-                      
-                      const updatedProject = await projectsApi.update(project.id, {
-                        designStatus: value as any
-                      });
-                      
-                      if (updatedProject) {
-                        // Merge the updated project while preserving the designStatus value
-                        const mappedProject = {
-                          ...updatedProject,
-                          clientName: updatedProject.clientName || (updatedProject as any).client_name,
-                          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
-                          // Ensure designStatus is preserved from the response or use the value we sent
-                          designStatus: updatedProject.designStatus || (value as Project['designStatus'])
-                        };
-                        setProject(mappedProject);
-                        // Backend handles notification automatically
-                      }
-                    } catch (error) {
-                      console.error('Error saving design status:', error);
-                      // Revert on error
-                      setProject({ ...project, designStatus: currentValue });
-                      alert('Failed to save design status. Please try again.');
-                    }
-                  }}
-                  disabled={!canEditServices}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  {[
-                    { value: 'new', label: 'New' },
-                    { value: 'in_progress', label: 'In progress' },
-                    { value: 'for_review', label: 'For Review' },
-                    { value: 'revision', label: 'Revision' },
-                    { value: 'final_review', label: 'Final Review' },
-                    { value: 'completed', label: 'Completed' },
-                    { value: 'on_hold', label: 'On Hold' },
-                    { value: 'stop', label: 'Stop' },
-                    { value: 'completed_layout', label: 'Completed Layout' },
-                  ].map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                        project.designStatus === option.value
-                          ? 'bg-primary/10 border-primary'
-                          : 'border-border hover:bg-accent'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      <RadioGroupItem value={option.value} id={`design-status-${option.value}`} disabled={!canEditServices} />
-                      <label
-                        htmlFor={`design-status-${option.value}`}
-                        className={`text-sm font-medium flex-1 cursor-pointer ${
-                          !canEditServices ? 'cursor-not-allowed' : ''
-                        }`}
-                      >
-                        {option.label}
-                      </label>
-                    </label>
-                  ))}
-                </RadioGroup>
-              </div>
+              )}
 
               {/* Errors Section */}
-              {canViewErrors && (
+              {canViewErrors && !isClientOrClientTeam && (
               <div className="pt-6 border-t">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-foreground">Errors</h3>
                   {canEdit && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setErrorsForm({
-                          numberOfErrors: project.numberOfErrors || 0,
-                          numberOfErrorsTeamLead: project.numberOfErrorsTeamLead || 0,
-                          numberOfErrorsDrafter: project.numberOfErrorsDrafter || 0
-                        });
-                        setIsEditingErrors(true);
-                      }}
-                    >
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setErrorsForm({ numberOfErrors: project.numberOfErrors || 0, numberOfErrorsTeamLead: project.numberOfErrorsTeamLead || 0, numberOfErrorsDrafter: project.numberOfErrorsDrafter || 0 }); setIsEditingErrors(true); }}>
                       Edit
                     </Button>
                   )}
@@ -1808,97 +1615,251 @@ export default function ProjectDetailsPage() {
               </div>
               )}
 
+              {/* Team Members Section */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Team Members</h3>
+                <div className="space-y-3">
+                  {designers.map((designer) => (
+                    <div key={designer.id} className="flex items-center space-x-3 p-3 bg-accent/50 rounded-lg">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                        {designer.avatar ? (
+                          <img 
+                            src={resolveMediaUrl(designer.avatar)} 
+                            alt={designer.name} 
+                            className="w-10 h-10 rounded-full object-cover"
+                            onError={(e) => {
+                              console.log('Avatar failed to load:', { originalUrl: designer.avatar, resolvedUrl: resolveMediaUrl(designer.avatar), designerName: designer.name });
+                              const parent = e.currentTarget.parentElement;
+                              if (parent) {
+                                parent.innerHTML = '<svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>';
+                              }
+                            }}
+                          />
+                        ) : (
+                          <UserIcon size={20} className="text-primary" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-foreground">{designer.name}</div>
+                        <div className="text-sm text-muted-foreground">{designer.role}</div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {designer.role === 'designer' ? 'Designer' : 
+                         designer.role === 'senior_designer' ? 'Senior Designer' : 
+                         designer.role === 'team_lead' ? 'Team Lead' : 
+                         designer.role === 'team_head' ? 'Team Head' : 
+                         designer.role === 'project_manager' ? 'Project Manager' : 
+                         designer.role === 'assistant_project_manager' ? 'Assistant Project Manager' : 
+                         designer.role === 'professional_engineer' ? 'Professional Engineer' : 
+                         designer.role === 'auto_cad_drafter' ? 'Auto CAD Drafter' : 
+                         designer.role}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Design Status Section */}
+              {!isClientOrClientTeam && (
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold text-foreground mb-4"><span className="text-destructive mr-1">*</span>Design Status</h3>
+                <RadioGroup
+                  value={project?.designStatus ?? 'new'}
+                  onValueChange={async (value) => {
+                    if (!canEditServices || !project) return;
+                    const currentValue = project.designStatus;
+                    try {
+                      setProject({ ...project, designStatus: value as Project['designStatus'] });
+                      const updatedProject = await projectsApi.update(project.id, { designStatus: value as any });
+                      if (updatedProject) {
+                        setProject({
+                          ...updatedProject,
+                          clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                          clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                          designStatus: updatedProject.designStatus || (value as Project['designStatus'])
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Error saving design status:', error);
+                      setProject({ ...project, designStatus: currentValue });
+                      alert('Failed to save design status. Please try again.');
+                    }
+                  }}
+                  disabled={!canEditServices}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {[
+                    { value: 'new', label: 'New' },
+                    { value: 'in_progress', label: 'In progress' },
+                    { value: 'for_review', label: 'For Review' },
+                    { value: 'revision', label: 'Revision' },
+                    { value: 'final_review', label: 'Final Review' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'on_hold', label: 'On Hold' },
+                    { value: 'stop', label: 'Stop' },
+                    { value: 'completed_layout', label: 'Completed Layout' },
+                  ].map((option) => (
+                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.designStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                      <RadioGroupItem value={option.value} id={`design-status-${option.value}`} disabled={!canEditServices} />
+                      <label htmlFor={`design-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
+                        {option.label}
+                      </label>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+              )}
+
+              {/* Data Sheet Section */}
+              {!isClientOrClientTeam && (
+              <div className="pt-6 border-t space-y-6">
+                <h3 className="text-lg font-semibold text-foreground">Datasheets</h3>
+                {/* Module Datasheet */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <PackageIcon className="h-5 w-5 text-green-600" />
+                      <h4 className="font-semibold text-foreground">Module Datasheet</h4>
+                    </div>
+                    {canEdit && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setAddModalCategory('Module'); setShowAddModal(true); }}>
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Model
+                      </Button>
+                    )}
+                  </div>
+                  {projectUtilities.Module.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {projectUtilities.Module.map((utility) => (
+                        <div key={utility.id} className="flex items-center justify-between p-2 bg-accent/50 rounded-md">
+                          <span className="text-sm text-foreground">{utility.model_name}</span>
+                          {canEdit && (
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={async () => { try { await utilitiesApi.removeFromProject(parseInt(projectId), utility.id); loadProjectUtilities(); } catch (error) { console.error('Error removing utility:', error); alert('Failed to remove model'); } }}>
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No module models added</p>
+                  )}
+                </div>
+                {/* Inventor Datasheet */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <ZapIcon className="h-5 w-5 text-yellow-600" />
+                      <h4 className="font-semibold text-foreground">Inventor Datasheet</h4>
+                    </div>
+                    {canEdit && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setAddModalCategory('Inventor'); setShowAddModal(true); }}>
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Model
+                      </Button>
+                    )}
+                  </div>
+                  {projectUtilities.Inventor.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {projectUtilities.Inventor.map((utility) => (
+                        <div key={utility.id} className="flex items-center justify-between p-2 bg-accent/50 rounded-md">
+                          <span className="text-sm text-foreground">{utility.model_name}</span>
+                          {canEdit && (
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={async () => { try { await utilitiesApi.removeFromProject(parseInt(projectId), utility.id); loadProjectUtilities(); } catch (error) { console.error('Error removing utility:', error); alert('Failed to remove model'); } }}>
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No inventor models added</p>
+                  )}
+                </div>
+                {/* Mounting Datasheet */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <AnchorIcon className="h-5 w-5 text-purple-600" />
+                      <h4 className="font-semibold text-foreground">Mounting Datasheet</h4>
+                    </div>
+                    {canEdit && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setAddModalCategory('Mounting'); setShowAddModal(true); }}>
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Model
+                      </Button>
+                    )}
+                  </div>
+                  {projectUtilities.Mounting.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {projectUtilities.Mounting.map((utility) => (
+                        <div key={utility.id} className="flex items-center justify-between p-2 bg-accent/50 rounded-md">
+                          <span className="text-sm text-foreground">{utility.model_name}</span>
+                          {canEdit && (
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={async () => { try { await utilitiesApi.removeFromProject(parseInt(projectId), utility.id); loadProjectUtilities(); } catch (error) { console.error('Error removing utility:', error); alert('Failed to remove model'); } }}>
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No mounting models added</p>
+                  )}
+                </div>
+                {/* Battery Datasheet */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <BatteryIcon className="h-5 w-5 text-orange-600" />
+                      <h4 className="font-semibold text-foreground">Battery Datasheet</h4>
+                    </div>
+                    {canEdit && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setAddModalCategory('Battery'); setShowAddModal(true); }}>
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Model
+                      </Button>
+                    )}
+                  </div>
+                  {projectUtilities.Battery.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {projectUtilities.Battery.map((utility) => (
+                        <div key={utility.id} className="flex items-center justify-between p-2 bg-accent/50 rounded-md">
+                          <span className="text-sm text-foreground">{utility.model_name}</span>
+                          {canEdit && (
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={async () => { try { await utilitiesApi.removeFromProject(parseInt(projectId), utility.id); loadProjectUtilities(); } catch (error) { console.error('Error removing utility:', error); alert('Failed to remove model'); } }}>
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No battery models added</p>
+                  )}
+                </div>
+              </div>
+              )}
+
               {/* Post Installation Letter Section */}
+              {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    <span className="text-destructive mr-1">*</span>Post Installation Letter
-                  </h3>
+                  <h3 className="text-lg font-semibold text-foreground"><span className="text-destructive mr-1">*</span>Post Installation Letter</h3>
                   <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={(project.postInstallationLetter ?? false) ? "default" : "outline"}
-                      disabled={!canEditServices}
-                      onClick={async () => {
-                        if (!canEditServices || !project || project.postInstallationLetter === true) return;
-
-                        const currentValue = project.postInstallationLetter ?? false;
-
-                        // Optimistically update UI
-                        setProject({ ...project, postInstallationLetter: true });
-
-                        // Auto-save to backend
-                        try {
-                          await projectsApi.update(project.id, {
-                            postInstallationLetter: true
-                          });
-                        } catch (error) {
-                          console.error('Error saving post installation letter:', error);
-                          // Revert on error
-                          setProject({ ...project, postInstallationLetter: currentValue });
-                          alert('Failed to save post installation letter. Please try again.');
-                        }
-                      }}
-                      className={`px-6 py-2 ${
-                        (project.postInstallationLetter ?? false)
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      YES
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={!(project.postInstallationLetter ?? false) ? "default" : "outline"}
-                      disabled={!canEditServices}
-                      onClick={async () => {
-                        if (!canEditServices || !project || project.postInstallationLetter === false) return;
-
-                        const currentValue = project.postInstallationLetter ?? false;
-
-                        // Optimistically update UI
-                        setProject({ ...project, postInstallationLetter: false });
-
-                        // Auto-save to backend
-                        try {
-                          await projectsApi.update(project.id, {
-                            postInstallationLetter: false
-                          });
-                        } catch (error) {
-                          console.error('Error saving post installation letter:', error);
-                          // Revert on error
-                          setProject({ ...project, postInstallationLetter: currentValue });
-                          alert('Failed to save post installation letter. Please try again.');
-                        }
-                      }}
-                      className={`px-6 py-2 ${
-                        !project.postInstallationLetter
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      NO
-                    </Button>
+                    <Button type="button" variant={(project.postInstallationLetter ?? false) ? "default" : "outline"} disabled={!canEditServices} onClick={async () => { if (!canEditServices || !project || project.postInstallationLetter === true) return; const currentValue = project.postInstallationLetter ?? false; setProject({ ...project, postInstallationLetter: true }); try { await projectsApi.update(project.id, { postInstallationLetter: true }); } catch (error) { console.error('Error saving post installation letter:', error); setProject({ ...project, postInstallationLetter: currentValue }); alert('Failed to save post installation letter. Please try again.'); } }} className={`px-6 py-2 ${(project.postInstallationLetter ?? false) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-background hover:bg-accent hover:text-accent-foreground'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>YES</Button>
+                    <Button type="button" variant={!(project.postInstallationLetter ?? false) ? "default" : "outline"} disabled={!canEditServices} onClick={async () => { if (!canEditServices || !project || project.postInstallationLetter === false) return; const currentValue = project.postInstallationLetter ?? false; setProject({ ...project, postInstallationLetter: false }); try { await projectsApi.update(project.id, { postInstallationLetter: false }); } catch (error) { console.error('Error saving post installation letter:', error); setProject({ ...project, postInstallationLetter: currentValue }); alert('Failed to save post installation letter. Please try again.'); } }} className={`px-6 py-2 ${!project.postInstallationLetter ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-background hover:bg-accent hover:text-accent-foreground'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>NO</Button>
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Final Output Section */}
               <div className="pt-6 border-t">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-foreground">Final Output</h3>
                   {canEdit && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setFinalOutputFiles([]);
-                        setIsEditingFinalOutput(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setFinalOutputFiles([]); setIsEditingFinalOutput(true); }}>Edit</Button>
                   )}
                 </div>
                 <div className="space-y-3">
@@ -1913,34 +1874,10 @@ export default function ProjectDetailsPage() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">
-                          <Button
-                            onClick={() => handleViewFinalOutputFile(file)}
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="View file"
-                          >
-                            <EyeIcon size={16} />
-                          </Button>
-                          <Button
-                            onClick={() => handleDownloadFinalOutputFile(file)}
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Download file"
-                          >
-                            <DownloadIcon size={16} />
-                          </Button>
+                          <Button onClick={() => handleViewFinalOutputFile(file)} variant="ghost" size="icon" className="h-8 w-8" title="View file"><EyeIcon size={16} /></Button>
+                          <Button onClick={() => handleDownloadFinalOutputFile(file)} variant="ghost" size="icon" className="h-8 w-8" title="Download file"><DownloadIcon size={16} /></Button>
                           {canRemoveFiles && (
-                            <Button
-                              onClick={() => handleRemoveFinalOutputFile(file.id)}
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              title="Remove file"
-                            >
-                              <XIcon size={16} />
-                            </Button>
+                            <Button onClick={() => handleRemoveFinalOutputFile(file.id)} variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Remove file"><XIcon size={16} /></Button>
                           )}
                         </div>
                       </div>
@@ -1951,22 +1888,12 @@ export default function ProjectDetailsPage() {
                 </div>
               </div>
 
-              {/* Stamped Files Section */}
+              {/* Stamped Output Section */}
               <div className="pt-6 border-t">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-foreground">Stamped Files</h3>
                   {canEdit && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setStampedFiles([]);
-                        setIsEditingStampedFiles(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setStampedFiles([]); setIsEditingStampedFiles(true); }}>Edit</Button>
                   )}
                 </div>
                 <div className="space-y-3">
@@ -1981,34 +1908,10 @@ export default function ProjectDetailsPage() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">
-                          <Button
-                            onClick={() => handleViewStampedFile(file)}
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="View file"
-                          >
-                            <EyeIcon size={16} />
-                          </Button>
-                          <Button
-                            onClick={() => handleDownloadStampedFile(file)}
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Download file"
-                          >
-                            <DownloadIcon size={16} />
-                          </Button>
+                          <Button onClick={() => handleViewStampedFile(file)} variant="ghost" size="icon" className="h-8 w-8" title="View file"><EyeIcon size={16} /></Button>
+                          <Button onClick={() => handleDownloadStampedFile(file)} variant="ghost" size="icon" className="h-8 w-8" title="Download file"><DownloadIcon size={16} /></Button>
                           {canRemoveFiles && (
-                            <Button
-                              onClick={() => handleRemoveStampedFile(file.id)}
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              title="Remove file"
-                            >
-                              <XIcon size={16} />
-                            </Button>
+                            <Button onClick={() => handleRemoveStampedFile(file.id)} variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Remove file"><XIcon size={16} /></Button>
                           )}
                         </div>
                       </div>
@@ -2018,373 +1921,13 @@ export default function ProjectDetailsPage() {
                   )}
                 </div>
               </div>
-
-              {/* Wetstamp Section */}
-              <div className="pt-6 border-t">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    <span className="text-destructive mr-1">*</span>WETSTAMP
-                  </h3>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={(project.wetstamp ?? false) ? "default" : "outline"}
-                      disabled={!canEditServices}
-                      onClick={async () => {
-                        if (!canEditServices || !project || project.wetstamp === true) return;
-                        
-                        const currentWetstamp = project.wetstamp ?? false;
-                        
-                        // Optimistically update UI
-                        setProject({ ...project, wetstamp: true });
-                        
-                        // Auto-save to backend
-                        try {
-                          await projectsApi.update(project.id, {
-                            wetstamp: true
-                          });
-                        } catch (error) {
-                          console.error('Error saving wetstamp:', error);
-                          // Revert on error
-                          setProject({ ...project, wetstamp: currentWetstamp });
-                          alert('Failed to save wetstamp. Please try again.');
-                        }
-                      }}
-                      className={`px-6 py-2 ${
-                        (project.wetstamp ?? false)
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      YES
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={!(project.wetstamp ?? false) ? "default" : "outline"}
-                      disabled={!canEditServices}
-                      onClick={async () => {
-                        if (!canEditServices || !project || project.wetstamp === false) return;
-                        
-                        const currentWetstamp = project.wetstamp ?? false;
-                        
-                        // Optimistically update UI
-                        setProject({ ...project, wetstamp: false });
-                        
-                        // Auto-save to backend
-                        try {
-                          await projectsApi.update(project.id, {
-                            wetstamp: false
-                          });
-                        } catch (error) {
-                          console.error('Error saving wetstamp:', error);
-                          // Revert on error
-                          setProject({ ...project, wetstamp: currentWetstamp });
-                          alert('Failed to save wetstamp. Please try again.');
-                        }
-                      }}
-                      className={`px-6 py-2 ${
-                        !project.wetstamp
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      NO
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Datasheet Sections */}
-              <div className="pt-6 border-t space-y-6">
-                <h3 className="text-lg font-semibold text-foreground">Datasheets</h3>
-                
-                {/* Module Datasheet Section */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <PackageIcon className="h-5 w-5 text-green-600" />
-                      <h4 className="font-semibold text-foreground">Module Datasheet</h4>
-                    </div>
-                    {canEdit && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setAddModalCategory('Module');
-                          setShowAddModal(true);
-                        }}
-                      >
-                        <PlusIcon size={16} className="mr-1" />
-                        Add Model
-                      </Button>
-                    )}
-                  </div>
-                  {projectUtilities.Module.length > 0 ? (
-                    <div className="max-h-60 overflow-y-auto space-y-2">
-                      {projectUtilities.Module.map((utility) => (
-                        <div
-                          key={utility.id}
-                          className="flex items-center justify-between p-2 bg-accent/50 rounded-md"
-                        >
-                          <span className="text-sm text-foreground">{utility.model_name}</span>
-                          {canEdit && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-destructive hover:text-destructive"
-                              onClick={async () => {
-                                try {
-                                  await utilitiesApi.removeFromProject(parseInt(projectId), utility.id);
-                                  loadProjectUtilities();
-                                } catch (error) {
-                                  console.error('Error removing utility:', error);
-                                  alert('Failed to remove model');
-                                }
-                              }}
-                            >
-                              <TrashIcon size={14} />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No module models added</p>
-                  )}
-                </div>
-
-                {/* Inventor Datasheet Section */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <ZapIcon className="h-5 w-5 text-yellow-600" />
-                      <h4 className="font-semibold text-foreground">Inventor Datasheet</h4>
-                    </div>
-                    {canEdit && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setAddModalCategory('Inventor');
-                          setShowAddModal(true);
-                        }}
-                      >
-                        <PlusIcon size={16} className="mr-1" />
-                        Add Model
-                      </Button>
-                    )}
-                  </div>
-                  {projectUtilities.Inventor.length > 0 ? (
-                    <div className="max-h-60 overflow-y-auto space-y-2">
-                      {projectUtilities.Inventor.map((utility) => (
-                        <div
-                          key={utility.id}
-                          className="flex items-center justify-between p-2 bg-accent/50 rounded-md"
-                        >
-                          <span className="text-sm text-foreground">{utility.model_name}</span>
-                          {canEdit && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-destructive hover:text-destructive"
-                              onClick={async () => {
-                                try {
-                                  await utilitiesApi.removeFromProject(parseInt(projectId), utility.id);
-                                  loadProjectUtilities();
-                                } catch (error) {
-                                  console.error('Error removing utility:', error);
-                                  alert('Failed to remove model');
-                                }
-                              }}
-                            >
-                              <TrashIcon size={14} />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No inventor models added</p>
-                  )}
-                </div>
-
-                {/* Mounting Datasheet Section */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <AnchorIcon className="h-5 w-5 text-purple-600" />
-                      <h4 className="font-semibold text-foreground">Mounting Datasheet</h4>
-                    </div>
-                    {canEdit && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setAddModalCategory('Mounting');
-                          setShowAddModal(true);
-                        }}
-                      >
-                        <PlusIcon size={16} className="mr-1" />
-                        Add Model
-                      </Button>
-                    )}
-                  </div>
-                  {projectUtilities.Mounting.length > 0 ? (
-                    <div className="max-h-60 overflow-y-auto space-y-2">
-                      {projectUtilities.Mounting.map((utility) => (
-                        <div
-                          key={utility.id}
-                          className="flex items-center justify-between p-2 bg-accent/50 rounded-md"
-                        >
-                          <span className="text-sm text-foreground">{utility.model_name}</span>
-                          {canEdit && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-destructive hover:text-destructive"
-                              onClick={async () => {
-                                try {
-                                  await utilitiesApi.removeFromProject(parseInt(projectId), utility.id);
-                                  loadProjectUtilities();
-                                } catch (error) {
-                                  console.error('Error removing utility:', error);
-                                  alert('Failed to remove model');
-                                }
-                              }}
-                            >
-                              <TrashIcon size={14} />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No mounting models added</p>
-                  )}
-                </div>
-
-                {/* Battery Datasheet Section */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <BatteryIcon className="h-5 w-5 text-orange-600" />
-                      <h4 className="font-semibold text-foreground">Battery Datasheet</h4>
-                    </div>
-                    {canEdit && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setAddModalCategory('Battery');
-                          setShowAddModal(true);
-                        }}
-                      >
-                        <PlusIcon size={16} className="mr-1" />
-                        Add Model
-                      </Button>
-                    )}
-                  </div>
-                  {projectUtilities.Battery.length > 0 ? (
-                    <div className="max-h-60 overflow-y-auto space-y-2">
-                      {projectUtilities.Battery.map((utility) => (
-                        <div
-                          key={utility.id}
-                          className="flex items-center justify-between p-2 bg-accent/50 rounded-md"
-                        >
-                          <span className="text-sm text-foreground">{utility.model_name}</span>
-                          {canEdit && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-destructive hover:text-destructive"
-                              onClick={async () => {
-                                try {
-                                  await utilitiesApi.removeFromProject(parseInt(projectId), utility.id);
-                                  loadProjectUtilities();
-                                } catch (error) {
-                                  console.error('Error removing utility:', error);
-                                  alert('Failed to remove model');
-                                }
-                              }}
-                            >
-                              <TrashIcon size={14} />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No battery models added</p>
-                  )}
-                </div>
-              </div>
             </CardContent>
           </Card>
 
-          {/* Team Members */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Members</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {/* Designers */}
-                {designers.map((designer) => (
-                  <div key={designer.id} className="flex items-center space-x-3 p-3 bg-accent/50 rounded-lg">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      {designer.avatar ? (
-                        <img 
-                          src={resolveMediaUrl(designer.avatar)} 
-                          alt={designer.name} 
-                          className="w-10 h-10 rounded-full object-cover"
-                          onError={(e) => {
-                            console.log('Avatar failed to load:', {
-                              originalUrl: designer.avatar,
-                              resolvedUrl: resolveMediaUrl(designer.avatar),
-                              designerName: designer.name
-                            });
-                            // Hide the image and show the fallback icon
-                            const parent = e.currentTarget.parentElement;
-                            if (parent) {
-                              parent.innerHTML = '<svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>';
-                            }
-                          }}
-                        />
-                      ) : (
-                        <UserIcon size={20} className="text-primary" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-foreground">{designer.name}</div>
-                      <div className="text-sm text-muted-foreground">{designer.role}</div>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {designer.role === 'designer' ? 'Designer' : 
-                       designer.role === 'senior_designer' ? 'Senior Designer' : 
-                       designer.role === 'team_lead' ? 'Team Lead' : 
-                       designer.role === 'team_head' ? 'Team Head' : 
-                       designer.role === 'project_manager' ? 'Project Manager' : 
-                       designer.role === 'assistant_project_manager' ? 'Assistant Project Manager' : 
-                       designer.role === 'professional_engineer' ? 'Professional Engineer' : 
-                       designer.role === 'auto_cad_drafter' ? 'Auto CAD Drafter' : 
-                       designer.role}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          
         </div>
 
-        {/* Right Column - Team Chat */}
+        
         <div className="lg:col-span-1">
           <div className="h-[calc(100vh-12rem)] sticky top-6">
             <ProjectChat 
