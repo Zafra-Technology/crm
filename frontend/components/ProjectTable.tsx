@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CalendarIcon, UsersIcon, ClockIcon, MessageSquare, MoreVertical, XIcon } from 'lucide-react';
+import { UsersIcon, ClockIcon, MessageSquare, MoreVertical, XIcon } from 'lucide-react';
 import { Project } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -158,7 +158,6 @@ export default function ProjectTable({
             <TableHead className="w+[300px]">Project Name</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[250px]">Description</TableHead>
-            <TableHead>Timeline</TableHead>
             <TableHead>Team</TableHead>
             <TableHead>Updated</TableHead>
             {showActions && <TableHead className="w-[150px]">Actions</TableHead>}
@@ -188,12 +187,7 @@ export default function ProjectTable({
                     {project.description}
                   </p>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                    <CalendarIcon size={14} />
-                    <span>{project.timeline}</span>
-                  </div>
-                </TableCell>
+                
                 <TableCell>
                   <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                     <UsersIcon size={14} />

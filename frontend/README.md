@@ -19,13 +19,12 @@ A clean, professional dashboard-style web application for project management wit
 **Project Manager Dashboard:**
 - Overview of all managed projects
 - Statistics cards showing project status
-- Create new projects with form (Name, Description, Requirements, Timeline)
+- Create new projects with form (Name, Description, Requirements)
 - Assign designers to projects
 
 **Client Dashboard:**
 - View client-specific projects
 - Project status tracking
-- Timeline and progress monitoring
 
 **Designer Dashboard:**
 - List of assigned projects
@@ -34,7 +33,7 @@ A clean, professional dashboard-style web application for project management wit
 - Recent activity feed
 
 ### 📋 Project Details Screen
-- **Left Panel:** Project information (name, description, requirements, timeline, status)
+- **Left Panel:** Project information (name, description, requirements, status)
 - **Middle Panel:** Project updates and file uploads in card-style gallery
 - **Right Panel:** Real-time group chat between all project stakeholders
 - Edit capabilities (Project Manager only)
@@ -130,7 +129,6 @@ Use these credentials to test different roles:
 - Full CRUD operations for projects
 - Status tracking and updates
 - File upload simulation
-- Timeline management
 
 ### ✅ Professional UI/UX
 - Clean, minimalist design

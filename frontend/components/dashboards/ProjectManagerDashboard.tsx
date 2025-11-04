@@ -43,7 +43,6 @@ interface CreateProjectForm {
   projectCode: string;
   description: string;
   requirements: string;
-  timeline: string;
   clientId: string;
   designerIds: string[];
   projectType: 'residential' | 'commercial';
@@ -77,7 +76,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     projectCode: '',
     description: '',
     requirements: '',
-    timeline: '',
     clientId: '',
     designerIds: [],
     projectType: 'residential',
@@ -207,7 +205,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         projectCode: formData.projectCode || undefined,
         description: formData.description,
         requirements: formData.requirements,
-        timeline: formData.timeline,
         projectType: formData.projectType,
         projectAddress: formData.projectAddress || undefined,
         projectLocationUrl: formData.projectLocationUrl || undefined,
@@ -236,7 +233,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
           projectCode: '',
           description: '',
           requirements: '',
-          timeline: '',
           clientId: '',
           designerIds: [],
           projectType: 'residential',
@@ -673,17 +669,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
 
               {/* Two Column Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="timeline">Timeline *</Label>
-                  <Input
-                    id="timeline"
-                    type="text"
-                    required
-                    value={formData.timeline}
-                    onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
-                    placeholder="e.g., 6 weeks"
-                  />
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="projectType">Project Type *</Label>
                   <Select

@@ -355,14 +355,7 @@ export default function PendingRequestsPage() {
                   </div>
                 )}
                 
-                {/* Timeline */}
-                {project.timeline && (
-                  <div className="flex items-center space-x-2 mb-4 text-sm text-muted-foreground">
-                    <CalendarIcon className="h-4 w-4" />
-                    <span className="font-medium">Timeline:</span>
-                    <span>{project.timeline}</span>
-                  </div>
-                )}
+                
                 
                 {/* Project info */}
                 <div className="flex items-center justify-between text-sm text-muted-foreground mb-4 py-2 border-t border-border">

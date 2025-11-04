@@ -35,7 +35,6 @@ export interface Project {
   projectCode?: string;
   description: string;
   requirements: string;
-  timeline: string;
   status: 'inactive' | 'rejected' | 'quotation_submitted' | 'planning' | 'in_progress' | 'review' | 'completed' | 'cancelled' | 'onhold';
   projectType: 'residential' | 'commercial';
   services?: ServiceCode[];

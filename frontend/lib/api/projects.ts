@@ -41,7 +41,6 @@ export const projectsApi = {
       projectCode: (p.project_code || p.projectCode || '') || undefined,
       description: String(p.description || ''),
       requirements: String(p.requirements || ''),
-      timeline: String(p.timeline || ''),
       status: (p.status || 'inactive') as Project['status'],
       projectType: (p.project_type || p.projectType || 'residential') as Project['projectType'],
       services: Array.isArray(p.services) ? p.services : [],
@@ -232,7 +231,6 @@ export const projectsApi = {
     projectCode?: string;
     description: string;
     requirements: string;
-    timeline: string;
     projectType?: string;
     status?: string;
     services?: string[];
@@ -256,7 +254,6 @@ export const projectsApi = {
         project_code: projectData.projectCode || undefined,
         description: projectData.description,
         requirements: projectData.requirements,
-        timeline: projectData.timeline,
         project_type: projectData.projectType || 'residential',
         status: projectData.status || 'inactive',
         services: projectData.services || [],
@@ -321,7 +318,6 @@ export const projectsApi = {
       if ((updateData as any).projectCode !== undefined) payload.project_code = (updateData as any).projectCode;
       if (updateData.description !== undefined) payload.description = updateData.description;
       if (updateData.requirements !== undefined) payload.requirements = updateData.requirements;
-      if (updateData.timeline !== undefined) payload.timeline = updateData.timeline;
       if ((updateData as any).status !== undefined) payload.status = (updateData as any).status;
       if (updateData.services !== undefined) payload.services = updateData.services;
       if (updateData.wetstamp !== undefined) payload.wetstamp = updateData.wetstamp;

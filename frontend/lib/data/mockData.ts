@@ -6,8 +6,9 @@ export const mockProjects: Project[] = [
     name: 'E-commerce Website Redesign',
     description: 'Complete redesign of the company e-commerce platform with modern UI/UX',
     requirements: 'Mobile-first design, accessibility compliance, fast loading times',
-    timeline: '8 weeks',
     status: 'in_progress',
+    projectType: 'residential',
+    quotationAccepted: false,
     clientId: '1',
     managerId: '2',
     designerIds: ['3'],
@@ -19,8 +20,9 @@ export const mockProjects: Project[] = [
     name: 'Mobile App Interface',
     description: 'Design new mobile application interface for iOS and Android',
     requirements: 'Native feel, intuitive navigation, brand consistency',
-    timeline: '6 weeks',
     status: 'planning',
+    projectType: 'residential',
+    quotationAccepted: false,
     clientId: '1',
     managerId: '2',
     designerIds: ['3'],
@@ -32,8 +34,9 @@ export const mockProjects: Project[] = [
     name: 'Brand Identity Package',
     description: 'Complete brand identity including logo, colors, typography',
     requirements: 'Professional, memorable, scalable across mediums',
-    timeline: '4 weeks',
     status: 'review',
+    projectType: 'residential',
+    quotationAccepted: false,
     clientId: '1',
     managerId: '2',
     designerIds: ['3'],
@@ -78,6 +81,7 @@ export const mockChatMessages: ChatMessage[] = [
     projectId: '1',
     userId: '2',
     userName: 'Sarah Manager',
+    userRole: 'project_manager',
     message: 'Great progress on the wireframes! Can we schedule a review meeting?',
     timestamp: '2024-01-20T10:30:00Z'
   },
@@ -86,6 +90,7 @@ export const mockChatMessages: ChatMessage[] = [
     projectId: '1',
     userId: '3',
     userName: 'Mike Designer',
+    userRole: 'designer',
     message: 'Sure! I have some questions about the mobile navigation.',
     timestamp: '2024-01-20T10:45:00Z'
   },
@@ -94,7 +99,8 @@ export const mockChatMessages: ChatMessage[] = [
     projectId: '1',
     userId: '1',
     userName: 'John Client',
-    message: 'Looking forward to seeing the progress. The timeline still looks good.',
+    userRole: 'client',
+    message: 'Looking forward to seeing the progress. Everything looks good so far.',
     timestamp: '2024-01-20T11:00:00Z'
   }
 ];

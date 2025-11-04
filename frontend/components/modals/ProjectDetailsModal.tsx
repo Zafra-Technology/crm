@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, User, FileText, Clock, Building, Home, Mail, Phone } from 'lucide-react';
+import { User, FileText, Clock, Building, Home, Mail, Phone } from 'lucide-react';
 import { useEffect } from 'react';
 import { Project } from '@/types';
 import { User as APIUser } from '@/lib/api/auth';
@@ -110,18 +110,6 @@ export default function ProjectDetailsModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left Column */}
             <div className="space-y-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Timeline
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm">{project.timeline || 'Not specified'}</p>
-                </CardContent>
-              </Card>
-
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">

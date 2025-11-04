@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CalendarIcon, UsersIcon, ClockIcon, MessageSquare } from 'lucide-react';
+import { UsersIcon, ClockIcon, MessageSquare } from 'lucide-react';
 import { Project } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -100,11 +100,7 @@ export default function ProjectCard({ project, showActions = true, onViewFeedbac
         </div>
         
         {/* Project info - consistent spacing */}
-        <div className="flex items-center justify-between text-sm text-muted-foreground mb-4 py-2 border-t">
-          <div className="flex items-center space-x-1">
-            <CalendarIcon size={14} />
-            <span className="truncate">{project.timeline}</span>
-          </div>
+        <div className="flex items-center justify-end text-sm text-muted-foreground mb-4 py-2 border-t">
           <div className="flex items-center space-x-1">
             <UsersIcon size={14} />
             <span className="whitespace-nowrap">{teamCount} team</span>

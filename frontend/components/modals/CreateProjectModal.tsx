@@ -31,7 +31,6 @@ interface ProjectFormData {
   projectCode: string;
   description: string;
   requirements: string;
-  timeline: string;
   projectType: 'residential' | 'commercial';
   projectAddress: string;
   projectLocationUrl: string;
@@ -44,7 +43,6 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
     projectCode: '',
     description: '',
     requirements: '',
-    timeline: '',
     projectType: 'residential',
     projectAddress: '',
     projectLocationUrl: '',
@@ -84,7 +82,6 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
         projectCode: formData.projectCode || undefined,
         description: formData.description,
         requirements: formData.requirements,
-        timeline: formData.timeline,
         projectType: formData.projectType,
         projectAddress: formData.projectAddress || undefined,
         projectLocationUrl: formData.projectLocationUrl || undefined,
@@ -111,7 +108,6 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
         projectCode: '',
         description: '',
         requirements: '',
-        timeline: '',
         projectType: 'residential',
         projectAddress: '',
         projectLocationUrl: '',
@@ -198,18 +194,7 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="timeline">Timeline *</Label>
-              <Input
-                id="timeline"
-                name="timeline"
-                type="text"
-                value={formData.timeline}
-                onChange={handleChange}
-                required
-                placeholder="e.g., 3 months, 6 weeks"
-              />
-            </div>
+            
 
             <div className="space-y-2">
               <Label htmlFor="description">Description *</Label>

@@ -54,7 +54,6 @@ export default function ProjectDetailsPage() {
     projectCode?: string;
     description: string;
     requirements: string;
-    timeline: string;
     status: Project['status'];
     projectAddress: string;
     projectAhj: string;
@@ -63,7 +62,6 @@ export default function ProjectDetailsPage() {
     projectCode: '',
     description: '',
     requirements: '',
-    timeline: '',
     status: 'planning',
     projectAddress: '',
     projectAhj: ''
@@ -170,7 +168,6 @@ export default function ProjectDetailsPage() {
           projectCode: (mappedProject as any).projectCode || '',
           description: mappedProject.description,
           requirements: mappedProject.requirements,
-          timeline: mappedProject.timeline,
           status: mappedProject.status,
           projectAddress: mappedProject.projectAddress || '',
           projectAhj: mappedProject.projectAhj || ''
@@ -372,12 +369,14 @@ export default function ProjectDetailsPage() {
     e.preventDefault();
     if (project) {
       try {
+        const oldProject = { ...project };
         const updatedProject = await projectsApi.update(project.id, {
           ...editForm
         });
         if (updatedProject) {
           setProject(updatedProject);
           setIsEditing(false);
+          // Backend handles notification automatically
         }
       } catch (error) {
         console.error('Error updating project:', error);
@@ -390,6 +389,7 @@ export default function ProjectDetailsPage() {
     if (!project) return;
     
     try {
+      const oldProject = { ...project };
       // Convert files to base64 for storage (fallback approach)
       const newAttachments = await Promise.all(files.map(async (file) => {
         const base64 = await convertFileToBase64(file);
@@ -411,17 +411,20 @@ export default function ProjectDetailsPage() {
       const updatedProject = await projectsApi.update(project.id, { attachments: updatedAttachments });
       
       if (updatedProject) {
+        let finalProject: Project;
         // Check if the updated project has the attachments
         if (updatedProject.attachments && updatedProject.attachments.length > 0) {
+          finalProject = updatedProject;
           setProject(updatedProject);
         } else {
           // If the backend didn't return attachments, manually update the local state
-          const projectWithAttachments = {
+          finalProject = {
             ...updatedProject,
             attachments: updatedAttachments
           };
-          setProject(projectWithAttachments);
+          setProject(finalProject);
         }
+        // Backend handles notification automatically
       } else {
         // Fallback: update local state directly
         const projectWithAttachments = {
@@ -429,6 +432,7 @@ export default function ProjectDetailsPage() {
           attachments: updatedAttachments
         };
         setProject(projectWithAttachments);
+        // Backend handles notification automatically
       }
     } catch (error) {
       console.error('Error adding attachments:', error);
@@ -457,6 +461,7 @@ export default function ProjectDetailsPage() {
     if (!project || finalOutputFiles.length === 0) return;
     
     try {
+      const oldProject = { ...project };
       // Convert files to base64 for storage
       const newFiles = await Promise.all(finalOutputFiles.map(async (file) => {
         const base64 = await convertFileToBase64(file);
@@ -487,6 +492,7 @@ export default function ProjectDetailsPage() {
         setProject(mappedProject);
         setFinalOutputFiles([]);
         setIsEditingFinalOutput(false);
+        // Backend handles notification automatically
       }
     } catch (error) {
       console.error('Error uploading final output files:', error);
@@ -498,6 +504,7 @@ export default function ProjectDetailsPage() {
     if (!project || stampedFiles.length === 0) return;
     
     try {
+      const oldProject = { ...project };
       // Convert files to base64 for storage
       const newFiles = await Promise.all(stampedFiles.map(async (file) => {
         const base64 = await convertFileToBase64(file);
@@ -528,6 +535,7 @@ export default function ProjectDetailsPage() {
         setProject(mappedProject);
         setStampedFiles([]);
         setIsEditingStampedFiles(false);
+        // Backend handles notification automatically
       }
     } catch (error) {
       console.error('Error uploading stamped files:', error);
@@ -691,6 +699,7 @@ export default function ProjectDetailsPage() {
     if (!project) return;
     
     try {
+      const oldProject = { ...project };
       const updatedFiles = (project.finalOutputFiles || []).filter(f => f.id !== fileId);
       const updatedProject = await projectsApi.update(project.id, { finalOutputFiles: updatedFiles });
       
@@ -702,6 +711,7 @@ export default function ProjectDetailsPage() {
           finalOutputFiles: updatedProject.finalOutputFiles || updatedFiles
         };
         setProject(mappedProject);
+        // Backend handles notification automatically
       }
     } catch (error) {
       console.error('Error removing final output file:', error);
@@ -713,6 +723,7 @@ export default function ProjectDetailsPage() {
     if (!project) return;
     
     try {
+      const oldProject = { ...project };
       const updatedFiles = (project.stampedFiles || []).filter(f => f.id !== fileId);
       const updatedProject = await projectsApi.update(project.id, { stampedFiles: updatedFiles });
       
@@ -724,6 +735,7 @@ export default function ProjectDetailsPage() {
           stampedFiles: updatedProject.stampedFiles || updatedFiles
         };
         setProject(mappedProject);
+        // Backend handles notification automatically
       }
     } catch (error) {
       console.error('Error removing stamped file:', error);
@@ -737,6 +749,7 @@ export default function ProjectDetailsPage() {
     if (!project) return;
     
     try {
+      const oldProject = { ...project };
       // Remove attachment from existing list
       const updatedAttachments = (project.attachments || []).filter(a => a.id !== attachmentId);
       
@@ -746,6 +759,7 @@ export default function ProjectDetailsPage() {
       if (updatedProject) {
         setProject(updatedProject);
         console.log('Attachment removed successfully');
+        // Backend handles notification automatically
       }
     } catch (error) {
       console.error('Error removing attachment:', error);
@@ -877,13 +891,6 @@ export default function ProjectDetailsPage() {
                           <span className="text-sm text-muted-foreground/70">{project.clientCompany}</span>
                         )}
                       </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-2">Timeline</h4>
-                    <div className="flex items-center space-x-2 text-muted-foreground">
-                      <CalendarIcon size={16} />
-                      <span>{project.timeline}</span>
                     </div>
                   </div>
                   <div>
@@ -1088,14 +1095,23 @@ export default function ProjectDetailsPage() {
                               updatedServices = currentServices.filter((s) => s !== service.code);
                             }
                             
+                            const oldProject = { ...project };
                             // Optimistically update UI
                             setProject({ ...project, services: updatedServices as any });
                             
                             // Auto-save to backend
                             try {
-                              await projectsApi.update(project.id, {
+                              const updatedProject = await projectsApi.update(project.id, {
                                 services: updatedServices as any
                               });
+                              if (updatedProject) {
+                                const finalProject = {
+                                  ...updatedProject,
+                                  services: updatedServices as any
+                                };
+                                setProject(finalProject);
+                                // Backend handles notification automatically
+                              }
                             } catch (error) {
                               console.error('Error saving services:', error);
                               // Revert on error
@@ -1131,12 +1147,21 @@ export default function ProjectDetailsPage() {
                   value={project.projectAhjType || ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
+                    const oldProject = { ...project };
                     const currentValue = project.projectAhjType;
                     setProject({ ...project, projectAhjType: value as Project['projectAhjType'] });
                     try {
-                      await projectsApi.update(project.id, {
+                      const updatedProject = await projectsApi.update(project.id, {
                         projectAhjType: value as any
                       });
+                      if (updatedProject) {
+                        const finalProject = {
+                          ...updatedProject,
+                          projectAhjType: value as Project['projectAhjType']
+                        };
+                        setProject(finalProject);
+                        // Backend handles notification automatically
+                      }
                     } catch (error) {
                       console.error('Error saving project AHJ type:', error);
                       setProject({ ...project, projectAhjType: currentValue });
@@ -1183,12 +1208,21 @@ export default function ProjectDetailsPage() {
                   value={project.ballInCourt || ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
+                    const oldProject = { ...project };
                     const currentValue = project.ballInCourt;
                     setProject({ ...project, ballInCourt: value as Project['ballInCourt'] });
                     try {
-                      await projectsApi.update(project.id, {
+                      const updatedProject = await projectsApi.update(project.id, {
                         ballInCourt: value as any
                       });
+                      if (updatedProject) {
+                        const finalProject = {
+                          ...updatedProject,
+                          ballInCourt: value as Project['ballInCourt']
+                        };
+                        setProject(finalProject);
+                        // Backend handles notification automatically
+                      }
                     } catch (error) {
                       console.error('Error saving ball in court:', error);
                       setProject({ ...project, ballInCourt: currentValue });
@@ -1238,6 +1272,7 @@ export default function ProjectDetailsPage() {
                   value={project?.structuralPe ?? ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
+                    const oldProject = { ...project };
                     const currentValue = project.structuralPe;
                     try {
                       // Update UI optimistically
@@ -1261,6 +1296,7 @@ export default function ProjectDetailsPage() {
                           structuralPe: updatedProject.structuralPe || (value as Project['structuralPe'])
                         };
                         setProject(mappedProject);
+                        // Backend handles notification automatically
                       }
                     } catch (error) {
                       console.error('Error saving Structural PE:', error);
@@ -1314,6 +1350,7 @@ export default function ProjectDetailsPage() {
                   value={project?.structuralPeStatus ?? 'new'}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
+                    const oldProject = { ...project };
                     const currentValue = project.structuralPeStatus;
                     try {
                       // Update UI optimistically
@@ -1337,6 +1374,7 @@ export default function ProjectDetailsPage() {
                           structuralPeStatus: updatedProject.structuralPeStatus || (value as Project['structuralPeStatus'])
                         };
                         setProject(mappedProject);
+                        // Backend handles notification automatically
                       }
                     } catch (error) {
                       console.error('Error saving Structural PE Status:', error);
@@ -1383,6 +1421,7 @@ export default function ProjectDetailsPage() {
                   value={project?.electricalPe ?? ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
+                    const oldProject = { ...project };
                     const currentValue = project.electricalPe;
                     try {
                       // Update UI optimistically
@@ -1406,6 +1445,7 @@ export default function ProjectDetailsPage() {
                           electricalPe: updatedProject.electricalPe || (value as Project['electricalPe'])
                         };
                         setProject(mappedProject);
+                        // Backend handles notification automatically
                       }
                     } catch (error) {
                       console.error('Error saving Electrical PE:', error);
@@ -1456,6 +1496,7 @@ export default function ProjectDetailsPage() {
                   value={project?.electricalPeStatus ?? 'new'}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
+                    const oldProject = { ...project };
                     const currentValue = project.electricalPeStatus;
                     try {
                       // Update UI optimistically
@@ -1479,6 +1520,7 @@ export default function ProjectDetailsPage() {
                           electricalPeStatus: updatedProject.electricalPeStatus || (value as Project['electricalPeStatus'])
                         };
                         setProject(mappedProject);
+                        // Backend handles notification automatically
                       }
                     } catch (error) {
                       console.error('Error saving Electrical PE Status:', error);
@@ -1525,12 +1567,21 @@ export default function ProjectDetailsPage() {
                   value={project.priority || ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
+                    const oldProject = { ...project };
                     const currentValue = project.priority;
                     setProject({ ...project, priority: value as Project['priority'] });
                     try {
-                      await projectsApi.update(project.id, {
+                      const updatedProject = await projectsApi.update(project.id, {
                         priority: value as any
                       });
+                      if (updatedProject) {
+                        const finalProject = {
+                          ...updatedProject,
+                          priority: value as Project['priority']
+                        };
+                        setProject(finalProject);
+                        // Backend handles notification automatically
+                      }
                     } catch (error) {
                       console.error('Error saving priority:', error);
                       setProject({ ...project, priority: currentValue });
@@ -1574,6 +1625,7 @@ export default function ProjectDetailsPage() {
                   value={project?.projectReport ?? ''}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
+                    const oldProject = { ...project };
                     const currentValue = project.projectReport;
                     try {
                       // Update UI optimistically
@@ -1597,6 +1649,7 @@ export default function ProjectDetailsPage() {
                           projectReport: updatedProject.projectReport || (value as Project['projectReport'])
                         };
                         setProject(mappedProject);
+                        // Backend handles notification automatically
                       }
                     } catch (error) {
                       console.error('Error saving project report:', error);
@@ -1646,6 +1699,7 @@ export default function ProjectDetailsPage() {
                   value={project?.designStatus ?? 'new'}
                   onValueChange={async (value) => {
                     if (!canEditServices || !project) return;
+                    const oldProject = { ...project };
                     const currentValue = project.designStatus;
                     try {
                       // Update UI optimistically
@@ -1669,6 +1723,7 @@ export default function ProjectDetailsPage() {
                           designStatus: updatedProject.designStatus || (value as Project['designStatus'])
                         };
                         setProject(mappedProject);
+                        // Backend handles notification automatically
                       }
                     } catch (error) {
                       console.error('Error saving design status:', error);
@@ -2514,12 +2569,14 @@ export default function ProjectDetailsPage() {
                 }
                 
                 try {
+                  const oldProject = { ...project };
                   const updatedProject = await projectsApi.update(project.id, {
                     projectLocationUrl: locationUrl || undefined
                   });
                   if (updatedProject) {
                     setProject(updatedProject);
                     setIsEditingLocation(false);
+                    // Backend handles notification automatically
                   }
                 } catch (error) {
                   console.error('Error updating location URL:', error);
@@ -2601,6 +2658,7 @@ export default function ProjectDetailsPage() {
               onClick={async () => {
                 if (!project) return;
                 try {
+                  const oldProject = { ...project };
                   // Update UI optimistically
                   const optimisticProject = {
                     ...project,
@@ -2634,6 +2692,7 @@ export default function ProjectDetailsPage() {
                       numberOfErrorsDrafter: mappedProject.numberOfErrorsDrafter || 0
                     });
                     setIsEditingErrors(false);
+                    // Backend handles notification automatically
                   }
                 } catch (error) {
                   console.error('Error updating errors:', error);

@@ -5,7 +5,7 @@ import { User, Project } from '@/types';
 import { getCurrentUser } from '@/lib/auth';
 import { projectsApi } from '@/lib/api/projects';
 import { tasksApi } from '@/lib/api/tasks';
-import { FolderIcon, CalendarIcon, UserIcon, PlusIcon, LayoutGridIcon, TableIcon } from 'lucide-react';
+import { FolderIcon, UserIcon, PlusIcon, LayoutGridIcon, TableIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -389,10 +389,6 @@ export default function TasksPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <CalendarIcon size={14} />
-                    <span>{project.timeline}</span>
-                  </div>
                   
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <UserIcon size={14} />
