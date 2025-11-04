@@ -77,9 +77,9 @@ export default function Sidebar({ userRole }: SidebarProps) {
     { 
       icon: UserPlusIcon, 
       label: 'Client Onboarding', 
-      href: '/dashboard',
-      active: pathname === '/dashboard' && userRole === 'digital_marketing',
-      roles: ['digital_marketing']
+      href: '/dashboard/client-onboarding',
+      active: pathname === '/dashboard/client-onboarding',
+      roles: ['digital_marketing', 'admin', 'project_manager', 'assistant_project_manager']
     },
     { 
       icon: UsersIcon, 
