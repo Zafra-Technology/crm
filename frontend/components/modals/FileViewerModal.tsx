@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { DownloadIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
 import { ProjectAttachment } from '@/types';
 import { resolveMediaUrl } from '@/lib/api/auth';
+import { getAuthToken } from '@/lib/auth';
 import { formatDate } from '@/lib/utils/dateUtils';
 import {
   Dialog,
@@ -28,7 +29,7 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
   const [loadingError, setLoadingError] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
 
-  // Create blob URL for base64 files (especially large ones) to avoid browser memory issues
+  // Create blob URL for base64 files and backend URLs (especially large ones) to avoid browser memory issues
   useEffect(() => {
     if (!attachment || !isOpen) return;
 
@@ -85,6 +86,41 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
         setLoadingError(true);
         setIsConverting(false);
       }
+    } else if (attachment.url && !attachment.url.startsWith('http://') && !attachment.url.startsWith('https://') && !attachment.url.startsWith('blob:')) {
+      // For backend URLs (relative paths), fetch as blob to handle authentication
+      setIsConverting(true);
+      const fetchAsBlob = async () => {
+        try {
+          const fileUrl = resolveMediaUrl(attachment.url);
+          const token = await getAuthToken();
+          const headers: HeadersInit = {
+            'Accept': '*/*',
+          };
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          
+          const response = await fetch(fileUrl, {
+            credentials: 'include',
+            headers,
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch file: ${response.status}`);
+          }
+          
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+          setIsConverting(false);
+        } catch (error) {
+          console.error('Error fetching file as blob:', error);
+          setLoadingError(true);
+          setIsConverting(false);
+        }
+      };
+      
+      fetchAsBlob();
     } else {
       setIsConverting(false);
     }
@@ -125,16 +161,16 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
   };
 
   const handleDownload = async () => {
-    if (!attachment || !attachment.url) return;
+    if (!attachment || !attachment.url) {
+      alert('File URL is not available.');
+      return;
+    }
     
     try {
-      const validUrl = getValidImageUrl(attachment.url);
-      const fileUrl = resolveMediaUrl(validUrl);
-      
       // If it's a data URL (base64), download directly
-      if (fileUrl.startsWith('data:')) {
+      if (attachment.url.startsWith('data:')) {
         const link = document.createElement('a');
-        link.href = fileUrl;
+        link.href = attachment.url;
         link.download = attachment.name;
         document.body.appendChild(link);
         link.click();
@@ -142,9 +178,44 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
         return;
       }
       
-      // For remote URLs, fetch as blob to handle CORS and authentication
-      const response = await fetch(fileUrl, { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch file');
+      // If it's already a blob URL, download directly
+      if (attachment.url.startsWith('blob:')) {
+        const link = document.createElement('a');
+        link.href = attachment.url;
+        link.download = attachment.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // For remote URLs (backend URLs), fetch as blob to handle CORS and authentication
+      const fileUrl = resolveMediaUrl(attachment.url);
+      
+      // Skip if URL is empty or invalid
+      if (!fileUrl || (fileUrl === attachment.url && !attachment.url.startsWith('http://') && !attachment.url.startsWith('https://'))) {
+        if (!attachment.url.startsWith('http://') && !attachment.url.startsWith('https://')) {
+          alert('Invalid file URL. Cannot download.');
+          return;
+        }
+      }
+      
+      const token = await getAuthToken();
+      const headers: HeadersInit = {
+        'Accept': '*/*',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(fileUrl, { 
+        credentials: 'include',
+        headers,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+      }
       
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
@@ -154,17 +225,26 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(objectUrl);
+      // Clean up the blob URL after a short delay
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
     } catch (error) {
       console.error('Error downloading file:', error);
-      // Fallback to direct link download
-      const validUrl = getValidImageUrl(attachment.url);
-      const link = document.createElement('a');
-      link.href = resolveMediaUrl(validUrl);
-      link.download = attachment.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Fallback: try direct download for data URLs or valid HTTP URLs
+      try {
+        if (attachment.url.startsWith('data:') || attachment.url.startsWith('http://') || attachment.url.startsWith('https://')) {
+          const link = document.createElement('a');
+          link.href = attachment.url;
+          link.download = attachment.name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          alert(`Unable to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback download error:', fallbackError);
+        alert('Unable to download file. Please try again later.');
+      }
     }
   };
 
@@ -190,8 +270,8 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
       return url;
     }
     
-    // If it's already a full URL or base64, return as is
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    // If it's already a full URL, blob URL, or base64, return as is
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
       return url;
     }
     
@@ -199,12 +279,6 @@ export default function FileViewerModal({ isOpen, onClose, attachment }: FileVie
     // Django serves media files at http://localhost:8000/media/...
     const djangoBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
     const resolvedUrl = url.startsWith('/') ? `${djangoBaseUrl}${url}` : `${djangoBaseUrl}/${url}`;
-    
-    console.log('Resolving media URL:', {
-      originalUrl: url,
-      resolvedUrl: resolvedUrl,
-      djangoBaseUrl: djangoBaseUrl
-    });
     
     return resolvedUrl;
   };

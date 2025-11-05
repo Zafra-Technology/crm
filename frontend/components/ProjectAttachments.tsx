@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { formatDate } from '@/lib/utils/dateUtils';
 import { resolveMediaUrl } from '@/lib/api/auth';
+import { getAuthToken } from '@/lib/auth';
 
 interface ProjectAttachmentsProps {
   attachments: ProjectAttachment[];
@@ -76,16 +77,16 @@ export default function ProjectAttachments({
   };
 
   const handleDownload = async (attachment: ProjectAttachment) => {
-    if (!attachment.url) return;
+    if (!attachment.url) {
+      alert('File URL is not available.');
+      return;
+    }
     
     try {
-      // Resolve the URL properly (handles backend URLs)
-      const fileUrl = resolveMediaUrl(attachment.url);
-      
       // If it's a data URL (base64), download directly
-      if (fileUrl.startsWith('data:')) {
+      if (attachment.url.startsWith('data:')) {
         const link = document.createElement('a');
-        link.href = fileUrl;
+        link.href = attachment.url;
         link.download = attachment.name;
         document.body.appendChild(link);
         link.click();
@@ -93,9 +94,45 @@ export default function ProjectAttachments({
         return;
       }
       
-      // For remote URLs, fetch as blob to handle CORS and authentication
-      const response = await fetch(fileUrl, { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch file');
+      // If it's already a blob URL, download directly (these are temporary client-side URLs)
+      if (attachment.url.startsWith('blob:')) {
+        const link = document.createElement('a');
+        link.href = attachment.url;
+        link.download = attachment.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // For remote URLs (backend URLs), fetch as blob to handle CORS and authentication
+      const fileUrl = resolveMediaUrl(attachment.url);
+      
+      // Skip if URL is empty or invalid
+      if (!fileUrl || fileUrl === attachment.url) {
+        // If resolveMediaUrl didn't change the URL and it's not a valid URL, try direct download
+        if (!attachment.url.startsWith('http://') && !attachment.url.startsWith('https://')) {
+          alert('Invalid file URL. Cannot download.');
+          return;
+        }
+      }
+      
+      const token = await getAuthToken();
+      const headers: HeadersInit = {
+        'Accept': '*/*',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(fileUrl, { 
+        credentials: 'include',
+        headers,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+      }
       
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
@@ -105,16 +142,26 @@ export default function ProjectAttachments({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(objectUrl);
+      // Clean up the blob URL after a short delay
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
     } catch (error) {
       console.error('Error downloading file:', error);
-      // Fallback to direct link download
-      const link = document.createElement('a');
-      link.href = resolveMediaUrl(attachment.url);
-      link.download = attachment.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Fallback: try direct download for data URLs or valid HTTP URLs
+      try {
+        if (attachment.url.startsWith('data:') || attachment.url.startsWith('http://') || attachment.url.startsWith('https://')) {
+          const link = document.createElement('a');
+          link.href = attachment.url;
+          link.download = attachment.name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          alert(`Unable to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback download error:', fallbackError);
+        alert('Unable to download file. Please try again later.');
+      }
     }
   };
 

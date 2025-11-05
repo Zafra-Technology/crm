@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { getCurrentUser } from '@/lib/auth';
 import { projectsApi } from '@/lib/api/projects';
 import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import { projectUpdatesApi } from '@/lib/api/project-updates';
 import { utilitiesApi, Utility } from '@/lib/api/utilities';
+import { ahjApi, ProjectAhj } from '@/lib/api/ahj';
 import AddModelsModal from '@/components/modals/AddModelsModal';
+import AddAhjModal from '@/components/modals/AddAhjModal';
 import { getCookie } from '@/lib/cookies';
 import { mockChatMessages } from '@/lib/data/mockData';
 import { User, Project, ProjectUpdate, ChatMessage, ProjectAttachment } from '@/types';
@@ -56,7 +59,6 @@ export default function ProjectDetailsPage() {
     requirements: string;
     status: Project['status'];
     projectAddress: string;
-    projectAhj: string;
   }>({
     name: '',
     projectCode: '',
@@ -64,7 +66,6 @@ export default function ProjectDetailsPage() {
     requirements: '',
     status: 'planning',
     projectAddress: '',
-    projectAhj: ''
   });
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [locationUrl, setLocationUrl] = useState<string>('');
@@ -97,6 +98,8 @@ export default function ProjectDetailsPage() {
   });
   const [showAddModal, setShowAddModal] = useState(false);
   const [addModalCategory, setAddModalCategory] = useState<'Inventor' | 'Module' | 'Mounting' | 'Battery'>('Module');
+  const [projectAhjs, setProjectAhjs] = useState<ProjectAhj[]>([]);
+  const [showAddAhjModal, setShowAddAhjModal] = useState(false);
 
   const loadProjectUtilities = async () => {
     if (!projectId) return;
@@ -120,6 +123,17 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const loadProjectAhjs = async () => {
+    if (!projectId) return;
+    
+    try {
+      const ahjs = await ahjApi.getProjectAhjs(parseInt(projectId));
+      setProjectAhjs(ahjs);
+    } catch (error) {
+      console.error('Error loading project AHJs:', error);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       const currentUser = await getCurrentUser();
@@ -131,6 +145,7 @@ export default function ProjectDetailsPage() {
   useEffect(() => {
     if (project && projectId) {
       loadProjectUtilities();
+      loadProjectAhjs();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, projectId]);
@@ -170,7 +185,6 @@ export default function ProjectDetailsPage() {
           requirements: mappedProject.requirements,
           status: mappedProject.status,
           projectAddress: mappedProject.projectAddress || '',
-          projectAhj: mappedProject.projectAhj || ''
           // NO clientName or clientCompany in editForm
           // Services and Wetstamp are edited directly on the page, not in this modal
         });
@@ -1197,8 +1211,64 @@ export default function ProjectDetailsPage() {
               {/* Project AHJ Section */}
               {!isClientOrClientTeam && (
               <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Project AHJ</h3>
-                <p className="text-muted-foreground">{project.projectAhj || 'No Project AHJ provided'}</p>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">Project AHJ</h3>
+                  {canEditServices && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddAhjModal(true)}>
+                      <PlusIcon size={16} className="mr-1" />
+                      Add AHJ
+                    </Button>
+                  )}
+                </div>
+                {projectAhjs.length > 0 ? (
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {projectAhjs.map((ahj) => (
+                      <div key={ahj.id} className="flex items-center justify-between p-2 bg-accent/50 rounded-md">
+                        <span className="text-sm text-foreground">
+                          {ahj.ahj || 'Unnamed AHJ'}
+                          {ahj.us_state && (
+                            <span className="text-muted-foreground ml-2">({ahj.us_state})</span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/dashboard/ahj/${ahj.id}`}>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-primary hover:text-primary" 
+                              title="View AHJ details"
+                            >
+                              <EyeIcon size={14} />
+                            </Button>
+                          </Link>
+                          {canEditServices && (
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-destructive hover:text-destructive" 
+                              onClick={async () => { 
+                                try { 
+                                  await ahjApi.removeFromProject(parseInt(projectId), ahj.id); 
+                                  loadProjectAhjs(); 
+                                } catch (error) { 
+                                  console.error('Error removing AHJ:', error); 
+                                  alert('Failed to remove AHJ'); 
+                                } 
+                              }}
+                              title="Remove AHJ"
+                            >
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No AHJs added</p>
+                )}
               </div>
               )}
 
@@ -2026,16 +2096,7 @@ export default function ProjectDetailsPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="project-ahj">Project AHJ</Label>
-                  <Input
-                    id="project-ahj"
-                    type="text"
-                    value={editForm.projectAhj}
-                    onChange={(e) => setEditForm({ ...editForm, projectAhj: e.target.value })}
-                    placeholder="Add Project AHJ..."
-                  />
-                </div>
+                
               </div>
             </form>
           </div>
@@ -2463,6 +2524,16 @@ export default function ProjectDetailsPage() {
           onModelsAdded={loadProjectUtilities}
           projectId={parseInt(projectId)}
           category={addModalCategory}
+        />
+      )}
+
+      {/* Add AHJ Modal */}
+      {project && (
+        <AddAhjModal
+          isOpen={showAddAhjModal}
+          onClose={() => setShowAddAhjModal(false)}
+          onAhjsAdded={loadProjectAhjs}
+          projectId={parseInt(projectId)}
         />
       )}
     </div>

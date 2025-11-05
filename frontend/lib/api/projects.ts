@@ -47,7 +47,6 @@ export const projectsApi = {
       wetstamp: Boolean(p.wetstamp ?? false),
       projectAddress: p.project_address || p.projectAddress || undefined,
       projectLocationUrl: p.project_location_url || p.projectLocationUrl || undefined,
-      projectAhj: p.project_ahj || p.projectAhj || undefined,
       projectAhjType: (p.project_ahj_type || p.projectAhjType) as Project['projectAhjType'] | undefined,
       ballInCourt: (p.ball_in_court || p.ballInCourt) as Project['ballInCourt'] | undefined,
       structuralPe: (p.structural_pe != null && p.structural_pe !== '' ? p.structural_pe : (p.structuralPe != null && p.structuralPe !== '' ? p.structuralPe : undefined)) as Project['structuralPe'] | undefined,
@@ -237,7 +236,6 @@ export const projectsApi = {
     wetstamp?: boolean;
     projectAddress?: string;
     projectLocationUrl?: string;
-    projectAhj?: string;
     projectAhjType?: string;
     ballInCourt?: string;
     pe?: string;
@@ -260,7 +258,6 @@ export const projectsApi = {
         wetstamp: projectData.wetstamp ?? false,
         project_address: projectData.projectAddress || undefined,
         project_location_url: projectData.projectLocationUrl || undefined,
-        project_ahj: projectData.projectAhj || undefined,
         project_ahj_type: projectData.projectAhjType || undefined,
         ball_in_court: projectData.ballInCourt || undefined,
         pe: projectData.pe || undefined,
@@ -324,7 +321,6 @@ export const projectsApi = {
       if (updateData.wetstamp !== undefined) payload.wetstamp = updateData.wetstamp;
       if (updateData.projectAddress !== undefined) payload.project_address = updateData.projectAddress;
       if (updateData.projectLocationUrl !== undefined) payload.project_location_url = updateData.projectLocationUrl;
-      if (updateData.projectAhj !== undefined) payload.project_ahj = updateData.projectAhj;
       if (updateData.projectAhjType !== undefined) payload.project_ahj_type = updateData.projectAhjType;
       if (updateData.ballInCourt !== undefined) payload.ball_in_court = updateData.ballInCourt;
       if (updateData.structuralPe !== undefined) payload.structural_pe = updateData.structuralPe;

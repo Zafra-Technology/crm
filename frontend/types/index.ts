@@ -41,7 +41,6 @@ export interface Project {
   wetstamp?: boolean;
   projectAddress?: string;
   projectLocationUrl?: string;
-  projectAhj?: string;
   projectAhjType?: 'pitched_roof' | 'ballast_ground_tilt_kit' | 'p2p' | 'battery_generator_ats' | 'only_generator' | 'only_ess';
   ballInCourt?: 'check_inputs' | 'pm_court' | 'waiting_client_response' | 'engg_court' | 'pe_stamp' | 'project_ready' | 'completed' | 'night_revision' | 'pending_payment';
   structuralPe?: 'structural_pe' | 'ev_engineer' | 'ahz_engineers' | 'lwm_engineering' | 'vector' | 'pzse' | 'current_renewables' | 'aos_structures' | 'solar_roof_check';
@@ -83,6 +82,16 @@ export interface ProjectUpdate {
   fileSize?: number;
   fileType?: string;
   createdAt: string;
+}
+
+export interface ProjectAhjRow {
+  id: number;
+  ahj: string | null;
+  us_state: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: number;
+  updated_by: number;
 }
 
 export interface ChatMessage {

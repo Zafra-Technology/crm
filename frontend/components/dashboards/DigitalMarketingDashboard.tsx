@@ -219,8 +219,8 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Digital Marketing Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Onboard new clients and manage client relationships</p>
+        <h1 className="text-2xl font-bold text-foreground">{user.role === 'admin' ? 'Admin Dashboard' : 'Digital Marketing Dashboard'}</h1>
+        <p className="text-muted-foreground mt-1">{user.role === 'admin' ? 'Manage users and permissions' : 'Onboard new clients and manage client relationships'}</p>
       </div>
 
       {/* Success/Error Messages */}
