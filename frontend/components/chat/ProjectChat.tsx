@@ -22,17 +22,21 @@ import { formatChatDate, isDifferentDay } from '@/lib/utils/dateUtils';
 import { LinkifiedText } from '@/lib/utils/linkUtils';
 import MentionInput from '@/components/chat/MentionInput';
 import { projectsApi } from '@/lib/api/projects';
+import { projectChatApi } from '@/lib/api/project-chat';
 
 interface ProjectChatProps {
   projectId: string;
   currentUser: User;
   messages: ChatMessage[];
   isAssignedMember?: boolean; // Optional prop to indicate if user is an assigned member
+  isModal?: boolean; // Optional prop to indicate if component is used in a modal (removes card styling)
+  onCountsChange?: (counts: { client: number; team: number; professional_engineer: number }) => void;
+  unreadCounts?: { client: number; team: number; professional_engineer: number }; // Optional prop to receive unread counts
 }
 
 type ChatType = 'client' | 'team' | 'professional_engineer' | null;
 
-export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false }: ProjectChatProps) {
+export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false, isModal = false, onCountsChange, unreadCounts }: ProjectChatProps) {
   const [selectedChatType, setSelectedChatType] = useState<ChatType>(null);
   const [userHasSelected, setUserHasSelected] = useState(false); // Track if user explicitly selected
   const lastExplicitSelectionRef = useRef<ChatType>(null);
@@ -63,6 +67,11 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id?: string; timestamp?: string }>({ open: false });
   const [mentionOptions, setMentionOptions] = useState<Array<{ id: string; name: string; role?: string; avatar?: string }>>([]);
   const [project, setProject] = useState<any>(null);
+  const [chatCounts, setChatCounts] = useState<{ client: number; team: number; professional_engineer: number }>({
+    client: 0,
+    team: 0,
+    professional_engineer: 0
+  });
   
   // Check if current user is a professional engineer assigned to this project
   const isProfessionalEngineer = currentUser?.role === 'professional_engineer';
@@ -225,6 +234,14 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             }, []);
             setChatMessages(mapped);
             scrollToBottom();
+            
+            // Refresh unread counts when new messages arrive via WebSocket
+            projectChatApi.getUnreadCounts(projectId).then(counts => {
+              setChatCounts(counts);
+              if (onCountsChange) {
+                onCountsChange(counts);
+              }
+            }).catch(err => console.error('Error refreshing counts:', err));
           }
         } catch (error) {
           console.error('Error in WebSocket message handler:', error);
@@ -277,6 +294,27 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     };
     loadProject();
   }, [projectId]);
+
+  // Load or update unread counts
+  useEffect(() => {
+    if (unreadCounts) {
+      setChatCounts(unreadCounts);
+    } else {
+      // If counts not provided, fetch them
+      const loadCounts = async () => {
+        try {
+          const counts = await projectChatApi.getUnreadCounts(projectId);
+          setChatCounts(counts);
+        } catch (error) {
+          console.error('Error loading unread counts:', error);
+        }
+      };
+      loadCounts();
+      // Poll every 5 seconds
+      const interval = setInterval(loadCounts, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [projectId, unreadCounts]);
 
   // Load chat preference from backend on mount (DO NOT auto-open - user must click explicitly)
   // Preference is only used for remembering last choice, not for auto-opening
@@ -547,6 +585,17 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
           }, []);
           
           setChatMessages(mapped);
+          
+          // Mark this chat type as read when messages are loaded
+          if (selectedChatType) {
+            await projectChatApi.markAsRead(projectId, selectedChatType);
+            // Refresh unread counts after marking as read
+            const counts = await projectChatApi.getUnreadCounts(projectId);
+            setChatCounts(counts);
+            if (onCountsChange) {
+              onCountsChange(counts);
+            }
+          }
         } else {
           setChatMessages([]);
         }
@@ -559,7 +608,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     };
 
     loadMessages();
-  }, [projectId, selectedChatType, getChatApiUrl]);
+  }, [projectId, selectedChatType, getChatApiUrl, onCountsChange]);
 
   // Remove polling: WS will trigger refresh
 
@@ -681,6 +730,14 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         if (isConnected) {
           send({ type: 'chat_message', message: savedMessage.message, sender: String(savedMessage.user_id) });
         }
+        
+        // Refresh unread counts after sending message
+        projectChatApi.getUnreadCounts(projectId).then(counts => {
+          setChatCounts(counts);
+          if (onCountsChange) {
+            onCountsChange(counts);
+          }
+        }).catch(err => console.error('Error refreshing counts:', err));
       } else {
         console.error('API Error:', await response.text());
         // Remove temp message on error
@@ -708,12 +765,6 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
       type: file.type,
       lastModified: file.lastModified
     });
-
-    // Check file size (limit to 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size too large. Please select a file smaller than 10MB.');
-      return;
-    }
 
     setUploadingFile(true);
 
@@ -1023,11 +1074,18 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
   // Chat selection view
   if (!selectedChatType) {
     return (
-      <div className="card h-full flex flex-col relative">
-        <div className="flex-shrink-0 px-4 md:px-6 pt-4 pb-4 border-b border-border">
-          <h3 className="text-lg font-semibold text-foreground mb-1">Project Chat</h3>
-          <p className="text-sm text-muted-foreground">Select a chat to start conversation</p>
-        </div>
+      <div className={`${isModal ? 'h-full' : 'card'} h-full flex flex-col relative`}>
+        {!isModal && (
+          <div className="flex-shrink-0 px-4 md:px-6 pt-4 pb-4 border-b border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-1">Project Chat</h3>
+            <p className="text-sm text-muted-foreground">Select a chat to start conversation</p>
+          </div>
+        )}
+        {isModal && (
+          <div className="flex-shrink-0 px-4 md:px-6 pt-2 pb-4 border-b border-border">
+            <p className="text-sm text-muted-foreground">Select a chat to start conversation</p>
+          </div>
+        )}
         
         {/* Chat Options List */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3">
@@ -1052,6 +1110,11 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                       <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
                         Client Chat
                       </h4>
+                      {chatCounts.client > 0 && (
+                        <span className="bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+                          {chatCounts.client > 99 ? '99+' : chatCounts.client}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground leading-snug">
                       Communicate with clients and stakeholders
@@ -1084,6 +1147,11 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                       <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
                         Team Chat
                       </h4>
+                      {chatCounts.team > 0 && (
+                        <span className="bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+                          {chatCounts.team > 99 ? '99+' : chatCounts.team}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground leading-snug">
                       Internal team communication and collaboration
@@ -1116,6 +1184,11 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                       <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
                         Professional Engineer Chat
                       </h4>
+                      {chatCounts.professional_engineer > 0 && (
+                        <span className="bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+                          {chatCounts.professional_engineer > 99 ? '99+' : chatCounts.professional_engineer}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground leading-snug">
                       Collaborate with professional engineers and project managers
@@ -1145,7 +1218,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
 
   return (
     <div 
-      className={`card h-full flex flex-col relative ${dragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+      className={`${isModal ? 'h-full' : 'card'} h-full flex flex-col relative ${dragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -1160,7 +1233,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         </div>
       )}
       
-      {!isSelectMode ? (
+      {!isSelectMode && !isModal && (
         <div className="flex items-center space-x-3 mb-4 pb-3 border-b border-gray-200 flex-shrink-0">
           <button
             onClick={() => {
@@ -1181,7 +1254,27 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             {selectedChatType === 'client' ? 'Client Chat' : selectedChatType === 'team' ? 'Team Chat' : 'Professional Engineer Chat'}
           </span>
         </div>
-      ) : (
+      )}
+      {!isSelectMode && isModal && (
+        <div className="flex items-center space-x-3 mb-4 pb-3 border-b border-gray-200 flex-shrink-0">
+          <button
+            onClick={() => {
+              setSelectedChatType(null);
+              lastExplicitSelectionRef.current = null;
+              try { sessionStorage.removeItem(`projectChat:lastSelection:${projectId}`); } catch(_) {}
+              // Don't clear userHasSelected - keep it so preference is still saved
+            }}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+            title="Back to chat selection"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <span className="text-sm text-gray-700 font-medium">
+            {selectedChatType === 'client' ? 'Client Chat' : selectedChatType === 'team' ? 'Team Chat' : 'Professional Engineer Chat'}
+          </span>
+        </div>
+      )}
+      {isSelectMode && (
         <div className="mb-4 pb-3 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <button

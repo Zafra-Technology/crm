@@ -9,6 +9,7 @@ import { authAPI, resolveMediaUrl } from '@/lib/api/auth';
 import { projectUpdatesApi } from '@/lib/api/project-updates';
 import { utilitiesApi, Utility } from '@/lib/api/utilities';
 import { ahjApi, ProjectAhj } from '@/lib/api/ahj';
+import { projectChatApi } from '@/lib/api/project-chat';
 import AddModelsModal from '@/components/modals/AddModelsModal';
 import AddAhjModal from '@/components/modals/AddAhjModal';
 import { getCookie } from '@/lib/cookies';
@@ -20,7 +21,7 @@ import ProjectChat from '@/components/chat/ProjectChat';
 import ProjectUpdates from '@/components/ProjectUpdates';
 import ProjectAttachments from '@/components/ProjectAttachments';
 import FileViewerModal from '@/components/modals/FileViewerModal';
-import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon, ArrowLeft, Check, UploadIcon, FileIcon, XIcon, EyeIcon, DownloadIcon, PlusIcon, PackageIcon, ZapIcon, AnchorIcon, BatteryIcon, TrashIcon } from 'lucide-react';
+import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon, ArrowLeft, Check, UploadIcon, FileIcon, XIcon, EyeIcon, DownloadIcon, PlusIcon, PackageIcon, ZapIcon, AnchorIcon, BatteryIcon, TrashIcon, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +39,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 
 export default function ProjectDetailsPage() {
   const params = useParams();
@@ -100,6 +107,12 @@ export default function ProjectDetailsPage() {
   const [addModalCategory, setAddModalCategory] = useState<'Inventor' | 'Module' | 'Mounting' | 'Battery'>('Module');
   const [projectAhjs, setProjectAhjs] = useState<ProjectAhj[]>([]);
   const [showAddAhjModal, setShowAddAhjModal] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [chatCounts, setChatCounts] = useState<{ client: number; team: number; professional_engineer: number }>({
+    client: 0,
+    team: 0,
+    professional_engineer: 0
+  });
 
   const loadProjectUtilities = async () => {
     if (!projectId) return;
@@ -149,6 +162,57 @@ export default function ProjectDetailsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, projectId]);
+
+  // Calculate chat access permissions (same logic as ProjectChat component)
+  const isProfessionalEngineer = user?.role === 'professional_engineer';
+  const isAssignedMember = project && user && (
+    (project?.designerIds?.some((id: string) => String(id) === String(user.id)) ?? false) ||
+    designers.some(d => d.id === user.id)
+  );
+  const isProfessionalEngineerAssigned = isProfessionalEngineer && isAssignedMember;
+
+  const canSeeClientChat = !isProfessionalEngineerAssigned && [
+    'admin',
+    'project_manager',
+    'assistant_project_manager',
+    'client',
+    'client_team_member'
+  ].includes(user?.role || '');
+
+  const canSeeTeamChat = !isProfessionalEngineerAssigned && (
+    [
+      'admin',
+      'project_manager',
+      'assistant_project_manager',
+      'team_head',
+      'team_lead'
+    ].includes(user?.role || '') || isAssignedMember
+  );
+
+  const canSeeProfessionalEngineerChat = [
+    'admin',
+    'project_manager',
+    'assistant_project_manager'
+  ].includes(user?.role || '') || isProfessionalEngineerAssigned;
+
+  // Load unread chat counts
+  useEffect(() => {
+    if (!projectId || !user || !project) return;
+    
+    const loadUnreadCounts = async () => {
+      try {
+        const counts = await projectChatApi.getUnreadCounts(projectId);
+        setChatCounts(counts);
+      } catch (error) {
+        console.error('Error loading unread counts:', error);
+      }
+    };
+    
+    loadUnreadCounts();
+    // Poll every 5 seconds to keep counts updated
+    const interval = setInterval(loadUnreadCounts, 5000);
+    return () => clearInterval(interval);
+  }, [projectId, user, project]);
 
   const loadProjectData = async () => {
     try {
@@ -875,12 +939,12 @@ export default function ProjectDetailsPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Project Content */}
-        <div className="lg:col-span-1 space-y-6">
+      <div className="space-y-4">
+        {/* Project Content */}
+        <div className="space-y-4">
           {/* Project Details */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle>Project Overview</CardTitle>
                 <Badge variant="outline" className={`${statusColors[project.status]}`}>
@@ -888,7 +952,7 @@ export default function ProjectDetailsPage() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               {/* Project Overview Section */}
               <div className="space-y-4">
                 <div>
@@ -918,8 +982,8 @@ export default function ProjectDetailsPage() {
               </div>
 
               {/* Project Type Section */}
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Project Type</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">Project Type</h3>
                 <RadioGroup
                   value={project.projectType}
                   onValueChange={async (value) => {
@@ -938,7 +1002,7 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEdit}
-                  className="grid grid-cols-2 gap-3"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {[
                     { value: 'residential', label: 'Residential' },
@@ -946,7 +1010,7 @@ export default function ProjectDetailsPage() {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                      className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${
                         project.projectType === option.value
                           ? 'bg-primary/10 border-primary'
                           : 'border-border hover:bg-accent'
@@ -968,7 +1032,7 @@ export default function ProjectDetailsPage() {
 
               {/* Project Attachments Section */}
               {Array.isArray(project.attachments) && project.attachments.length > 0 && (
-                <div className="pt-6 border-t">
+                <div className="pt-4 border-t">
                   <ProjectAttachments
                     attachments={project.attachments}
                     canEdit={true}
@@ -980,7 +1044,7 @@ export default function ProjectDetailsPage() {
               )}
 
               {/* Project Updates Section */}
-              <div className="pt-6 border-t">
+              <div className="pt-4 border-t">
                 <ProjectUpdates
                   projectId={projectId}
                   updates={updates}
@@ -992,11 +1056,11 @@ export default function ProjectDetailsPage() {
 
               {/* Services Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">
                   Services<span className="text-destructive ml-1">*</span>
                 </h3>
-                <div className="grid grid-cols-2 gap-2 border rounded-lg bg-muted/30 p-3">
+                <div className="grid grid-cols-2 gap-2 border rounded-lg bg-muted/30 p-2">
                   {[
                     { code: 'single_line_diagram', label: 'Single Line Diagram' },
                     { code: 'permit_package', label: 'Permit Package' },
@@ -1011,7 +1075,7 @@ export default function ProjectDetailsPage() {
                     return (
                       <label
                         key={service.code}
-                        className={`flex items-center gap-3 py-2.5 px-3 rounded-md transition-colors ${
+                        className={`flex items-center gap-2 py-2 px-2 rounded-md transition-colors ${
                           !canEditServices ? 'cursor-default opacity-100' : 'cursor-pointer'
                         } ${
                           isSelected 
@@ -1057,9 +1121,9 @@ export default function ProjectDetailsPage() {
 
               {/* Wetstamp Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-foreground">
                     <span className="text-destructive mr-1">*</span>WETSTAMP
                   </h3>
                   <div className="flex gap-2">
@@ -1117,9 +1181,9 @@ export default function ProjectDetailsPage() {
               )}
 
               {/* Project Address Section */}
-              <div className="pt-6 border-t">
-                <div className="flex items-center gap-4 mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">
+              <div className="pt-4 border-t">
+                <div className="flex items-center gap-4 mb-3">
+                  <h3 className="text-base font-semibold text-foreground">
                     <span className="text-destructive mr-1">*</span>Project Address
                   </h3>
                 </div>
@@ -1133,9 +1197,9 @@ export default function ProjectDetailsPage() {
               </div>
 
               {/* Project Location Section */}
-              <div className="pt-6 border-t">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">Location</h3>
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-foreground">Location</h3>
                   {canEdit && (
                     <Button
                       type="button"
@@ -1190,7 +1254,7 @@ export default function ProjectDetailsPage() {
                         <iframe
                           src={embedUrl}
                           width="100%"
-                          height="400"
+                          height="300"
                           style={{ border: 0 }}
                           allowFullScreen
                           loading="lazy"
@@ -1201,7 +1265,7 @@ export default function ProjectDetailsPage() {
                       </div>
                     );
                   })() : (
-                    <div className="w-full border rounded-lg bg-muted/30 h-[400px] flex items-center justify-center">
+                    <div className="w-full border rounded-lg bg-muted/30 h-[300px] flex items-center justify-center">
                       <p className="text-muted-foreground">No location map available</p>
                     </div>
                   )}
@@ -1210,9 +1274,9 @@ export default function ProjectDetailsPage() {
 
               {/* Project AHJ Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">Project AHJ</h3>
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-foreground">Project AHJ</h3>
                   {canEditServices && (
                     <Button type="button" variant="outline" size="sm" onClick={() => setShowAddAhjModal(true)}>
                       <PlusIcon size={16} className="mr-1" />
@@ -1274,8 +1338,8 @@ export default function ProjectDetailsPage() {
 
               {/* Project AHJ Type Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Project AHJ Type</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">Project AHJ Type</h3>
                 <RadioGroup
                   value={project.projectAhjType || ''}
                   onValueChange={async (value) => {
@@ -1294,7 +1358,7 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEditServices}
-                  className="grid grid-cols-2 gap-3"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {[
                     { value: 'pitched_roof', label: 'Pitched Roof' },
@@ -1306,7 +1370,7 @@ export default function ProjectDetailsPage() {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                      className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${
                         project.projectAhjType === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'
                       } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
@@ -1322,8 +1386,8 @@ export default function ProjectDetailsPage() {
 
               {/* Ball in Court Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Ball in court</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">Ball in court</h3>
                 <RadioGroup
                   value={project.ballInCourt || ''}
                   onValueChange={async (value) => {
@@ -1342,7 +1406,7 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEditServices}
-                  className="grid grid-cols-2 gap-3"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {[
                     { value: 'check_inputs', label: 'Check Inputs' },
@@ -1357,7 +1421,7 @@ export default function ProjectDetailsPage() {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                      className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${
                         project.ballInCourt === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'
                       } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
@@ -1373,8 +1437,8 @@ export default function ProjectDetailsPage() {
 
               {/* Structural PE Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Structural PE</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">Structural PE</h3>
                 <RadioGroup
                   value={project?.structuralPe ?? ''}
                   onValueChange={async (value) => {
@@ -1398,7 +1462,7 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEditServices}
-                  className="grid grid-cols-2 gap-3"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {[
                     { value: 'structural_pe', label: 'Structural PE' },
@@ -1411,7 +1475,7 @@ export default function ProjectDetailsPage() {
                     { value: 'aos_structures', label: 'AOS Structures' },
                     { value: 'solar_roof_check', label: 'Solar Roof Check' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.structuralPe === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.structuralPe === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`structural-pe-${option.value}`} disabled={!canEditServices} />
                       <label htmlFor={`structural-pe-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
@@ -1424,8 +1488,8 @@ export default function ProjectDetailsPage() {
 
               {/* Structural PE Status Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4"><span className="text-destructive mr-1">*</span>Structural PE Status</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3"><span className="text-destructive mr-1">*</span>Structural PE Status</h3>
                 <RadioGroup
                   value={project?.structuralPeStatus ?? 'new'}
                   onValueChange={async (value) => {
@@ -1449,7 +1513,7 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEditServices}
-                  className="grid grid-cols-2 gap-3"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {[
                     { value: 'new', label: 'New' },
@@ -1457,7 +1521,7 @@ export default function ProjectDetailsPage() {
                     { value: 'waiting_for_input', label: 'Waiting for Input' },
                     { value: 'completed', label: 'Completed' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.structuralPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.structuralPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`structural-pe-status-${option.value}`} disabled={!canEditServices} />
                       <label htmlFor={`structural-pe-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
@@ -1470,8 +1534,8 @@ export default function ProjectDetailsPage() {
 
               {/* Electrical PE Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Electrical PE</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">Electrical PE</h3>
                 <RadioGroup
                   value={project?.electricalPe ?? ''}
                   onValueChange={async (value) => {
@@ -1495,7 +1559,7 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEditServices}
-                  className="grid grid-cols-2 gap-3"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {[
                     { value: 'ev_engineer', label: 'EV Engineer' },
@@ -1505,7 +1569,7 @@ export default function ProjectDetailsPage() {
                     { value: 'rivera', label: 'RIVERA' },
                     { value: 'current_renewables', label: 'Current Renewables' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.electricalPe === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.electricalPe === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`electrical-pe-${option.value}`} disabled={!canEditServices} />
                       <label htmlFor={`electrical-pe-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
@@ -1518,8 +1582,8 @@ export default function ProjectDetailsPage() {
 
               {/* Electrical PE Status Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4"><span className="text-destructive mr-1">*</span>Electrical PE Status</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3"><span className="text-destructive mr-1">*</span>Electrical PE Status</h3>
                 <RadioGroup
                   value={project?.electricalPeStatus ?? 'new'}
                   onValueChange={async (value) => {
@@ -1543,7 +1607,7 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEditServices}
-                  className="grid grid-cols-2 gap-3"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {[
                     { value: 'new', label: 'New' },
@@ -1551,7 +1615,7 @@ export default function ProjectDetailsPage() {
                     { value: 'waiting_for_input', label: 'Waiting for Input' },
                     { value: 'completed', label: 'Completed' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.electricalPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.electricalPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`electrical-pe-status-${option.value}`} disabled={!canEditServices} />
                       <label htmlFor={`electrical-pe-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
@@ -1564,8 +1628,8 @@ export default function ProjectDetailsPage() {
 
               {/* Priority Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Priority</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">Priority</h3>
                 <RadioGroup
                   value={project.priority || ''}
                   onValueChange={async (value) => {
@@ -1584,14 +1648,14 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEditServices}
-                  className="grid grid-cols-3 gap-3"
+                  className="grid grid-cols-3 gap-2"
                 >
                   {[
                     { value: 'low', label: 'Low' },
                     { value: 'medium', label: 'Medium' },
                     { value: 'high', label: 'High' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.priority === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.priority === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`priority-${option.value}`} disabled={!canEditServices} />
                       <label htmlFor={`priority-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
@@ -1603,8 +1667,8 @@ export default function ProjectDetailsPage() {
               )}
 
               {/* Project Requirements Section */}
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Project Requirements</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">Project Requirements</h3>
                 <div className="prose prose-sm max-w-none">
                   <p className="text-muted-foreground leading-relaxed">{project.requirements}</p>
                 </div>
@@ -1612,8 +1676,8 @@ export default function ProjectDetailsPage() {
 
               {/* Project Report Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Project Report</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">Project Report</h3>
                 <RadioGroup
                   value={project?.projectReport ?? ''}
                   onValueChange={async (value) => {
@@ -1637,7 +1701,7 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEditServices}
-                  className="grid grid-cols-2 gap-3"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {[
                     { value: 'ext_rev_ip_change', label: 'Ext.Rev.I/P Change' },
@@ -1646,7 +1710,7 @@ export default function ProjectDetailsPage() {
                     { value: 'good', label: 'Good' },
                     { value: 'better_time_management', label: 'Better time management' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.projectReport === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.projectReport === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`report-${option.value}`} disabled={!canEditServices} />
                       <label htmlFor={`report-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
@@ -1659,9 +1723,9 @@ export default function ProjectDetailsPage() {
 
               {/* Errors Section */}
               {canViewErrors && !isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">Errors</h3>
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-foreground">Errors</h3>
                   {canEdit && (
                     <Button type="button" variant="outline" size="sm" onClick={() => { setErrorsForm({ numberOfErrors: project.numberOfErrors || 0, numberOfErrorsTeamLead: project.numberOfErrorsTeamLead || 0, numberOfErrorsDrafter: project.numberOfErrorsDrafter || 0 }); setIsEditingErrors(true); }}>
                       Edit
@@ -1686,8 +1750,8 @@ export default function ProjectDetailsPage() {
               )}
 
               {/* Team Members Section */}
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Team Members</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3">Team Members</h3>
                 <div className="space-y-3">
                   {designers.map((designer) => (
                     <div key={designer.id} className="flex items-center space-x-3 p-3 bg-accent/50 rounded-lg">
@@ -1731,8 +1795,8 @@ export default function ProjectDetailsPage() {
 
               {/* Design Status Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-semibold text-foreground mb-4"><span className="text-destructive mr-1">*</span>Design Status</h3>
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold text-foreground mb-3"><span className="text-destructive mr-1">*</span>Design Status</h3>
                 <RadioGroup
                   value={project?.designStatus ?? 'new'}
                   onValueChange={async (value) => {
@@ -1756,7 +1820,7 @@ export default function ProjectDetailsPage() {
                     }
                   }}
                   disabled={!canEditServices}
-                  className="grid grid-cols-2 gap-3"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {[
                     { value: 'new', label: 'New' },
@@ -1769,7 +1833,7 @@ export default function ProjectDetailsPage() {
                     { value: 'stop', label: 'Stop' },
                     { value: 'completed_layout', label: 'Completed Layout' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-3 rounded-md border cursor-pointer transition-colors ${project.designStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.designStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <RadioGroupItem value={option.value} id={`design-status-${option.value}`} disabled={!canEditServices} />
                       <label htmlFor={`design-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
@@ -1782,11 +1846,11 @@ export default function ProjectDetailsPage() {
 
               {/* Data Sheet Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t space-y-6">
-                <h3 className="text-lg font-semibold text-foreground">Datasheets</h3>
+              <div className="pt-4 border-t space-y-4">
+                <h3 className="text-base font-semibold text-foreground">Datasheets</h3>
                 {/* Module Datasheet */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <PackageIcon className="h-5 w-5 text-green-600" />
                       <h4 className="font-semibold text-foreground">Module Datasheet</h4>
@@ -1816,8 +1880,8 @@ export default function ProjectDetailsPage() {
                   )}
                 </div>
                 {/* Inventor Datasheet */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <ZapIcon className="h-5 w-5 text-yellow-600" />
                       <h4 className="font-semibold text-foreground">Inventor Datasheet</h4>
@@ -1847,8 +1911,8 @@ export default function ProjectDetailsPage() {
                   )}
                 </div>
                 {/* Mounting Datasheet */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <AnchorIcon className="h-5 w-5 text-purple-600" />
                       <h4 className="font-semibold text-foreground">Mounting Datasheet</h4>
@@ -1878,8 +1942,8 @@ export default function ProjectDetailsPage() {
                   )}
                 </div>
                 {/* Battery Datasheet */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <BatteryIcon className="h-5 w-5 text-orange-600" />
                       <h4 className="font-semibold text-foreground">Battery Datasheet</h4>
@@ -1913,9 +1977,9 @@ export default function ProjectDetailsPage() {
 
               {/* Post Installation Letter Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-6 border-t">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground"><span className="text-destructive mr-1">*</span>Post Installation Letter</h3>
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-foreground"><span className="text-destructive mr-1">*</span>Post Installation Letter</h3>
                   <div className="flex gap-2">
                     <Button type="button" variant={(project.postInstallationLetter ?? false) ? "default" : "outline"} disabled={!canEditServices} onClick={async () => { if (!canEditServices || !project || project.postInstallationLetter === true) return; const currentValue = project.postInstallationLetter ?? false; setProject({ ...project, postInstallationLetter: true }); try { await projectsApi.update(project.id, { postInstallationLetter: true }); } catch (error) { console.error('Error saving post installation letter:', error); setProject({ ...project, postInstallationLetter: currentValue }); alert('Failed to save post installation letter. Please try again.'); } }} className={`px-6 py-2 ${(project.postInstallationLetter ?? false) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-background hover:bg-accent hover:text-accent-foreground'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>YES</Button>
                     <Button type="button" variant={!(project.postInstallationLetter ?? false) ? "default" : "outline"} disabled={!canEditServices} onClick={async () => { if (!canEditServices || !project || project.postInstallationLetter === false) return; const currentValue = project.postInstallationLetter ?? false; setProject({ ...project, postInstallationLetter: false }); try { await projectsApi.update(project.id, { postInstallationLetter: false }); } catch (error) { console.error('Error saving post installation letter:', error); setProject({ ...project, postInstallationLetter: currentValue }); alert('Failed to save post installation letter. Please try again.'); } }} className={`px-6 py-2 ${!project.postInstallationLetter ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-background hover:bg-accent hover:text-accent-foreground'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>NO</Button>
@@ -1925,9 +1989,9 @@ export default function ProjectDetailsPage() {
               )}
 
               {/* Final Output Section */}
-              <div className="pt-6 border-t">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">Final Output</h3>
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-foreground">Final Output</h3>
                   {canEdit && (
                     <Button type="button" variant="outline" size="sm" onClick={() => { setFinalOutputFiles([]); setIsEditingFinalOutput(true); }}>Edit</Button>
                   )}
@@ -1959,9 +2023,9 @@ export default function ProjectDetailsPage() {
               </div>
 
               {/* Stamped Output Section */}
-              <div className="pt-6 border-t">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">Stamped Files</h3>
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-foreground">Stamped Files</h3>
                   {canEdit && (
                     <Button type="button" variant="outline" size="sm" onClick={() => { setStampedFiles([]); setIsEditingStampedFiles(true); }}>Edit</Button>
                   )}
@@ -1993,27 +2057,60 @@ export default function ProjectDetailsPage() {
               </div>
             </CardContent>
           </Card>
-
-          
-        </div>
-
-        
-        <div className="lg:col-span-1">
-          <div className="h-[calc(100vh-12rem)] sticky top-6">
-            <ProjectChat 
-              projectId={projectId}
-              currentUser={user}
-              messages={chatMessages}
-              isAssignedMember={
-                // Check if current user is in the project's assigned members (designerIds)
-                // Also check if user is in the designers array (loaded separately)
-                (project?.designerIds?.some(id => String(id) === String(user.id)) ?? false) ||
-                designers.some(d => d.id === user.id)
-              }
-            />
-          </div>
         </div>
       </div>
+
+      {/* Floating Message Button */}
+      <button
+        onClick={() => {
+          setShowChatModal(true);
+          // Clear counts when chat is opened (will be updated when user views chats)
+        }}
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group"
+        title="Open Project Chat"
+      >
+        <MessageSquare size={24} className="group-hover:scale-110 transition-transform" />
+        {(() => {
+          // Calculate total count based on accessible chats only
+          let totalCount = 0;
+          if (canSeeClientChat) totalCount += chatCounts.client;
+          if (canSeeTeamChat) totalCount += chatCounts.team;
+          if (canSeeProfessionalEngineerChat) totalCount += chatCounts.professional_engineer;
+          
+          return totalCount > 0 ? (
+            <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+              {totalCount > 99 ? '99+' : totalCount}
+            </span>
+          ) : null;
+        })()}
+      </button>
+
+      {/* Chat Sheet - Slides in from right */}
+      <Sheet open={showChatModal} onOpenChange={setShowChatModal}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-4xl p-0 flex flex-col">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b">
+            <SheetTitle>Project Chat</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-hidden px-6 pb-6">
+            <div className="h-[calc(100vh-8rem)]">
+              <ProjectChat 
+                projectId={projectId}
+                currentUser={user}
+                messages={chatMessages}
+                isAssignedMember={
+                  // Check if current user is in the project's assigned members (designerIds)
+                  // Also check if user is in the designers array (loaded separately)
+                  (project?.designerIds?.some(id => String(id) === String(user.id)) ?? false) ||
+                  designers.some(d => d.id === user.id)
+                }
+                isModal={true}
+                onCountsChange={setChatCounts}
+                unreadCounts={chatCounts}
+              />
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Edit Project Modal */}
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
