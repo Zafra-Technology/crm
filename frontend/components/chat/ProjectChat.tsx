@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon, ArrowLeft, Users, Building2, MessageSquare, ChevronRight } from 'lucide-react';
+import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon, ArrowLeft, Users, Building2, MessageSquare, ChevronRight, Wrench } from 'lucide-react';
 import { MoreVertical } from 'lucide-react';
 import { Forward } from 'lucide-react';
 import { CheckSquare } from 'lucide-react';
@@ -30,7 +30,7 @@ interface ProjectChatProps {
   isAssignedMember?: boolean; // Optional prop to indicate if user is an assigned member
 }
 
-type ChatType = 'client' | 'team' | null;
+type ChatType = 'client' | 'team' | 'professional_engineer' | null;
 
 export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false }: ProjectChatProps) {
   const [selectedChatType, setSelectedChatType] = useState<ChatType>(null);
@@ -62,25 +62,40 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
   const [editingFileData, setEditingFileData] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id?: string; timestamp?: string }>({ open: false });
   const [mentionOptions, setMentionOptions] = useState<Array<{ id: string; name: string; role?: string; avatar?: string }>>([]);
+  const [project, setProject] = useState<any>(null);
+  
+  // Check if current user is a professional engineer assigned to this project
+  const isProfessionalEngineer = currentUser?.role === 'professional_engineer';
+  const isProfessionalEngineerAssigned = isProfessionalEngineer && isAssignedMember;
   
   // Determine which chats to show based on user role
-  const canSeeClientChat = [
+  // For professional engineers assigned to project: only show professional engineer chat
+  // For others: show based on role
+  const canSeeClientChat = !isProfessionalEngineerAssigned && [
     'admin',
     'project_manager',
     'assistant_project_manager',
-    'professional_engineer',
     'client',
     'client_team_member'
   ].includes(currentUser?.role || '');
 
-  // Team chat visible to: admin, project_manager, assistant_project_manager, team_head, team_lead, and assigned members
-  const canSeeTeamChat = [
+  // Team chat visible to: admin, project_manager, assistant_project_manager, team_head, team_lead, and assigned members (but not professional engineers)
+  const canSeeTeamChat = !isProfessionalEngineerAssigned && (
+    [
+      'admin',
+      'project_manager',
+      'assistant_project_manager',
+      'team_head',
+      'team_lead'
+    ].includes(currentUser?.role || '') || isAssignedMember
+  );
+  
+  // Professional engineer chat visible to: admin, project_manager, assistant_project_manager, and professional engineers assigned to project
+  const canSeeProfessionalEngineerChat = [
     'admin',
     'project_manager',
-    'assistant_project_manager',
-    'team_head',
-    'team_lead'
-  ].includes(currentUser?.role || '') || isAssignedMember;
+    'assistant_project_manager'
+  ].includes(currentUser?.role || '') || isProfessionalEngineerAssigned;
   
   // Debug logging for team chat visibility
   useEffect(() => {
@@ -250,6 +265,19 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     }
   }, [chatMessages]);
 
+  // Load project data on mount
+  useEffect(() => {
+    const loadProject = async () => {
+      try {
+        const projectData = await projectsApi.getById(projectId);
+        setProject(projectData);
+      } catch (error) {
+        console.error('Error loading project:', error);
+      }
+    };
+    loadProject();
+  }, [projectId]);
+
   // Load chat preference from backend on mount (DO NOT auto-open - user must click explicitly)
   // Preference is only used for remembering last choice, not for auto-opening
   useEffect(() => {
@@ -267,7 +295,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         
         if (response.ok) {
           const data = await response.json();
-          if (data.chat_type === 'client' || data.chat_type === 'team') {
+          if (data.chat_type === 'client' || data.chat_type === 'team' || data.chat_type === 'professional_engineer') {
             console.log('📦 Loaded chat preference from backend (preference exists but will not auto-open):', data.chat_type);
             // DO NOT set selectedChatType here - user must explicitly click
             // Preference is stored but conversation won't open automatically
@@ -287,8 +315,13 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     const loadMembers = async () => {
       try {
         if (!selectedChatType) { setMentionOptions([]); return; }
-        const project = await projectsApi.getById(projectId);
-        if (!project) { setMentionOptions([]); return; }
+        // Use project from state, or load if not available
+        let projectData = project;
+        if (!projectData) {
+          projectData = await projectsApi.getById(projectId);
+          if (projectData) setProject(projectData);
+        }
+        if (!projectData) { setMentionOptions([]); return; }
 
         const allUsers = await authAPI.getUsers();
         const idToUser = new Map(allUsers.map((u: any) => [String(u.id), u]));
@@ -303,28 +336,51 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         };
 
         if (selectedChatType === 'client') {
-          // Client + client team members + admin/PM/APM/PE
-          const clientId = String(project.clientId || '');
+          // Client + client team members + admin/PM/APM
+          const clientId = String(projectData.clientId || '');
           if (clientId && idToUser.get(clientId)) pushUnique(idToUser.get(clientId));
           try {
-            const team = await authAPI.getTeamMembersByClient(project.clientId || '');
+            const team = await authAPI.getTeamMembersByClient(projectData.clientId || '');
             team.filter((u:any)=>u.is_active).forEach((u: any) => pushUnique({ ...u, role: 'client_team_member', role_display: 'Client Team' }));
           } catch (_) {}
-          const extraRoles = new Set(['admin','project_manager','assistant_project_manager','professional_engineer']);
+          const extraRoles = new Set(['admin','project_manager','assistant_project_manager']);
           (allUsers || []).filter((u:any)=>u.is_active && extraRoles.has(u.role)).forEach(pushUnique);
         } else if (selectedChatType === 'team') {
-          // Manager + assigned designers + admin/APM/PE/team_head/team_lead
-          const managerId = String(project.managerId || '');
+          // Manager + assigned designers + admin/APM/team_head/team_lead (excluding professional engineers)
+          const managerId = String(projectData.managerId || '');
           if (managerId && idToUser.get(managerId)) pushUnique(idToUser.get(managerId));
           // Add assigned designers (fallback to project.designers array if designerIds is missing)
-          const assignedIds: string[] = Array.isArray((project as any).designerIds) && (project as any).designerIds.length
-            ? (project as any).designerIds.map((d: any) => String(d))
-            : (Array.isArray((project as any).designers)
-              ? (project as any).designers.map((d: any) => (typeof d === 'object' && d !== null ? String(d.id) : String(d)))
+          const assignedIds: string[] = Array.isArray((projectData as any).designerIds) && (projectData as any).designerIds.length
+            ? (projectData as any).designerIds.map((d: any) => String(d))
+            : (Array.isArray((projectData as any).designers)
+              ? (projectData as any).designers.map((d: any) => (typeof d === 'object' && d !== null ? String(d.id) : String(d)))
               : []);
-          assignedIds.forEach((id) => pushUnique(idToUser.get(String(id))));
-          const extraRoles = new Set(['admin','assistant_project_manager','professional_engineer','team_head','team_lead','project_manager']);
+          // Filter out professional engineers from assigned designers
+          assignedIds.forEach((id) => {
+            const user = idToUser.get(String(id));
+            if (user && user.role !== 'professional_engineer') {
+              pushUnique(user);
+            }
+          });
+          const extraRoles = new Set(['admin','assistant_project_manager','team_head','team_lead','project_manager']);
           (allUsers || []).filter((u:any)=>u.is_active && extraRoles.has(u.role)).forEach(pushUnique);
+        } else if (selectedChatType === 'professional_engineer') {
+          // Admin, PM, APM + professional engineers assigned to project
+          const extraRoles = new Set(['admin','project_manager','assistant_project_manager']);
+          (allUsers || []).filter((u:any)=>u.is_active && extraRoles.has(u.role)).forEach(pushUnique);
+          
+          // Add professional engineers assigned to this project
+          const assignedIds: string[] = Array.isArray((projectData as any).designerIds) && (projectData as any).designerIds.length
+            ? (projectData as any).designerIds.map((d: any) => String(d))
+            : (Array.isArray((projectData as any).designers)
+              ? (projectData as any).designers.map((d: any) => (typeof d === 'object' && d !== null ? String(d.id) : String(d)))
+              : []);
+          assignedIds.forEach((id) => {
+            const user = idToUser.get(String(id));
+            if (user && user.role === 'professional_engineer') {
+              pushUnique(user);
+            }
+          });
         }
 
         // De-duplicate by id
@@ -336,14 +392,14 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
       }
     };
     loadMembers();
-  }, [selectedChatType, projectId]);
+  }, [selectedChatType, projectId, project]);
 
   // Restore last explicit selection from sessionStorage (sticky selection to prevent auto-switch)
   useEffect(() => {
     try {
       const key = `projectChat:lastSelection:${projectId}`;
       const saved = sessionStorage.getItem(key) as ChatType | null;
-      if ((saved === 'client' || saved === 'team') && !userHasSelected && !selectedChatType) {
+      if ((saved === 'client' || saved === 'team' || saved === 'professional_engineer') && !userHasSelected && !selectedChatType) {
         setSelectedChatType(saved);
         setUserHasSelected(true);
         lastExplicitSelectionRef.current = saved;
@@ -355,7 +411,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
   useEffect(() => {
     try {
       const key = `projectChat:lastSelection:${projectId}`;
-      if (userHasSelected && (selectedChatType === 'client' || selectedChatType === 'team')) {
+      if (userHasSelected && (selectedChatType === 'client' || selectedChatType === 'team' || selectedChatType === 'professional_engineer')) {
         sessionStorage.setItem(key, selectedChatType);
         lastExplicitSelectionRef.current = selectedChatType;
       }
@@ -366,7 +422,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
   useEffect(() => {
     if (!userHasSelected) return;
     const explicit = lastExplicitSelectionRef.current;
-    if ((explicit === 'client' || explicit === 'team') && selectedChatType && selectedChatType !== explicit) {
+    if ((explicit === 'client' || explicit === 'team' || explicit === 'professional_engineer') && selectedChatType && selectedChatType !== explicit) {
       setSelectedChatType(explicit);
     }
   }, [selectedChatType, userHasSelected]);
@@ -1039,7 +1095,39 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             </button>
           )}
           
-          {!canSeeClientChat && !canSeeTeamChat && (
+          {canSeeProfessionalEngineerChat && (
+            <button
+              onClick={() => {
+                console.log('👆 User clicked Professional Engineer Chat - explicitly opening');
+                setUserHasSelected(true);
+                setSelectedChatType('professional_engineer');
+                lastExplicitSelectionRef.current = 'professional_engineer';
+                try { sessionStorage.setItem(`projectChat:lastSelection:${projectId}`, 'professional_engineer'); } catch(_) {}
+              }}
+              className="w-full group relative text-left rounded-xl border border-border bg-card text-card-foreground shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-200 overflow-hidden"
+            >
+              <div className="p-5 flex items-start gap-4">
+                <div className="flex-shrink-0 w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors duration-200">
+                  <Wrench className="w-7 h-7 text-primary group-hover:text-primary-foreground transition-colors duration-200" />
+                </div>
+                <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                        Professional Engineer Chat
+                      </h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-snug">
+                      Collaborate with professional engineers and project managers
+                    </p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-all duration-200 group-hover:translate-x-0.5 flex-shrink-0" />
+                </div>
+              </div>
+            </button>
+          )}
+          
+          {!canSeeClientChat && !canSeeTeamChat && !canSeeProfessionalEngineerChat && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center p-6">
                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1090,7 +1178,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             Project Chat
           </h3>
           <span className="text-sm text-gray-500 ml-2">
-            {selectedChatType === 'client' ? 'Client Chat' : 'Team Chat'}
+            {selectedChatType === 'client' ? 'Client Chat' : selectedChatType === 'team' ? 'Team Chat' : 'Professional Engineer Chat'}
           </span>
         </div>
       ) : (
@@ -1158,7 +1246,9 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
               <p className="text-sm text-gray-600 mb-4 leading-relaxed">
                 {selectedChatType === 'client' 
                   ? 'Send a message to begin collaborating with clients. Share updates, ask questions, or upload files to keep everyone in sync.'
-                  : 'Send a message to begin collaborating with your team. Share updates, ask questions, or upload files to keep everyone in sync.'
+                  : selectedChatType === 'team'
+                  ? 'Send a message to begin collaborating with your team. Share updates, ask questions, or upload files to keep everyone in sync.'
+                  : 'Send a message to begin collaborating with professional engineers and project managers. Share updates, ask questions, or upload files to keep everyone in sync.'
                 }
               </p>
               <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">

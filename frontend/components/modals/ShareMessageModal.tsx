@@ -23,7 +23,7 @@ interface ShareMessageModalProps {
   currentUserId?: number;
   showProjectChats?: boolean; // Only show for ProjectChat
   projectId?: string; // Required if showProjectChats is true
-  currentChatType?: string; // 'client' or 'team' - exclude this from options
+  currentChatType?: string; // 'client', 'team', or 'professional_engineer' - exclude this from options
   userRole?: string; // Current user's role for permission checking
   isAssignedMember?: boolean; // Whether user is an assigned team member
 }
@@ -34,7 +34,7 @@ export default function ShareMessageModal({ isOpen, onClose, onConfirm, loading 
   const [search, setSearch] = useState('');
   const [selectedGroups, setSelectedGroups] = useState<Set<number>>(new Set());
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
-  const [selectedProjectChats, setSelectedProjectChats] = useState<Set<string>>(new Set()); // 'client' or 'team'
+  const [selectedProjectChats, setSelectedProjectChats] = useState<Set<string>>(new Set()); // 'client', 'team', or 'professional_engineer'
 
   useEffect(() => {
     if (!isOpen) return;
@@ -83,19 +83,29 @@ export default function ShareMessageModal({ isOpen, onClose, onConfirm, loading 
     }));
     const projectChatItems: Array<{ kind: 'project_chat'; id: string; title: string; subtitle: string }> = [];
     if (showProjectChats && projectId) {
+      // Check if current user is a professional engineer assigned to project
+      const isProfessionalEngineer = userRole === 'professional_engineer';
+      const isProfessionalEngineerAssigned = isProfessionalEngineer && isAssignedMember;
+      
       // Determine visibility based on user role (same rules as main chat UI)
-      const canSeeClientChat = userRole && [
+      // For professional engineers assigned to project: only show professional engineer chat
+      const canSeeClientChat = !isProfessionalEngineerAssigned && userRole && [
         'admin',
         'project_manager',
         'assistant_project_manager',
-        'professional_engineer',
         'client',
         'client_team_member'
       ].includes(userRole);
       
-      const canSeeTeamChat = userRole && (
+      const canSeeTeamChat = !isProfessionalEngineerAssigned && userRole && (
         ['admin', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead'].includes(userRole) || 
         isAssignedMember
+      );
+      
+      // Professional engineer chat visible to: admin, PM, APM, and professional engineers assigned to project
+      const canSeeProfessionalEngineerChat = userRole && (
+        ['admin', 'project_manager', 'assistant_project_manager'].includes(userRole) || 
+        isProfessionalEngineerAssigned
       );
       
       // Only show chat types that:
@@ -115,6 +125,14 @@ export default function ShareMessageModal({ isOpen, onClose, onConfirm, loading 
           id: 'team',
           title: 'Team Chat',
           subtitle: `Share to project team chat${projectId ? ` (Project ${projectId})` : ''}`,
+        });
+      }
+      if (currentChatType !== 'professional_engineer' && canSeeProfessionalEngineerChat) {
+        projectChatItems.push({
+          kind: 'project_chat' as const,
+          id: 'professional_engineer',
+          title: 'Professional Engineer Chat',
+          subtitle: `Share to professional engineer chat${projectId ? ` (Project ${projectId})` : ''}`,
         });
       }
     }
