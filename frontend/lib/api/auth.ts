@@ -51,6 +51,7 @@ export interface User {
   profile_pic?: string;
   is_active: boolean;
   credentials_sent: boolean;
+  agreement_sent: boolean;
   created_at: string;
   updated_at: string;
   client_id?: string | number;
@@ -563,6 +564,26 @@ class AuthAPI {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(errorText || 'Failed to send client credentials');
+    }
+
+    return response.json();
+  }
+
+  async sendClientAgreement(formData: FormData): Promise<{ message: string; success?: boolean }> {
+    const token = getCookie('auth_token');
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE_URL}/auth/send-client-agreement`, {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to send agreement');
     }
 
     return response.json();

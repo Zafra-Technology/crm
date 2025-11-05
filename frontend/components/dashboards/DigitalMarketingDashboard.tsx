@@ -44,6 +44,7 @@ interface OnboardedClient {
   company: string;
   status: 'pending' | 'credentials_sent' | 'active';
   createdAt: string;
+  agreementSent?: boolean;
 }
 
 export default function DigitalMarketingDashboard({ user }: DigitalMarketingDashboardProps) {
@@ -58,6 +59,15 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
   const [sendingCredentials, setSendingCredentials] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [agreementClient, setAgreementClient] = useState<OnboardedClient | null>(null);
+  const [agreementForm, setAgreementForm] = useState<{ to: string; subject: string; message: string; file: File | null }>({
+    to: '',
+    subject: '',
+    message: '',
+    file: null,
+  });
+  const [sendingAgreement, setSendingAgreement] = useState(false);
 
   useEffect(() => {
     loadOnboardedClients();
@@ -78,6 +88,7 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
           company: user.company_name || '',
           status: (user.credentials_sent ? 'credentials_sent' : 'pending') as 'pending' | 'credentials_sent' | 'active',
           createdAt: user.created_at,
+          agreementSent: (user as any).agreement_sent,
         }));
       
       setOnboardedClients(clients);
@@ -148,6 +159,39 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
       setErrorMessage('Failed to send credentials. Please try again.');
     } finally {
       setSendingCredentials(null);
+    }
+  };
+
+  const openAgreementModal = (client: OnboardedClient) => {
+    setAgreementClient(client);
+    setAgreementForm({ to: client.email, subject: '', message: '', file: null });
+    setShowAgreementModal(true);
+  };
+
+  const handleSendAgreement = async () => {
+    if (!agreementClient) return;
+    try {
+      setSendingAgreement(true);
+      const formData = new FormData();
+      formData.append('to', agreementForm.to);
+      formData.append('subject', agreementForm.subject);
+      formData.append('message', agreementForm.message);
+      formData.append('client_id', agreementClient.id);
+      formData.append('client_name', agreementClient.name);
+      formData.append('company_name', agreementClient.company);
+      if (agreementForm.file) {
+        formData.append('attachment', agreementForm.file);
+      }
+      await authAPI.sendClientAgreement(formData);
+      await loadOnboardedClients();
+      setShowAgreementModal(false);
+      setSuccessMessage(`Agreement sent to ${agreementClient.name}`);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (e) {
+      console.error(e);
+      setErrorMessage('Failed to send agreement. Please try again.');
+    } finally {
+      setSendingAgreement(false);
     }
   };
 
@@ -283,15 +327,39 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
                     Onboarded: {formatDate(client.createdAt)}
                   </div>
                   {client.status === 'pending' && (
-                    <Button
-                      onClick={() => handleSendCredentials(client)}
-                      disabled={sendingCredentials === client.id}
-                      className="w-full flex items-center gap-2"
-                      size="sm"
-                    >
-                      <SendIcon size={14} />
-                      {sendingCredentials === client.id ? 'Sending...' : 'Send Credentials'}
-                    </Button>
+                    client.agreementSent ? (
+                      <Button
+                        onClick={() => handleSendCredentials(client)}
+                        disabled={sendingCredentials === client.id}
+                        className="w-full flex items-center gap-2"
+                        size="sm"
+                      >
+                        <SendIcon size={14} />
+                        {sendingCredentials === client.id ? 'Sending...' : 'Send Credentials'}
+                      </Button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          onClick={() => handleSendCredentials(client)}
+                          disabled={sendingCredentials === client.id}
+                          className="w-full flex items-center gap-2"
+                          size="sm"
+                        >
+                          <SendIcon size={14} />
+                          {sendingCredentials === client.id ? 'Sending...' : 'Send Credentials'}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => openAgreementModal(client)}
+                          size="sm"
+                        >
+                          Send Agreement
+                        </Button>
+                      </div>
+                    )
+                  )}
+                  {client.agreementSent && (
+                    <div className="text-center text-sm text-green-600 font-medium">✓ Agreement Sent</div>
                   )}
                   {client.status === 'credentials_sent' && (
                     <div className="text-center text-sm text-green-600 font-medium">
@@ -373,6 +441,80 @@ export default function DigitalMarketingDashboard({ user }: DigitalMarketingDash
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Agreement Modal */}
+      <Dialog open={showAgreementModal} onOpenChange={setShowAgreementModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Send Mail</DialogTitle>
+            <DialogDescription>Send an email to this client</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="agree-to">To</Label>
+              <Input
+                id="agree-to"
+                type="email"
+                value={agreementForm.to}
+                onChange={(e) => setAgreementForm({ ...agreementForm, to: e.target.value })}
+                placeholder="client@example.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="agree-subject">Subject</Label>
+              <Input
+                id="agree-subject"
+                value={agreementForm.subject}
+                onChange={(e) => setAgreementForm({ ...agreementForm, subject: e.target.value })}
+                placeholder="Subject"
+              />
+            </div>
+            <div>
+              <Label htmlFor="agree-message">Message</Label>
+              <div className="rounded-md border bg-background">
+                <textarea
+                  id="agree-message"
+                  className="w-full p-3 min-h-[160px] bg-transparent text-foreground outline-none"
+                  value={agreementForm.message}
+                  onChange={(e) => setAgreementForm({ ...agreementForm, message: e.target.value })}
+                  placeholder="Type your message..."
+                />
+                <div className="px-3 pb-3">
+                  <label htmlFor="agree-file" className="block">
+                    <div className="w-full rounded-md border border-dashed px-4 py-3 text-sm text-muted-foreground hover:bg-muted/40 cursor-pointer">
+                      {agreementForm.file ? (
+                        <div className="flex items-center justify-between">
+                          <span className="truncate max-w-[70%]">{agreementForm.file.name}</span>
+                          <button
+                            type="button"
+                            className="text-red-600 text-xs"
+                            onClick={(e) => { e.preventDefault(); setAgreementForm({ ...agreementForm, file: null }); }}
+                          >Remove</button>
+                        </div>
+                      ) : (
+                        <span>Click to add a document link (uploads and inserts a link)</span>
+                      )}
+                    </div>
+                  </label>
+                  <input
+                    id="agree-file"
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => setAgreementForm({ ...agreementForm, file: e.target.files?.[0] || null })}
+                  />
+                  <p className="mt-2 text-xs text-muted-foreground">The document will be uploaded and a "View Document" button will be included in the email.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowAgreementModal(false)} disabled={sendingAgreement}>Cancel</Button>
+            <Button onClick={handleSendAgreement} disabled={sendingAgreement || !agreementForm.to || !agreementForm.subject || !agreementForm.message}>
+              {sendingAgreement ? 'Sending...' : 'Send'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
