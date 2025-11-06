@@ -158,6 +158,22 @@ export const ahjApi = {
       return false;
     }
   },
+
+  // Delete AHJ
+  async delete(id: number): Promise<void> {
+    const token = await getAuthToken();
+    const res = await fetch(`${API_BASE}/projects/ahj/${id}/`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.detail || 'Failed to delete AHJ');
+    }
+  },
 };
 
  

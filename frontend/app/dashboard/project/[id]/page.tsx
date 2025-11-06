@@ -11,9 +11,11 @@ import { equipmentsApi, Equipment } from '@/lib/api/equipments';
 import { ahjApi, ProjectAhj } from '@/lib/api/ahj';
 import { projectChatApi } from '@/lib/api/project-chat';
 import { clientRequirementsApi, ClientRequirement } from '@/lib/api/client-requirements';
+import { utilitiesApi, Utility } from '@/lib/api/utilities';
 import AddModelsModal from '@/components/modals/AddModelsModal';
 import AddAhjModal from '@/components/modals/AddAhjModal';
 import AddClientRequirementModal from '@/components/modals/AddClientRequirementModal';
+import AddUtilitiesModal from '@/components/modals/AddUtilitiesModal';
 import { getCookie } from '@/lib/cookies';
 import { mockChatMessages } from '@/lib/data/mockData';
 import { User, Project, ProjectUpdate, ChatMessage, ProjectAttachment } from '@/types';
@@ -100,6 +102,8 @@ export default function ProjectDetailsPage() {
   const [addModalCategory, setAddModalCategory] = useState<string>('');
   const [projectAhjs, setProjectAhjs] = useState<ProjectAhj[]>([]);
   const [showAddAhjModal, setShowAddAhjModal] = useState(false);
+  const [projectUtilities, setProjectUtilities] = useState<Utility[]>([]);
+  const [showAddUtilitiesModal, setShowAddUtilitiesModal] = useState(false);
   const [projectClientRequirement, setProjectClientRequirement] = useState<ClientRequirement | null>(null);
   const [showAddClientRequirementModal, setShowAddClientRequirementModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -169,6 +173,17 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const loadProjectUtilities = async () => {
+    if (!projectId) return;
+    
+    try {
+      const utilities = await utilitiesApi.getProjectUtilities(parseInt(projectId));
+      setProjectUtilities(utilities);
+    } catch (error) {
+      console.error('Error loading project utilities:', error);
+    }
+  };
+
   const loadProjectClientRequirement = async (projectData?: Project | null) => {
     const dataToCheck = projectData || project;
     if (!dataToCheck) {
@@ -227,6 +242,7 @@ export default function ProjectDetailsPage() {
       const initialize = async () => {
         await loadProjectEquipments();
         loadProjectAhjs();
+        loadProjectUtilities();
         loadProjectClientRequirement();
         setInitializedProjectId(projectId);
       };
@@ -1920,6 +1936,70 @@ export default function ProjectDetailsPage() {
               </div>
               )}
 
+              {/* Utilities Section */}
+              {!isClientOrClientTeam && (
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-foreground">Utilities</h3>
+                  {canEditServices && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddUtilitiesModal(true)}>
+                      <PlusIcon size={16} className="mr-1" />
+                      Add Utilities
+                    </Button>
+                  )}
+                </div>
+                {projectUtilities.length > 0 ? (
+                  <div className="space-y-2">
+                    {projectUtilities.map((utility) => (
+                      <div key={utility.id} className="flex items-center justify-between p-2 bg-accent/50 rounded-md">
+                        <div className="flex items-center gap-2 flex-1">
+                          <ZapIcon size={16} className="text-primary" />
+                          <span className="text-sm text-foreground">
+                            {utility.utility_name || 'Unnamed Utility'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/dashboard/utilities/${utility.id}`}>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-primary hover:text-primary" 
+                              title="View utility details"
+                            >
+                              <EyeIcon size={14} />
+                            </Button>
+                          </Link>
+                          {canEditServices && (
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-destructive hover:text-destructive" 
+                              onClick={async () => { 
+                                try { 
+                                  await utilitiesApi.removeFromProject(parseInt(projectId), utility.id);
+                                  await loadProjectUtilities();
+                                } catch (error) { 
+                                  console.error('Error removing utility:', error); 
+                                  alert('Failed to remove utility'); 
+                                } 
+                              }}
+                              title="Remove utility"
+                            >
+                              <TrashIcon size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No utilities added</p>
+                )}
+              </div>
+              )}
+
               {/* Client Requirements Section */}
               {!isClientOrClientTeam && (
               <div className="pt-4 border-t">
@@ -2726,6 +2806,18 @@ export default function ProjectDetailsPage() {
           isOpen={showAddAhjModal}
           onClose={() => setShowAddAhjModal(false)}
           onAhjsAdded={loadProjectAhjs}
+          projectId={parseInt(projectId)}
+        />
+      )}
+
+      {/* Add Utilities Modal */}
+      {projectId && (
+        <AddUtilitiesModal
+          isOpen={showAddUtilitiesModal}
+          onClose={() => setShowAddUtilitiesModal(false)}
+          onUtilitiesAdded={async () => {
+            await loadProjectUtilities();
+          }}
           projectId={parseInt(projectId)}
         />
       )}

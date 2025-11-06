@@ -19,7 +19,8 @@ import {
   ClockIcon,
   HomeIcon,
   WrenchIcon,
-  FileTextIcon
+  FileTextIcon,
+  ZapIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +49,13 @@ export default function Sidebar({ userRole }: SidebarProps) {
       roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'hr_manager', 'accountant', 'sales_manager', 'digital_marketing', 'admin', 'operation_manager']
     },
     {
+      icon: FolderIcon, 
+      label: 'Projects', 
+      href: '/dashboard',
+      active: pathname === '/dashboard',
+      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
+    },
+    {
       icon: ShieldIcon,
       label: 'AHJ',
       href: '/dashboard/ahj',
@@ -55,11 +63,25 @@ export default function Sidebar({ userRole }: SidebarProps) {
       roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
     },
     {
-      icon: FolderIcon, 
-      label: 'Projects', 
-      href: '/dashboard',
-      active: pathname === '/dashboard',
-      roles: ['client', 'client_team_member', 'project_manager', 'assistant_project_manager', 'team_head', 'team_lead', 'designer', 'senior_designer', 'professional_engineer', 'auto_cad_drafter', 'admin']
+      icon: ZapIcon,
+      label: 'Utility',
+      href: '/dashboard/utilities',
+      active: pathname === '/dashboard/utilities',
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+    },
+    { 
+      icon: FileTextIcon, 
+      label: 'Client Requirements', 
+      href: '/dashboard/client-requirements',
+      active: pathname === '/dashboard/client-requirements',
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+    },
+    { 
+      icon: WrenchIcon, 
+      label: 'Equipments', 
+      href: '/dashboard/equipments',
+      active: pathname === '/dashboard/equipments',
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
     },
     { 
       icon: ClockIcon, 
@@ -68,6 +90,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       active: pathname === '/dashboard/pending-requests',
       roles: ['project_manager', 'assistant_project_manager', 'operation_manager', 'admin']
     },
+
     { 
       icon: CheckSquareIcon, 
       label: 'Tasks', 
@@ -82,13 +105,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       active: pathname === '/dashboard/clients',
       roles: ['project_manager', 'assistant_project_manager', 'operation_manager', 'admin']
     },
-    { 
-      icon: FileTextIcon, 
-      label: 'Client Requirements', 
-      href: '/dashboard/client-requirements',
-      active: pathname === '/dashboard/client-requirements',
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
-    },
+    
     { 
       icon: UserPlusIcon, 
       label: 'Client Onboarding', 
@@ -103,13 +120,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
       active: pathname === '/dashboard/designers',
       roles: ['project_manager', 'assistant_project_manager', 'operation_manager', 'admin']
     },
-    { 
-      icon: WrenchIcon, 
-      label: 'Equipment', 
-      href: '/dashboard/equipments',
-      active: pathname === '/dashboard/equipments',
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
-    },
+    
     { 
       icon: MessageSquareIcon, 
       label: 'Messages', 
