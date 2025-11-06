@@ -109,3 +109,18 @@ export interface ChatMessage {
   fileType?: string;
   messageType?: 'text' | 'file' | 'image';
 }
+
+export interface ClientRequirement {
+  id: number;
+  client_name: string | null;
+  other?: string | null;
+  layout?: string | null;
+  structural?: string | null;
+  electrical?: string | null;
+  files?: any[];
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  updated_by: string;
+  file_count?: number;
+}

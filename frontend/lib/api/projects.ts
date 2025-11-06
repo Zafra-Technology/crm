@@ -107,6 +107,21 @@ export const projectsApi = {
     
     (project as any).designerCount = designerCount;
     
+    // Preserve client_requirements_id from backend
+    console.log('_mapApiProject: Checking client_requirements_id:', {
+      raw_value: (p as any).client_requirements_id,
+      is_undefined: (p as any).client_requirements_id === undefined,
+      is_null: (p as any).client_requirements_id === null,
+      type: typeof (p as any).client_requirements_id
+    });
+    if ((p as any).client_requirements_id !== undefined) {
+      (project as any).client_requirements_id = (p as any).client_requirements_id;
+      (project as any).clientRequirementsId = (p as any).client_requirements_id;
+      console.log('_mapApiProject: Preserved client_requirements_id:', (p as any).client_requirements_id);
+    } else {
+      console.log('_mapApiProject: client_requirements_id is undefined, not preserving');
+    }
+    
     return project;
   },
   // Get all projects
@@ -216,7 +231,18 @@ export const projectsApi = {
       const response = await fetch(`${API_BASE}${id}`, { headers: getAuthHeaders(), credentials: 'include' });
       if (!response.ok) return null;
       const data = await response.json();
+      console.log('getById: Raw API response data:', {
+        id: data.id,
+        client_requirements_id: data.client_requirements_id,
+        has_client_requirements: !!data.client_requirements,
+        all_keys: Object.keys(data)
+      });
       const mapped = projectsApi._mapApiProject(data);
+      console.log('getById: Mapped project:', {
+        id: mapped.id,
+        client_requirements_id: (mapped as any).client_requirements_id,
+        clientRequirementsId: (mapped as any).clientRequirementsId
+      });
       return mapped;
     } catch (error) {
       console.error('Error fetching project:', error);

@@ -18,7 +18,8 @@ import {
   UserPlusIcon,
   ClockIcon,
   HomeIcon,
-  WrenchIcon
+  WrenchIcon,
+  FileTextIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -80,6 +81,13 @@ export default function Sidebar({ userRole }: SidebarProps) {
       href: '/dashboard/clients',
       active: pathname === '/dashboard/clients',
       roles: ['project_manager', 'assistant_project_manager', 'operation_manager', 'admin']
+    },
+    { 
+      icon: FileTextIcon, 
+      label: 'Client Requirements', 
+      href: '/dashboard/client-requirements',
+      active: pathname === '/dashboard/client-requirements',
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
     },
     { 
       icon: UserPlusIcon, 

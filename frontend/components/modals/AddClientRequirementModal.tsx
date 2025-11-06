@@ -12,24 +12,26 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ahjApi, ProjectAhj } from '@/lib/api/ahj';
+import { clientRequirementsApi, ClientRequirement } from '@/lib/api/client-requirements';
 import { SearchIcon } from 'lucide-react';
 
-interface AddAhjModalProps {
+interface AddClientRequirementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAhjsAdded: () => void;
+  onRequirementAdded: (updatedProject?: any) => void;
   projectId: number;
+  currentRequirementId?: number | null;
 }
 
-export default function AddAhjModal({
+export default function AddClientRequirementModal({
   isOpen,
   onClose,
-  onAhjsAdded,
+  onRequirementAdded,
   projectId,
-}: AddAhjModalProps) {
-  const [allAhjs, setAllAhjs] = useState<ProjectAhj[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  currentRequirementId,
+}: AddClientRequirementModalProps) {
+  const [allRequirements, setAllRequirements] = useState<ClientRequirement[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(currentRequirementId || null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
@@ -37,49 +39,37 @@ export default function AddAhjModal({
 
   useEffect(() => {
     if (isOpen) {
-      loadAhjs();
-      setSelectedId(null);
+      loadRequirements();
+      setSelectedId(currentRequirementId || null);
     }
-  }, [isOpen]);
+  }, [isOpen, currentRequirementId]);
 
-  const loadAhjs = async () => {
+  const loadRequirements = async () => {
     try {
       setFetching(true);
-      // Get all AHJs
-      const ahjs = await ahjApi.list();
-      // Get already added AHJs for this project
-      const projectAhjs = await ahjApi.getProjectAhjs(projectId);
-      const projectAhjIds = new Set(projectAhjs.map(a => a.id));
-      
-      // Filter out already added AHJs
-      const availableAhjs = ahjs.filter(a => !projectAhjIds.has(a.id));
-      setAllAhjs(availableAhjs);
+      const requirements = await clientRequirementsApi.list();
+      setAllRequirements(requirements);
     } catch (err: any) {
-      console.error('Error loading AHJs:', err);
-      setError(err.message || 'Failed to load AHJs');
+      console.error('Error loading client requirements:', err);
+      setError(err.message || 'Failed to load client requirements');
     } finally {
       setFetching(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (selectedId === null) {
-      setError('Please select an AHJ');
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
-      // API expects an array, so pass single item as array
-      await ahjApi.addToProject(projectId, [selectedId]);
+      const updatedProject = await clientRequirementsApi.linkToProject(projectId, selectedId);
       setSelectedId(null);
       setSearchTerm('');
-      onAhjsAdded();
+      // Pass the updated project data to the callback
+      onRequirementAdded(updatedProject);
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to add AHJ');
-      console.error('Error adding AHJ:', err);
+      setError(err.message || 'Failed to add client requirement');
+      console.error('Error adding client requirement:', err);
     } finally {
       setLoading(false);
     }
@@ -87,24 +77,24 @@ export default function AddAhjModal({
 
   const handleClose = () => {
     if (!loading) {
-      setSelectedId(null);
+      setSelectedId(currentRequirementId || null);
       setSearchTerm('');
       setError(null);
       onClose();
     }
   };
 
-  const filteredAhjs = allAhjs.filter((ahj) =>
-    `${ahj.ahj || ''} ${ahj.us_state || ''}`.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRequirements = allRequirements.filter((req) =>
+    `${req.client_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Add Project AHJ</DialogTitle>
+          <DialogTitle>Add Client Requirement</DialogTitle>
           <DialogDescription>
-            Select an AHJ to add to this project.
+            Select a client requirement to link to this project.
           </DialogDescription>
         </DialogHeader>
 
@@ -117,7 +107,7 @@ export default function AddAhjModal({
             />
             <Input
               type="text"
-              placeholder="Search AHJs..."
+              placeholder="Search client requirements..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
@@ -131,27 +121,27 @@ export default function AddAhjModal({
             </div>
           )}
 
-          {/* AHJs List */}
+          {/* Requirements List */}
           <div className="flex-1 overflow-y-auto border rounded-md">
             {fetching ? (
-              <div className="p-8 text-center text-muted-foreground">Loading AHJs...</div>
-            ) : filteredAhjs.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">Loading client requirements...</div>
+            ) : filteredRequirements.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
-                {allAhjs.length === 0
-                  ? 'No AHJs available. Add AHJs from the AHJ page first.'
-                  : 'No AHJs match your search.'}
+                {allRequirements.length === 0
+                  ? 'No client requirements available. Add client requirements from the Client Requirements page first.'
+                  : 'No client requirements match your search.'}
               </div>
             ) : (
               <div className="p-2">
                 <RadioGroup
-                  value={selectedId ? String(selectedId) : ''}
-                  onValueChange={(value) => setSelectedId(value ? parseInt(value) : null)}
+                  value={selectedId ? String(selectedId) : 'none'}
+                  onValueChange={(value) => setSelectedId(value === 'none' ? null : parseInt(value))}
                 >
-                  {/* Total Count Header */}
+                  {/* Total Count Header - Similar to Select All */}
                   <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md mb-1">
                     <div className="w-4 h-4" />
                     <label className="text-sm font-medium cursor-pointer flex-1">
-                      Total Available ({filteredAhjs.length})
+                      Total Available ({filteredRequirements.length})
                     </label>
                     {selectedId && (
                       <span className="text-xs text-muted-foreground">
@@ -160,25 +150,38 @@ export default function AddAhjModal({
                     )}
                   </div>
 
-                  {/* AHJs List */}
+                  {/* None option */}
+                  <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md mb-1">
+                    <RadioGroupItem value="none" id="req-none" />
+                    <label
+                      htmlFor="req-none"
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      None (Remove requirement)
+                    </label>
+                  </div>
+
+                  {/* Requirements List */}
                   <div className="space-y-1">
-                    {filteredAhjs.map((ahj) => (
+                    {filteredRequirements.map((req) => (
                       <div
-                        key={ahj.id}
+                        key={req.id}
                         className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md cursor-pointer"
-                        onClick={() => setSelectedId(ahj.id)}
+                        onClick={() => setSelectedId(req.id)}
                       >
                         <RadioGroupItem
-                          value={String(ahj.id)}
-                          id={`ahj-${ahj.id}`}
+                          value={String(req.id)}
+                          id={`req-${req.id}`}
                         />
                         <label
-                          htmlFor={`ahj-${ahj.id}`}
+                          htmlFor={`req-${req.id}`}
                           className="text-sm cursor-pointer flex-1"
                         >
-                          {ahj.ahj || 'Unnamed AHJ'}
-                          {ahj.us_state && (
-                            <span className="text-muted-foreground ml-2">({ahj.us_state})</span>
+                          {req.client_name || 'Unnamed Client Requirement'}
+                          {req.file_count && req.file_count > 0 && (
+                            <span className="text-muted-foreground ml-2">
+                              ({req.file_count} {req.file_count === 1 ? 'file' : 'files'})
+                            </span>
                           )}
                         </label>
                       </div>
@@ -202,7 +205,7 @@ export default function AddAhjModal({
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || selectedId === null}
+            disabled={loading}
           >
             {loading ? 'Adding...' : `Add ${selectedId !== null ? '(1)' : ''}`}
           </Button>
@@ -211,4 +214,5 @@ export default function AddAhjModal({
     </Dialog>
   );
 }
+
 

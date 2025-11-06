@@ -10,8 +10,10 @@ import { projectUpdatesApi } from '@/lib/api/project-updates';
 import { utilitiesApi, Utility } from '@/lib/api/utilities';
 import { ahjApi, ProjectAhj } from '@/lib/api/ahj';
 import { projectChatApi } from '@/lib/api/project-chat';
+import { clientRequirementsApi, ClientRequirement } from '@/lib/api/client-requirements';
 import AddModelsModal from '@/components/modals/AddModelsModal';
 import AddAhjModal from '@/components/modals/AddAhjModal';
+import AddClientRequirementModal from '@/components/modals/AddClientRequirementModal';
 import { getCookie } from '@/lib/cookies';
 import { mockChatMessages } from '@/lib/data/mockData';
 import { User, Project, ProjectUpdate, ChatMessage, ProjectAttachment } from '@/types';
@@ -107,6 +109,8 @@ export default function ProjectDetailsPage() {
   const [addModalCategory, setAddModalCategory] = useState<'Inventor' | 'Module' | 'Mounting' | 'Battery'>('Module');
   const [projectAhjs, setProjectAhjs] = useState<ProjectAhj[]>([]);
   const [showAddAhjModal, setShowAddAhjModal] = useState(false);
+  const [projectClientRequirement, setProjectClientRequirement] = useState<ClientRequirement | null>(null);
+  const [showAddClientRequirementModal, setShowAddClientRequirementModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [chatCounts, setChatCounts] = useState<{ client: number; team: number; professional_engineer: number }>({
     client: 0,
@@ -147,6 +151,39 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const loadProjectClientRequirement = async (projectData?: Project | null) => {
+    const dataToCheck = projectData || project;
+    if (!dataToCheck) {
+      console.log('loadProjectClientRequirement: No project data available');
+      return;
+    }
+    
+    try {
+      // Get client requirement from project data
+      const projectDataAny = dataToCheck as any;
+      // Check both camelCase and snake_case versions
+      const requirementId = projectDataAny.clientRequirementsId || projectDataAny.client_requirements_id || (projectDataAny.client_requirements?.id);
+      console.log('loadProjectClientRequirement: Looking for requirement ID:', {
+        clientRequirementsId: projectDataAny.clientRequirementsId,
+        client_requirements_id: projectDataAny.client_requirements_id,
+        client_requirements: projectDataAny.client_requirements,
+        foundId: requirementId
+      });
+      
+      if (requirementId) {
+        const requirement = await clientRequirementsApi.get(typeof requirementId === 'number' ? requirementId : parseInt(String(requirementId)));
+        console.log('loadProjectClientRequirement: Loaded requirement:', requirement);
+        setProjectClientRequirement(requirement);
+      } else {
+        console.log('loadProjectClientRequirement: No requirement ID found, setting to null');
+        setProjectClientRequirement(null);
+      }
+    } catch (error) {
+      console.error('Error loading project client requirement:', error);
+      setProjectClientRequirement(null);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       const currentUser = await getCurrentUser();
@@ -159,6 +196,7 @@ export default function ProjectDetailsPage() {
     if (project && projectId) {
       loadProjectUtilities();
       loadProjectAhjs();
+      loadProjectClientRequirement();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, projectId]);
@@ -226,6 +264,9 @@ export default function ProjectDetailsPage() {
           ...foundProject,
           clientName: foundProject.clientName || (foundProject as any).client_name,
           clientCompany: foundProject.clientCompany || (foundProject as any).client_company,
+          // Preserve client_requirements_id
+          clientRequirementsId: (foundProject as any).client_requirements_id || (foundProject as any).clientRequirementsId,
+          client_requirements_id: (foundProject as any).client_requirements_id || (foundProject as any).clientRequirementsId,
           // fallback: preserve other fields unchanged
         };
         // Debug: Log project report and errors values from API response
@@ -233,7 +274,8 @@ export default function ProjectDetailsPage() {
           project_report: (foundProject as any).project_report,
           projectReport: (foundProject as any).projectReport,
           number_of_errors: (foundProject as any).number_of_errors,
-          numberOfErrors: (foundProject as any).numberOfErrors
+          numberOfErrors: (foundProject as any).numberOfErrors,
+          client_requirements_id: (foundProject as any).client_requirements_id
         });
         console.log('Mapped project data:', {
           projectReport: mappedProject.projectReport,
@@ -1844,6 +1886,80 @@ export default function ProjectDetailsPage() {
               </div>
               )}
 
+              {/* Client Requirements Section */}
+              {!isClientOrClientTeam && (
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-foreground">Client Requirements</h3>
+                  {canEditServices && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddClientRequirementModal(true)}>
+                      <PlusIcon size={16} className="mr-1" />
+                      Add Req
+                    </Button>
+                  )}
+                </div>
+                {projectClientRequirement ? (
+                  <div className="flex items-center justify-between p-2 bg-accent/50 rounded-md">
+                    <span className="text-sm text-foreground">
+                      {projectClientRequirement.client_name || 'Unnamed Client Requirement'}
+                      {projectClientRequirement.file_count && projectClientRequirement.file_count > 0 && (
+                        <span className="text-muted-foreground ml-2">
+                          ({projectClientRequirement.file_count} {projectClientRequirement.file_count === 1 ? 'file' : 'files'})
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/dashboard/client-requirements/${projectClientRequirement.id}`}>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 text-primary hover:text-primary" 
+                          title="View client requirement details"
+                        >
+                          <EyeIcon size={14} />
+                        </Button>
+                      </Link>
+                      {canEditServices && (
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 text-destructive hover:text-destructive" 
+                            onClick={async () => { 
+                              try { 
+                                await clientRequirementsApi.unlinkFromProject(parseInt(projectId)); 
+                                // Always reload from API to ensure we have the latest data
+                                const updatedProject = await projectsApi.getById(projectId);
+                                if (updatedProject) {
+                                  const mappedProject = {
+                                    ...updatedProject,
+                                    clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                                    clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                                    clientRequirementsId: (updatedProject as any).client_requirements_id || (updatedProject as any).clientRequirementsId,
+                                    client_requirements_id: (updatedProject as any).client_requirements_id || (updatedProject as any).clientRequirementsId,
+                                  };
+                                  setProject(mappedProject);
+                                  await loadProjectClientRequirement(mappedProject);
+                                }
+                              } catch (error) { 
+                                console.error('Error removing client requirement:', error); 
+                                alert('Failed to remove client requirement'); 
+                              } 
+                            }}
+                          title="Remove client requirement"
+                        >
+                          <TrashIcon size={14} />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No client requirement added</p>
+                )}
+              </div>
+              )}
+
               {/* Data Sheet Section */}
               {!isClientOrClientTeam && (
               <div className="pt-4 border-t space-y-4">
@@ -2631,6 +2747,54 @@ export default function ProjectDetailsPage() {
           onClose={() => setShowAddAhjModal(false)}
           onAhjsAdded={loadProjectAhjs}
           projectId={parseInt(projectId)}
+        />
+      )}
+
+      {/* Add Client Requirement Modal */}
+      {projectId && (
+        <AddClientRequirementModal
+          isOpen={showAddClientRequirementModal}
+          onClose={() => setShowAddClientRequirementModal(false)}
+          onRequirementAdded={async (updatedProjectData?: any) => {
+            console.log('onRequirementAdded: Received data:', updatedProjectData);
+            
+            // Always reload from API to ensure we have the latest data with client_requirements_id
+            console.log('onRequirementAdded: Reloading project from API to get latest data');
+            const updatedProject = await projectsApi.getById(projectId);
+            
+            if (updatedProject) {
+              console.log('onRequirementAdded: Reloaded project:', {
+                id: updatedProject.id,
+                client_requirements_id: (updatedProject as any).client_requirements_id,
+                clientRequirementsId: (updatedProject as any).clientRequirementsId
+              });
+              
+              const mappedProject = {
+                ...updatedProject,
+                clientName: updatedProject.clientName || (updatedProject as any).client_name,
+                clientCompany: updatedProject.clientCompany || (updatedProject as any).client_company,
+                // Ensure client_requirements_id is preserved
+                clientRequirementsId: (updatedProject as any).client_requirements_id || (updatedProject as any).clientRequirementsId,
+                client_requirements_id: (updatedProject as any).client_requirements_id || (updatedProject as any).clientRequirementsId,
+              };
+              
+              console.log('onRequirementAdded: Setting project state with:', {
+                id: mappedProject.id,
+                client_requirements_id: mappedProject.client_requirements_id,
+                clientRequirementsId: mappedProject.clientRequirementsId
+              });
+              
+              setProject(mappedProject);
+              
+              // Load the client requirement using the updated project data
+              console.log('onRequirementAdded: Loading client requirement...');
+              await loadProjectClientRequirement(mappedProject);
+            } else {
+              console.error('onRequirementAdded: Failed to reload project');
+            }
+          }}
+          projectId={parseInt(projectId)}
+          currentRequirementId={projectClientRequirement?.id || null}
         />
       )}
     </div>
