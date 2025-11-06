@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,25 +13,46 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { utilitiesApi, CreateUtilityData } from '@/lib/api/utilities';
+import { equipmentsApi, CreateEquipmentData } from '@/lib/api/equipments';
 
-interface AddUtilitiesModalProps {
+interface AddEquipmentsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUtilityCreated: () => void;
+  onEquipmentCreated: () => void;
 }
 
-export default function AddUtilitiesModal({
+export default function AddEquipmentsModal({
   isOpen,
   onClose,
-  onUtilityCreated,
-}: AddUtilitiesModalProps) {
-  const [formData, setFormData] = useState<CreateUtilityData>({
+  onEquipmentCreated,
+}: AddEquipmentsModalProps) {
+  const [categories, setCategories] = useState<string[]>([]);
+  const [formData, setFormData] = useState<CreateEquipmentData>({
     model_name: '',
-    category: 'Inventor',
+    category: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadCategories();
+    }
+  }, [isOpen]);
+
+  const loadCategories = async () => {
+    try {
+      const cats = await equipmentsApi.getCategories();
+      setCategories(cats);
+      if (cats.length > 0 && !formData.category) {
+        setFormData(prev => ({ ...prev, category: cats[0] }));
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      // Don't set fallback categories - let the API provide them
+      setCategories([]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,13 +65,13 @@ export default function AddUtilitiesModal({
 
     try {
       setLoading(true);
-      await utilitiesApi.create(formData);
-      setFormData({ model_name: '', category: 'Inventor' });
-      onUtilityCreated();
+      await equipmentsApi.create(formData);
+      setFormData({ model_name: '', category: categories[0] || '' });
+      onEquipmentCreated();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to create utility');
-      console.error('Error creating utility:', err);
+      setError(err.message || 'Failed to create equipment');
+      console.error('Error creating equipment:', err);
     } finally {
       setLoading(false);
     }
@@ -58,7 +79,7 @@ export default function AddUtilitiesModal({
 
   const handleClose = () => {
     if (!loading) {
-      setFormData({ model_name: '', category: 'Inventor' });
+      setFormData({ model_name: '', category: categories[0] || '' });
       setError(null);
       onClose();
     }
@@ -68,9 +89,9 @@ export default function AddUtilitiesModal({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Utility</DialogTitle>
+          <DialogTitle>Add Equipment</DialogTitle>
           <DialogDescription>
-            Create a new utility with model name and category
+            Create a new equipment with model name and category
           </DialogDescription>
         </DialogHeader>
 
@@ -92,7 +113,7 @@ export default function AddUtilitiesModal({
             <Label htmlFor="category">Category *</Label>
             <Select
               value={formData.category}
-              onValueChange={(value: 'Inventor' | 'Module' | 'Mounting' | 'Battery') =>
+              onValueChange={(value: string) =>
                 setFormData({ ...formData, category: value })
               }
               disabled={loading}
@@ -101,10 +122,9 @@ export default function AddUtilitiesModal({
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Inventor">Inventor</SelectItem>
-                <SelectItem value="Module">Module</SelectItem>
-                <SelectItem value="Mounting">Mounting</SelectItem>
-                <SelectItem value="Battery">Battery</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -125,7 +145,7 @@ export default function AddUtilitiesModal({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Add Utility'}
+              {loading ? 'Creating...' : 'Add Equipment'}
             </Button>
           </DialogFooter>
         </form>

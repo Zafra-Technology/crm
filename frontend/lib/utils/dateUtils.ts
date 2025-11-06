@@ -54,7 +54,8 @@ export function isDifferentDay(timestamp1: string, timestamp2: string): boolean 
  * @param date - Date string or Date object
  * @returns Formatted date string in DD/MM/YYYY format
  */
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return '';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(dateObj.getTime())) {
     return '';

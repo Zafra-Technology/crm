@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { utilitiesApi, Utility } from '@/lib/api/utilities';
+import { equipmentsApi, Equipment } from '@/lib/api/equipments';
 import { SearchIcon } from 'lucide-react';
 
 interface AddModelsModalProps {
@@ -20,7 +20,7 @@ interface AddModelsModalProps {
   onClose: () => void;
   onModelsAdded: () => void;
   projectId: number;
-  category: 'Inventor' | 'Module' | 'Mounting' | 'Battery';
+  category: string;
 }
 
 export default function AddModelsModal({
@@ -30,7 +30,7 @@ export default function AddModelsModal({
   projectId,
   category,
 }: AddModelsModalProps) {
-  const [allUtilities, setAllUtilities] = useState<Utility[]>([]);
+  const [allEquipments, setAllEquipments] = useState<Equipment[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,25 +39,25 @@ export default function AddModelsModal({
 
   useEffect(() => {
     if (isOpen && category) {
-      loadUtilities();
+      loadEquipments();
     }
   }, [isOpen, category]);
 
-  const loadUtilities = async () => {
+  const loadEquipments = async () => {
     try {
       setFetching(true);
-      // Get all utilities for this category
-      const utilities = await utilitiesApi.getByCategory(category);
-      // Get already added utilities for this project
-      const projectUtilities = await utilitiesApi.getProjectUtilities(projectId, category);
-      const projectUtilityIds = new Set(projectUtilities.map(u => u.id));
+      // Get all equipments for this category
+      const equipments = await equipmentsApi.getByCategory(category);
+      // Get already added equipments for this project
+      const projectEquipments = await equipmentsApi.getProjectEquipments(projectId, category);
+      const projectEquipmentIds = new Set(projectEquipments.map(e => e.id));
       
-      // Filter out already added utilities
-      const availableUtilities = utilities.filter(u => !projectUtilityIds.has(u.id));
-      setAllUtilities(availableUtilities);
+      // Filter out already added equipments
+      const availableEquipments = equipments.filter(e => !projectEquipmentIds.has(e.id));
+      setAllEquipments(availableEquipments);
     } catch (err: any) {
-      console.error('Error loading utilities:', err);
-      setError(err.message || 'Failed to load utilities');
+      console.error('Error loading equipments:', err);
+      setError(err.message || 'Failed to load equipments');
     } finally {
       setFetching(false);
     }
@@ -72,7 +72,7 @@ export default function AddModelsModal({
     try {
       setLoading(true);
       setError(null);
-      await utilitiesApi.addToProject(projectId, selectedIds);
+      await equipmentsApi.addToProject(projectId, selectedIds);
       setSelectedIds([]);
       setSearchTerm('');
       onModelsAdded();
@@ -94,8 +94,8 @@ export default function AddModelsModal({
     }
   };
 
-  const filteredUtilities = allUtilities.filter((utility) =>
-    utility.model_name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEquipments = allEquipments.filter((equipment) =>
+    equipment.model_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const toggleSelection = (id: number) => {
@@ -105,10 +105,10 @@ export default function AddModelsModal({
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredUtilities.length) {
+    if (selectedIds.length === filteredEquipments.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredUtilities.map((u) => u.id));
+      setSelectedIds(filteredEquipments.map((e) => e.id));
     }
   };
 
@@ -145,14 +145,14 @@ export default function AddModelsModal({
             </div>
           )}
 
-          {/* Utilities List */}
+          {/* Equipments List */}
           <div className="flex-1 overflow-y-auto border rounded-md">
             {fetching ? (
               <div className="p-8 text-center text-muted-foreground">Loading models...</div>
-            ) : filteredUtilities.length === 0 ? (
+            ) : filteredEquipments.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
-                {allUtilities.length === 0
-                  ? `No ${category} models available. Add models from the Utilities page first.`
+                {allEquipments.length === 0
+                  ? `No ${category} models available. Add models from the Equipments page first.`
                   : 'No models match your search.'}
               </div>
             ) : (
@@ -162,8 +162,8 @@ export default function AddModelsModal({
                   <Checkbox
                     id="select-all"
                     checked={
-                      filteredUtilities.length > 0 &&
-                      selectedIds.length === filteredUtilities.length
+                      filteredEquipments.length > 0 &&
+                      selectedIds.length === filteredEquipments.length
                     }
                     onCheckedChange={toggleSelectAll}
                   />
@@ -171,7 +171,7 @@ export default function AddModelsModal({
                     htmlFor="select-all"
                     className="text-sm font-medium cursor-pointer flex-1"
                   >
-                    Select All ({filteredUtilities.length})
+                    Select All ({filteredEquipments.length})
                   </label>
                   {selectedIds.length > 0 && (
                     <span className="text-xs text-muted-foreground">
@@ -180,24 +180,24 @@ export default function AddModelsModal({
                   )}
                 </div>
 
-                {/* Utilities List */}
+                {/* Equipments List */}
                 <div className="space-y-1">
-                  {filteredUtilities.map((utility) => (
+                  {filteredEquipments.map((equipment) => (
                     <div
-                      key={utility.id}
+                      key={equipment.id}
                       className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md cursor-pointer"
-                      onClick={() => toggleSelection(utility.id)}
+                      onClick={() => toggleSelection(equipment.id)}
                     >
                       <Checkbox
-                        id={`utility-${utility.id}`}
-                        checked={selectedIds.includes(utility.id)}
-                        onCheckedChange={() => toggleSelection(utility.id)}
+                        id={`equipment-${equipment.id}`}
+                        checked={selectedIds.includes(equipment.id)}
+                        onCheckedChange={() => toggleSelection(equipment.id)}
                       />
                       <label
-                        htmlFor={`utility-${utility.id}`}
+                        htmlFor={`equipment-${equipment.id}`}
                         className="text-sm cursor-pointer flex-1"
                       >
-                        {utility.model_name}
+                        {equipment.model_name}
                       </label>
                     </div>
                   ))}

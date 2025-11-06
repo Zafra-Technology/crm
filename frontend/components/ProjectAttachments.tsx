@@ -40,15 +40,17 @@ export default function ProjectAttachments({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getFileIcon = (type: string) => {
-    if (type.includes('image')) return '🖼️';
-    if (type.includes('pdf')) return '📄';
-    if (type.includes('word') || type.includes('doc')) return '📝';
-    if (type.includes('excel') || type.includes('sheet')) return '📊';
-    if (type.includes('powerpoint') || type.includes('presentation')) return '📈';
-    if (type.includes('text')) return '📝';
-    if (type.includes('video')) return '🎥';
-    if (type.includes('audio')) return '🎵';
+  const getFileIcon = (type: string | null | undefined) => {
+    if (!type) return '📁';
+    const lowerType = type.toLowerCase();
+    if (lowerType.includes('image')) return '🖼️';
+    if (lowerType.includes('pdf')) return '📄';
+    if (lowerType.includes('word') || lowerType.includes('doc')) return '📝';
+    if (lowerType.includes('excel') || lowerType.includes('sheet')) return '📊';
+    if (lowerType.includes('powerpoint') || lowerType.includes('presentation')) return '📈';
+    if (lowerType.includes('text')) return '📝';
+    if (lowerType.includes('video')) return '🎥';
+    if (lowerType.includes('audio')) return '🎵';
     return '📁';
   };
 
@@ -228,7 +230,7 @@ export default function ProjectAttachments({
                     <span>{formatFileSize(attachment.size)}</span>
                     <span>•</span>
                     <span>Uploaded {formatDate(attachment.uploadedAt)}</span>
-                    {attachment.type.includes('image') && !isValidBase64Url(attachment.url) && (
+                    {attachment.type && attachment.type.includes('image') && !isValidBase64Url(attachment.url) && (
                       <span className="text-orange-600 font-medium">⚠️ Invalid image data</span>
                     )}
                   </div>

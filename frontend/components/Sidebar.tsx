@@ -105,9 +105,9 @@ export default function Sidebar({ userRole }: SidebarProps) {
     },
     { 
       icon: WrenchIcon, 
-      label: 'Utility', 
-      href: '/dashboard/utilities',
-      active: pathname === '/dashboard/utilities',
+      label: 'Equipment', 
+      href: '/dashboard/equipments',
+      active: pathname === '/dashboard/equipments',
       roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
     },
     { 

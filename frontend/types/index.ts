@@ -14,9 +14,13 @@ export interface ProjectAttachment {
   name: string;
   size: number;
   type: string;
+  file_type?: string;
   url: string;
+  file?: string;
   uploadedAt: string;
+  uploaded_at?: string;
   uploadedBy: string;
+  uploaded_by?: string;
 }
 
 export type ServiceCode = 
