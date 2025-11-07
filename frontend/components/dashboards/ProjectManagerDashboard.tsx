@@ -45,7 +45,7 @@ interface CreateProjectForm {
   requirements: string;
   clientId: string;
   designerIds: string[];
-  projectType: 'residential' | 'commercial';
+  projectType: 'residential' | 'commercial' | '';
   projectAddress: string;
   projectLocationUrl: string;
   attachments: File[];
@@ -71,6 +71,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [clientFilter, setClientFilter] = useState<string>('all');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<CreateProjectForm>({
     name: '',
     projectCode: '',
@@ -78,7 +79,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     requirements: '',
     clientId: '',
     designerIds: [],
-    projectType: 'residential',
+    projectType: '',
     projectAddress: '',
     projectLocationUrl: '',
     attachments: []
@@ -181,8 +182,47 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     return matchesSearch && matchesStatus && matchesClient;
   });
 
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      errors.name = 'Project name is required';
+    }
+
+    if (!formData.description.trim()) {
+      errors.description = 'Description is required';
+    }
+
+    if (!formData.requirements.trim()) {
+      errors.requirements = 'Requirements are required';
+    }
+
+    if (!formData.projectType) {
+      errors.projectType = 'Project type is required';
+    }
+
+    if (!formData.clientId) {
+      errors.clientId = 'Client selection is required';
+    }
+
+    if (!formData.projectAddress.trim()) {
+      errors.projectAddress = 'Project address is required';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+    setValidationErrors({});
+
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -235,11 +275,12 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
           requirements: '',
           clientId: '',
           designerIds: [],
-          projectType: 'residential',
+          projectType: '',
           projectAddress: '',
           projectLocationUrl: '',
           attachments: []
         });
+        setValidationErrors({});
         // Show success message
         setSuccessMessage('Project created successfully!');
         // Close the modal
@@ -631,7 +672,12 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
 
       {/* Create Project Modal */}
       {canCreate && (
-      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+      <Dialog open={showCreateForm} onOpenChange={(open) => {
+        setShowCreateForm(open);
+        if (!open) {
+          setValidationErrors({});
+        }
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Create New Project</DialogTitle>
@@ -651,9 +697,22 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (validationErrors.name) {
+                      setValidationErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.name;
+                        return newErrors;
+                      });
+                    }
+                  }}
                   placeholder="Enter project name"
+                  className={validationErrors.name ? 'border-destructive' : ''}
                 />
+                {validationErrors.name && (
+                  <p className="text-sm text-destructive">{validationErrors.name}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -673,25 +732,47 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                   <Label htmlFor="projectType">Project Type *</Label>
                   <Select
                     value={formData.projectType}
-                    onValueChange={(value) => setFormData({ ...formData, projectType: value as 'residential' | 'commercial' })}
+                    required
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, projectType: value as 'residential' | 'commercial' });
+                      if (validationErrors.projectType) {
+                        setValidationErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.projectType;
+                          return newErrors;
+                        });
+                      }
+                    }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select project type" />
+                    <SelectTrigger className={validationErrors.projectType ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Select *" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="residential">Residential</SelectItem>
                       <SelectItem value="commercial">Commercial</SelectItem>
                     </SelectContent>
                   </Select>
+                  {validationErrors.projectType && (
+                    <p className="text-sm text-destructive">{validationErrors.projectType}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="client">Select Client *</Label>
                   <Select
                     required
                     value={formData.clientId}
-                    onValueChange={(value) => setFormData({ ...formData, clientId: value })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, clientId: value });
+                      if (validationErrors.clientId) {
+                        setValidationErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.clientId;
+                          return newErrors;
+                        });
+                      }
+                    }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={validationErrors.clientId ? 'border-destructive' : ''}>
                       <SelectValue placeholder="Choose a client..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -702,7 +783,10 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                       ))}
                     </SelectContent>
                   </Select>
-                  {clients.length === 0 && (
+                  {validationErrors.clientId && (
+                    <p className="text-sm text-destructive">{validationErrors.clientId}</p>
+                  )}
+                  {clients.length === 0 && !validationErrors.clientId && (
                     <p className="text-sm text-muted-foreground mt-1">No active clients available</p>
                   )}
                 </div>
@@ -715,10 +799,23 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                   id="description"
                   required
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    if (validationErrors.description) {
+                      setValidationErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.description;
+                        return newErrors;
+                      });
+                    }
+                  }}
                   rows={3}
                   placeholder="Describe the project"
+                  className={validationErrors.description ? 'border-destructive' : ''}
                 />
+                {validationErrors.description && (
+                  <p className="text-sm text-destructive">{validationErrors.description}</p>
+                )}
               </div>
 
               {/* Requirements - Full Width */}
@@ -728,10 +825,23 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                   id="requirements"
                   required
                   value={formData.requirements}
-                  onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, requirements: e.target.value });
+                    if (validationErrors.requirements) {
+                      setValidationErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.requirements;
+                        return newErrors;
+                      });
+                    }
+                  }}
                   rows={2}
                   placeholder="List project requirements"
+                  className={validationErrors.requirements ? 'border-destructive' : ''}
                 />
+                {validationErrors.requirements && (
+                  <p className="text-sm text-destructive">{validationErrors.requirements}</p>
+                )}
               </div>
 
               {/* Project Address - Full Width */}
@@ -741,11 +851,25 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                 </Label>
                 <Textarea
                   id="projectAddress"
+                  required
                   value={formData.projectAddress}
-                  onChange={(e) => setFormData({ ...formData, projectAddress: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, projectAddress: e.target.value });
+                    if (validationErrors.projectAddress) {
+                      setValidationErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.projectAddress;
+                        return newErrors;
+                      });
+                    }
+                  }}
                   rows={2}
                   placeholder="Enter project address"
+                  className={validationErrors.projectAddress ? 'border-destructive' : ''}
                 />
+                {validationErrors.projectAddress && (
+                  <p className="text-sm text-destructive">{validationErrors.projectAddress}</p>
+                )}
               </div>
 
               {/* Location URL - Full Width */}
@@ -857,7 +981,10 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
             <DialogFooter className="flex space-x-3">
               <Button
                 type="button"
-                onClick={() => setShowCreateForm(false)}
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setValidationErrors({});
+                }}
                 disabled={loading}
                 variant="outline"
                 className="flex-1"

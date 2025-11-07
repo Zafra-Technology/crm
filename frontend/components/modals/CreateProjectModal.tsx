@@ -28,10 +28,9 @@ interface CreateProjectModalProps {
 
 interface ProjectFormData {
   name: string;
-  projectCode: string;
   description: string;
   requirements: string;
-  projectType: 'residential' | 'commercial';
+  projectType: 'residential' | 'commercial' | '';
   projectAddress: string;
   projectLocationUrl: string;
   attachments: File[];
@@ -40,22 +39,52 @@ interface ProjectFormData {
 export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, userId }: CreateProjectModalProps) {
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
-    projectCode: '',
     description: '',
     requirements: '',
-    projectType: 'residential',
+    projectType: '',
     projectAddress: '',
     projectLocationUrl: '',
     attachments: [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      errors.name = 'Project name is required';
+    }
+
+    if (!formData.description.trim()) {
+      errors.description = 'Description is required';
+    }
+
+    if (!formData.projectType) {
+      errors.projectType = 'Project type is required';
+    }
+
+    if (!formData.projectAddress.trim()) {
+      errors.projectAddress = 'Project address is required';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setValidationErrors({});
+
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
 
     try {
       // Convert files to base64 for upload
@@ -79,7 +108,6 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
 
       const projectData = {
         name: formData.name,
-        projectCode: formData.projectCode || undefined,
         description: formData.description,
         requirements: formData.requirements,
         projectType: formData.projectType,
@@ -105,14 +133,14 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
       // Reset form
       setFormData({
         name: '',
-        projectCode: '',
         description: '',
         requirements: '',
-        projectType: 'residential',
+        projectType: '',
         projectAddress: '',
         projectLocationUrl: '',
         attachments: [],
       });
+      setValidationErrors({});
     } catch (error) {
       console.error('Project creation error:', error);
       setError(error instanceof Error ? error.message : 'Failed to create project');
@@ -124,6 +152,14 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear validation error for this field when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,8 +193,14 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const handleClose = () => {
+    setValidationErrors({});
+    setError('');
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
@@ -179,22 +221,12 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
                 onChange={handleChange}
                 required
                 placeholder="Enter project name"
+                className={validationErrors.name ? 'border-destructive' : ''}
               />
+              {validationErrors.name && (
+                <p className="text-sm text-destructive">{validationErrors.name}</p>
+              )}
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="projectCode">Project Code</Label>
-              <Input
-                id="projectCode"
-                name="projectCode"
-                type="text"
-                value={formData.projectCode}
-                onChange={handleChange}
-                placeholder="Enter project code"
-              />
-            </div>
-
-            
 
             <div className="space-y-2">
               <Label htmlFor="description">Description *</Label>
@@ -206,7 +238,11 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
                 required
                 rows={3}
                 placeholder="Describe your project"
+                className={validationErrors.description ? 'border-destructive' : ''}
               />
+              {validationErrors.description && (
+                <p className="text-sm text-destructive">{validationErrors.description}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -226,17 +262,30 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
               <Select
                 name="projectType"
                 value={formData.projectType}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, projectType: value as 'residential' | 'commercial' }))}
+                onValueChange={(value) => {
+                  setFormData(prev => ({ ...prev, projectType: value as 'residential' | 'commercial' }));
+                  // Clear validation error when user selects a value
+                  if (validationErrors.projectType) {
+                    setValidationErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.projectType;
+                      return newErrors;
+                    });
+                  }
+                }}
                 required
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select project type" />
+                <SelectTrigger className={validationErrors.projectType ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select *" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="residential">Residential</SelectItem>
                   <SelectItem value="commercial">Commercial</SelectItem>
                 </SelectContent>
               </Select>
+              {validationErrors.projectType && (
+                <p className="text-sm text-destructive">{validationErrors.projectType}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -248,9 +297,14 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
                 name="projectAddress"
                 value={formData.projectAddress}
                 onChange={handleChange}
+                required
                 rows={2}
                 placeholder="Enter project address"
+                className={validationErrors.projectAddress ? 'border-destructive' : ''}
               />
+              {validationErrors.projectAddress && (
+                <p className="text-sm text-destructive">{validationErrors.projectAddress}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -333,7 +387,7 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
         <DialogFooter className="flex gap-3">
           <Button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             variant="outline"
             className="flex-1"
           >
