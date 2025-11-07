@@ -74,8 +74,6 @@ export default function ClientsPage() {
     state: '',
     country: '',
     pincode: '',
-    aadhar_number: '',
-    pan_number: '',
     company_name: '',
     company_code: '',
     profile_pic: null as File | null,
@@ -208,8 +206,6 @@ export default function ClientsPage() {
         state: formData.state,
         country: formData.country,
         pincode: formData.pincode,
-        aadhar_number: formData.aadhar_number,
-        pan_number: formData.pan_number,
         company_name: formData.company_name,
         role: 'client' // Always set role as client
       };
@@ -228,8 +224,8 @@ export default function ClientsPage() {
       setFormData({ 
         email: '', password: '', first_name: '', last_name: '', 
         mobile_number: '', address: '', city: '', 
-        state: '', country: '', pincode: '', aadhar_number: '', 
-        pan_number: '', company_name: '', company_code: '', profile_pic: null 
+        state: '', country: '', pincode: '', 
+        company_name: '', company_code: '', profile_pic: null 
       });
       setShowAddForm(false);
     } catch (error) {
@@ -253,8 +249,6 @@ export default function ClientsPage() {
       state: client.state || '',
       country: client.country || '',
       pincode: client.pincode || '',
-      aadhar_number: client.aadhar_number || '',
-      pan_number: (client as any).pan_number || '',
       company_name: client.company_name || '',
       company_code: (client as any).company_code || '',
       profile_pic: null,
@@ -278,8 +272,6 @@ export default function ClientsPage() {
           state: formData.state,
           country: formData.country,
           pincode: formData.pincode,
-          aadhar_number: formData.aadhar_number,
-          pan_number: formData.pan_number,
           company_name: formData.company_name,
         } as Partial<RegisterData>);
         
@@ -297,8 +289,8 @@ export default function ClientsPage() {
         setFormData({ 
           email: '', password: '', first_name: '', last_name: '', 
           mobile_number: '', address: '', city: '', 
-          state: '', country: '', pincode: '', aadhar_number: '', 
-          pan_number: '', company_name: '', company_code: '', profile_pic: null 
+          state: '', country: '', pincode: '', 
+          company_name: '', company_code: '', profile_pic: null 
         });
         setShowAddForm(false);
       } catch (error) {
@@ -434,8 +426,8 @@ export default function ClientsPage() {
                 setFormData({ 
                   email: '', password: '', first_name: '', last_name: '', 
                   mobile_number: '', address: '', city: '', 
-                  state: '', country: '', pincode: '', aadhar_number: '', 
-                  pan_number: '', company_name: '', company_code: '', profile_pic: null 
+                  state: '', country: '', pincode: '', 
+                  company_name: '', company_code: '', profile_pic: null 
                 });
                 setShowAddForm(true);
               }}
@@ -799,32 +791,6 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              {/* Identity Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-foreground">Identity Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="mb-1">Aadhar Number</Label>
-                    <Input
-                      type="text"
-                      value={formData.aadhar_number}
-                      onChange={(e) => setFormData({ ...formData, aadhar_number: e.target.value })}
-                      placeholder="Enter Aadhar number"
-                      maxLength={12}
-                    />
-                  </div>
-                  <div>
-                    <Label className="mb-1">PAN Number</Label>
-                    <Input
-                      type="text"
-                      value={formData.pan_number}
-                      onChange={(e) => setFormData({ ...formData, pan_number: e.target.value })}
-                      placeholder="Enter PAN number"
-                      maxLength={10}
-                    />
-                  </div>
-                </div>
-              </div>
               <DialogFooter className="pt-2">
                 <Button
                   type="button"
@@ -834,8 +800,8 @@ export default function ClientsPage() {
                     setFormData({ 
                       email: '', password: '', first_name: '', last_name: '', 
                       mobile_number: '', address: '', city: '', 
-                      state: '', country: '', pincode: '', aadhar_number: '', 
-                      pan_number: '', company_name: '', company_code: '', profile_pic: null 
+                      state: '', country: '', pincode: '', 
+                      company_name: '', company_code: '', profile_pic: null 
                     });
                   }}
                   disabled={loading}
