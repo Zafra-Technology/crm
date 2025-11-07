@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, Settings, BarChart3, FolderOpen, PencilIcon, TrashIcon } from 'lucide-react';
+import { Users, UserPlus, Settings, BarChart3, FolderOpen, PencilIcon, TrashIcon, Lock } from 'lucide-react';
 import { authAPI, User as APIUser, resolveMediaUrl } from '@/lib/api/auth';
 import { getAuthToken } from '@/lib/auth';
 import { User } from '@/types';
@@ -31,8 +31,15 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<APIUser | null>(null);
   const [editingUser, setEditingUser] = useState<APIUser | null>(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    password: '',
+    confirm: '',
+  });
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleChoices, setRoleChoices] = useState<Array<{value: string, label: string}>>([]);
@@ -119,6 +126,17 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   const openDeleteModal = (userData: APIUser) => {
     setSelectedUser(userData);
     setShowDeleteModal(true);
+  };
+
+  const openPasswordModal = (userData: APIUser) => {
+    setSelectedUser(userData);
+    setPasswordForm({ password: '', confirm: '' });
+    setShowPasswordModal(true);
+  };
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
   };
 
   const validateEmail = async (email: string) => {
@@ -479,20 +497,42 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => handleEditUser(userData)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleEditUser(userData);
+                          }}
                           className="text-primary hover:text-primary/80 transition-colors"
+                          title="Edit User"
+                          type="button"
                         >
                           <PencilIcon size={16} />
-                          
                         </button>
-                      <button
-                          onClick={() => openDeleteModal(userData)}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            openPasswordModal(userData);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 transition-colors"
+                          title="Change Password"
+                          type="button"
+                        >
+                          <Lock size={16} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            openDeleteModal(userData);
+                          }}
                           className="text-destructive hover:text-destructive/80 transition-colors"
                           disabled={userData.id === parseInt(user.id)}
+                          title="Delete User"
+                          type="button"
                         >
                           <TrashIcon size={16} />
-                        
-                      </button>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -895,6 +935,80 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Change Password Modal */}
+      <Dialog open={showPasswordModal && !!selectedUser} onOpenChange={setShowPasswordModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for {selectedUser?.full_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={passwordForm.password}
+                onChange={(e) => setPasswordForm({ ...passwordForm, password: e.target.value })}
+                placeholder="Enter new password"
+                className="mt-1"
+              />
+              {passwordForm.password && passwordForm.password.length < 6 && (
+                <p className="mt-1 text-xs text-red-600">Password must be at least 6 characters.</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={passwordForm.confirm}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                placeholder="Confirm new password"
+                className="mt-1"
+              />
+              {passwordForm.confirm && passwordForm.password !== passwordForm.confirm && (
+                <p className="mt-1 text-xs text-red-600">Passwords do not match.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button onClick={() => setShowPasswordModal(false)} disabled={passwordLoading} variant="outline">
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!passwordForm.password || passwordForm.password.length < 6) {
+                  showToast('error', 'Password must be at least 6 characters');
+                  return;
+                }
+                if (passwordForm.password !== passwordForm.confirm) {
+                  showToast('error', 'Passwords do not match');
+                  return;
+                }
+                try {
+                  setPasswordLoading(true);
+                  if (!selectedUser) return;
+                  await authAPI.setUserPassword(selectedUser.id, passwordForm.password);
+                  setShowPasswordModal(false);
+                  setPasswordForm({ password: '', confirm: '' });
+                  showToast('success', 'Password updated successfully');
+                } catch (err: any) {
+                  showToast('error', err?.message || 'Failed to update password');
+                } finally {
+                  setPasswordLoading(false);
+                }
+              }}
+              disabled={passwordLoading || !passwordForm.password || passwordForm.password.length < 6 || passwordForm.password !== passwordForm.confirm}
+            >
+              {passwordLoading ? 'Updating...' : 'Update Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Modal */}
       <Dialog open={showDeleteModal && !!selectedUser} onOpenChange={setShowDeleteModal}>
         <DialogContent className="max-w-md">
@@ -948,6 +1062,15 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
               <img src={previewImage} alt="Profile preview" className="max-h-[70vh] w-auto rounded-md object-contain" />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-md shadow-md border ${
+          toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {toast.message}
         </div>
       )}
     </div>

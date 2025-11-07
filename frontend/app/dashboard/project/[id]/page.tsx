@@ -970,6 +970,8 @@ export default function ProjectDetailsPage() {
   const canEdit = user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin';
   // Services can only be edited by admin, project_manager, and assistant_project_manager
   const canEditServices = user.role === 'admin' || user.role === 'project_manager' || user.role === 'assistant_project_manager';
+  // Professional engineers can edit PE status fields
+  const canEditPeStatus = canEditServices || user.role === 'professional_engineer';
   const isClientOrClientTeam = user.role === 'client' || user.role === 'client_team_member';
   // Errors section should not be visible to clients and client team members
   const canViewErrors = user.role !== 'client' && user.role !== 'client_team_member';
@@ -1626,7 +1628,7 @@ export default function ProjectDetailsPage() {
                 <RadioGroup
                   value={project?.structuralPeStatus ?? 'new'}
                   onValueChange={async (value) => {
-                    if (!canEditServices || !project) return;
+                    if (!canEditPeStatus || !project) return;
                     const currentValue = project.structuralPeStatus;
                     try {
                       setProject({ ...project, structuralPeStatus: value as Project['structuralPeStatus'] });
@@ -1645,7 +1647,7 @@ export default function ProjectDetailsPage() {
                       alert('Failed to save Structural PE Status. Please try again.');
                     }
                   }}
-                  disabled={!canEditServices}
+                  disabled={!canEditPeStatus}
                   className="grid grid-cols-2 gap-2"
                 >
                   {[
@@ -1654,9 +1656,9 @@ export default function ProjectDetailsPage() {
                     { value: 'waiting_for_input', label: 'Waiting for Input' },
                     { value: 'completed', label: 'Completed' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.structuralPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                      <RadioGroupItem value={option.value} id={`structural-pe-status-${option.value}`} disabled={!canEditServices} />
-                      <label htmlFor={`structural-pe-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.structuralPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditPeStatus ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                      <RadioGroupItem value={option.value} id={`structural-pe-status-${option.value}`} disabled={!canEditPeStatus} />
+                      <label htmlFor={`structural-pe-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditPeStatus ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
@@ -1728,7 +1730,7 @@ export default function ProjectDetailsPage() {
                 <RadioGroup
                   value={project?.electricalPeStatus ?? 'new'}
                   onValueChange={async (value) => {
-                    if (!canEditServices || !project) return;
+                    if (!canEditPeStatus || !project) return;
                     const currentValue = project.electricalPeStatus;
                     try {
                       setProject({ ...project, electricalPeStatus: value as Project['electricalPeStatus'] });
@@ -1747,7 +1749,7 @@ export default function ProjectDetailsPage() {
                       alert('Failed to save Electrical PE Status. Please try again.');
                     }
                   }}
-                  disabled={!canEditServices}
+                  disabled={!canEditPeStatus}
                   className="grid grid-cols-2 gap-2"
                 >
                   {[
@@ -1756,9 +1758,9 @@ export default function ProjectDetailsPage() {
                     { value: 'waiting_for_input', label: 'Waiting for Input' },
                     { value: 'completed', label: 'Completed' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.electricalPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                      <RadioGroupItem value={option.value} id={`electrical-pe-status-${option.value}`} disabled={!canEditServices} />
-                      <label htmlFor={`electrical-pe-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.electricalPeStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditPeStatus ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                      <RadioGroupItem value={option.value} id={`electrical-pe-status-${option.value}`} disabled={!canEditPeStatus} />
+                      <label htmlFor={`electrical-pe-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditPeStatus ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
