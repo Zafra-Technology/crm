@@ -20,14 +20,28 @@ export default function UtilitiesPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUtility, setSelectedUtility] = useState<Utility | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [attachmentCounts, setAttachmentCounts] = useState<{[key: number]: number}>({});
 
   const load = async () => {
     try {
       setLoading(true);
       const data = await utilitiesApi.list();
       setItems(data);
+      
+      // Get attachment count for each utility
+      const counts: {[key: number]: number} = {};
+      for (const utility of data) {
+        try {
+          const utilityDetail = await utilitiesApi.get(utility.id);
+          counts[utility.id] = utilityDetail.files && Array.isArray(utilityDetail.files) ? utilityDetail.files.length : 0;
+        } catch (e) {
+          counts[utility.id] = 0;
+        }
+      }
+      setAttachmentCounts(counts);
     } catch (e) {
       setItems([]);
+      setAttachmentCounts({});
     } finally {
       setLoading(false);
     }
@@ -127,13 +141,17 @@ export default function UtilitiesPage() {
                     <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Site Plan Requirements</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Electrical Plan Requirements</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Other Plan Requirements</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Files</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utility Attachments</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="bg-background divide-y divide-border">
                   {filtered.map((row, index) => (
-                    <tr key={row.id}>
+                    <tr 
+                      key={row.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => window.location.href = `/dashboard/utilities/${row.id}`}
+                    >
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{index + 1}</td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{row.utility_name || '-'}</td>
                       <td className="px-3 py-4 text-sm text-foreground max-w-[200px]">
@@ -188,32 +206,35 @@ export default function UtilitiesPage() {
                           <span className="text-gray-400 text-xs">No requirements</span>
                         )}
                       </td>
-                      <td className="px-3 py-4 text-sm text-foreground max-w-[150px]">
-                        {row.files && row.files.length > 0 ? (
-                          <div className="space-y-1">
-                            {row.files.slice(0, 2).map((file, idx) => (
-                              <span key={idx} className="text-xs text-gray-600 block truncate" title={file.name}>
-                                {file.name}
-                              </span>
-                            ))}
-                            {row.files.length > 2 && (
-                              <span className="text-xs text-gray-500">
-                                +{row.files.length - 2} more files
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 text-xs">No files</span>
-                        )}
+                      <td className="px-3 py-4 text-sm text-foreground">
+                        {(() => {
+                          const attachmentCount = attachmentCounts[row.id] || 0;
+                          return attachmentCount > 0 ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                              {attachmentCount} {attachmentCount === 1 ? 'file' : 'files'}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">0 files</span>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
-                          <Link href={`/dashboard/utilities/${row.id}`} className="text-primary hover:underline text-xs">View Details</Link>
+                          <Link 
+                            href={`/dashboard/utilities/${row.id}`} 
+                            className="text-primary hover:underline text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            View Details
+                          </Link>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteClick(row)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(row);
+                            }}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 size={14} />

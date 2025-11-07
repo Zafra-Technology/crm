@@ -182,7 +182,11 @@ export default function AhjPage() {
                 </thead>
                 <tbody className="bg-background divide-y divide-border">
                   {filtered.map((row, index) => (
-                    <tr key={row.id}>
+                    <tr 
+                      key={row.id} 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => window.location.href = `/dashboard/ahj/${row.id}`}
+                    >
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{index + 1}</td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{row.ahj || '-'}</td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground">
@@ -232,12 +236,21 @@ export default function AhjPage() {
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
-                          <Link href={`/dashboard/ahj/${row.id}`} className="text-primary hover:underline text-xs">View Details</Link>
+                          <Link 
+                            href={`/dashboard/ahj/${row.id}`} 
+                            className="text-primary hover:underline text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            View Details
+                          </Link>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteClick(row)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(row);
+                            }}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 size={14} />

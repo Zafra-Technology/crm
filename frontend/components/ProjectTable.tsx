@@ -155,22 +155,30 @@ export default function ProjectTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[60px]">S.No.</TableHead>
             <TableHead className="w+[300px]">Project Name</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[250px]">Description</TableHead>
             <TableHead>Team</TableHead>
             <TableHead>Updated</TableHead>
             {showActions && <TableHead className="w-[150px]">Actions</TableHead>}
-            {(onAssign || (canDelete && onDelete)) && <TableHead className="w-[50px]"></TableHead>}
+            {(onAssign || (canDelete && onDelete)) && <TableHead className="w-[50px]">Assign</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {projects.map((project) => {
+          {projects.map((project, index) => {
             const teamCount = getTeamCount(project);
             const hasFeedback = project.feedbackMessage && project.status !== 'rejected' && onViewFeedback;
             
             return (
-              <TableRow key={project.id} className="hover:bg-muted/50 transition-colors">
+              <TableRow 
+                key={project.id} 
+                className="hover:bg-muted/50 transition-colors cursor-pointer"
+                onClick={() => window.location.href = `/dashboard/project/${project.id}`}
+              >
+                <TableCell>
+                  <span className="font-medium text-foreground">{index + 1}</span>
+                </TableCell>
                 <TableCell>
                   <div className="font-medium text-foreground flex items-center gap-2">
                     <span className="text-foreground font-medium whitespace-nowrap">{(project as any).projectCode || (project as any).project_code || ''}</span>
@@ -224,20 +232,31 @@ export default function ProjectTable({
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <MoreVertical size={16} />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {onAssign && (
-                          <DropdownMenuItem onClick={() => onAssign(project)}>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            onAssign(project);
+                          }}>
                             <UsersIcon size={14} className="mr-2 text-blue-600" />
                             Assign Team Members
                           </DropdownMenuItem>
                         )}
                         {canDelete && onDelete && (
                           <DropdownMenuItem 
-                            onClick={() => onDelete(project)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDelete(project);
+                            }}
                             className="text-red-600 focus:text-red-600"
                           >
                             <XIcon size={14} className="mr-2" />
