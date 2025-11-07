@@ -49,6 +49,15 @@ export default function AhjPage() {
     });
   }, [items, search, stateFilter]);
 
+  const stateCounts = useMemo(() => {
+    const counts: { [state: string]: number } = {};
+    items.forEach((item) => {
+      const state = item.us_state || 'Unknown';
+      counts[state] = (counts[state] || 0) + 1;
+    });
+    return counts;
+  }, [items]);
+
   const handleDeleteClick = (ahj: ProjectAhj) => {
     setSelectedAhj(ahj);
     setShowDeleteModal(true);
@@ -76,12 +85,17 @@ export default function AhjPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Project AHJ</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">AHJ</h1>
+            <div className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+              {filtered.length} Total
+            </div>
+          </div>
           <p className="text-muted-foreground">Manage AHJ records and codes</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 shadow-md">
           <Plus size={18} />
-          <span>Create Project AHJ</span>
+          <span>Create AHJ</span>
         </Button>
       </div>
 
@@ -109,9 +123,31 @@ export default function AhjPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All States</SelectItem>
-                    {['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'].map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
+                    {['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'].map((s) => {
+                      const count = stateCounts[s] || 0;
+                      return (
+                        <SelectItem key={s} value={s}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{s}</span>
+                            {count > 0 && (
+                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                {count}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                    {stateCounts['Unknown'] && (
+                      <SelectItem value="Unknown">
+                        <div className="flex items-center justify-between w-full">
+                          <span>Unknown State</span>
+                          <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+                            {stateCounts['Unknown']}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -134,23 +170,69 @@ export default function AhjPage() {
               <table className="min-w-full divide-y divide-border">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Project AHJ Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">US State</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Updated</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Action</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">S.No.</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Project AHJ Name</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">US State</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Electric Code</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Building Code</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Residential Code</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Fire Code</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="bg-background divide-y divide-border">
-                  {filtered.map((row) => (
+                  {filtered.map((row, index) => (
                     <tr key={row.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">{row.ahj || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">{row.us_state || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{formatDate(row.created_at)} - <span className="text-foreground">{row.created_by}</span></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{formatDate(row.updated_at)} - <span className="text-foreground">{row.updated_by}</span></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-3">
-                          <Link href={`/dashboard/ahj/${row.id}`} className="text-primary hover:underline">View Details</Link>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{index + 1}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{row.ahj || '-'}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground">
+                        {row.us_state ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            {row.us_state}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground">
+                        {row.electric_code ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
+                            {row.electric_code}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground">
+                        {row.building_code ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                            {row.building_code}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground">
+                        {row.residential_code ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                            {row.residential_code}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground">
+                        {row.fire_code ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
+                            {row.fire_code}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/dashboard/ahj/${row.id}`} className="text-primary hover:underline text-xs">View Details</Link>
                           <Button
                             type="button"
                             variant="ghost"
@@ -158,7 +240,7 @@ export default function AhjPage() {
                             onClick={() => handleDeleteClick(row)}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                           </Button>
                         </div>
                       </td>

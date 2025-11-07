@@ -72,7 +72,12 @@ export default function UtilitiesPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Utilities</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">Utilities</h1>
+            <div className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+              {filtered.length} Total
+            </div>
+          </div>
           <p className="text-muted-foreground">Manage utility records</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 shadow-md">
@@ -116,21 +121,94 @@ export default function UtilitiesPage() {
               <table className="min-w-full divide-y divide-border">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utility Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Updated</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Action</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">S.No.</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utility Name</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utility Websites</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Site Plan Requirements</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Electrical Plan Requirements</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Other Plan Requirements</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Files</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="bg-background divide-y divide-border">
-                  {filtered.map((row) => (
+                  {filtered.map((row, index) => (
                     <tr key={row.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">{row.utility_name || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{formatDate(row.created_at)} - <span className="text-foreground">{row.created_by}</span></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{formatDate(row.updated_at)} - <span className="text-foreground">{row.updated_by}</span></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-3">
-                          <Link href={`/dashboard/utilities/${row.id}`} className="text-primary hover:underline">View Details</Link>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{index + 1}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{row.utility_name || '-'}</td>
+                      <td className="px-3 py-4 text-sm text-foreground max-w-[200px]">
+                        {row.utility_websites && row.utility_websites.length > 0 ? (
+                          <div className="space-y-1">
+                            {row.utility_websites.slice(0, 2).map((website, idx) => (
+                              <a
+                                key={idx}
+                                href={website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 text-xs block truncate"
+                                title={website}
+                              >
+                                {website}
+                              </a>
+                            ))}
+                            {row.utility_websites.length > 2 && (
+                              <span className="text-xs text-gray-500">
+                                +{row.utility_websites.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No websites</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-foreground max-w-[180px]">
+                        {row.site_plan_requirements ? (
+                          <p className="text-xs truncate" title={row.site_plan_requirements}>
+                            {row.site_plan_requirements}
+                          </p>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No requirements</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-foreground max-w-[180px]">
+                        {row.electrical_plan_requirements ? (
+                          <p className="text-xs truncate" title={row.electrical_plan_requirements}>
+                            {row.electrical_plan_requirements}
+                          </p>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No requirements</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-foreground max-w-[180px]">
+                        {row.other_plan_requirements ? (
+                          <p className="text-xs truncate" title={row.other_plan_requirements}>
+                            {row.other_plan_requirements}
+                          </p>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No requirements</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-foreground max-w-[150px]">
+                        {row.files && row.files.length > 0 ? (
+                          <div className="space-y-1">
+                            {row.files.slice(0, 2).map((file, idx) => (
+                              <span key={idx} className="text-xs text-gray-600 block truncate" title={file.name}>
+                                {file.name}
+                              </span>
+                            ))}
+                            {row.files.length > 2 && (
+                              <span className="text-xs text-gray-500">
+                                +{row.files.length - 2} more files
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No files</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/dashboard/utilities/${row.id}`} className="text-primary hover:underline text-xs">View Details</Link>
                           <Button
                             type="button"
                             variant="ghost"
@@ -138,7 +216,7 @@ export default function UtilitiesPage() {
                             onClick={() => handleDeleteClick(row)}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                           </Button>
                         </div>
                       </td>
