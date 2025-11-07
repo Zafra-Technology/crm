@@ -816,7 +816,7 @@ export default function MessagesPage() {
                 const group = chat as { type: 'group', id: any, name: any, image: any, members: any[], data: any };
                 return (
                   <div
-                    key={group.id}
+                    key={`group-${group.id}`}
                     onClick={async () => { 
                       setGroupChatOpen(true); 
                       setSelectedGroup(group.data); 
@@ -856,7 +856,7 @@ export default function MessagesPage() {
                 const dm = chat as { type: 'dm', id: string, name: string, contact: any };
                 return (
                   <div
-                    key={dm.id}
+                    key={`dm-${dm.id}`}
                     onClick={async () => { 
                       setSelectedUser(dm.contact); 
                       setGroupChatOpen(false); 
