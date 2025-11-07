@@ -30,7 +30,13 @@ export const utilitiesApi = {
     return res.json();
   },
 
-  async create(payload: { utility_name: string }): Promise<Utility> {
+  async create(payload: {
+    utility_name: string;
+    utility_websites?: string[];
+    site_plan_requirements?: string;
+    electrical_plan_requirements?: string;
+    other_plan_requirements?: string;
+  }): Promise<Utility> {
     const token = await getAuthToken();
     const res = await fetch(`${API_BASE}/utilities/`, {
       method: 'POST',
