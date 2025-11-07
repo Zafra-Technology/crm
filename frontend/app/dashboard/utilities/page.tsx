@@ -9,8 +9,17 @@ import { formatDate } from '@/lib/utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Search, Filter, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Search, Filter, Trash2, Download, FileText } from 'lucide-react';
 import ConfirmModal from '@/components/modals/ConfirmModal';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function UtilitiesPage() {
   const [items, setItems] = useState<Utility[]>([]);
@@ -20,6 +29,10 @@ export default function UtilitiesPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUtility, setSelectedUtility] = useState<Utility | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportStartDate, setReportStartDate] = useState('');
+  const [reportEndDate, setReportEndDate] = useState('');
+  const [reportFormat, setReportFormat] = useState<'pdf' | 'csv' | 'excel'>('pdf');
   const [attachmentCounts, setAttachmentCounts] = useState<{[key: number]: number}>({});
 
   const load = async () => {
@@ -64,6 +77,259 @@ export default function UtilitiesPage() {
     setShowDeleteModal(true);
   };
 
+  // Report generation functions
+  const generateCSV = (data: Utility[]) => {
+    const headers = ['S.No.', 'Utility Name', 'Utility Websites', 'Site Plan Requirements', 'Electrical Plan Requirements', 'Other Plan Requirements', 'Attachments Count', 'Created Date', 'Created By'];
+    const csvContent = [
+      headers.join(','),
+      ...data.map((item, index) => [
+        index + 1,
+        `"${item.utility_name || ''}"`,
+        `"${item.utility_websites?.join('; ') || ''}"`,
+        `"${item.site_plan_requirements || ''}"`,
+        `"${item.electrical_plan_requirements || ''}"`,
+        `"${item.other_plan_requirements || ''}"`,
+        attachmentCounts[item.id] || 0,
+        `"${item.created_at ? formatDate(item.created_at) : ''}"`,
+        `"${item.created_by || ''}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `utility_report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const generateExcel = (data: Utility[]) => {
+    const headers = ['S.No.', 'Utility Name', 'Utility Websites', 'Site Plan Requirements', 'Electrical Plan Requirements', 'Other Plan Requirements', 'Attachments Count', 'Created Date', 'Created By'];
+    const tsvContent = [
+      headers.join('\t'),
+      ...data.map((item, index) => [
+        index + 1,
+        item.utility_name || '',
+        item.utility_websites?.join('; ') || '',
+        item.site_plan_requirements || '',
+        item.electrical_plan_requirements || '',
+        item.other_plan_requirements || '',
+        attachmentCounts[item.id] || 0,
+        item.created_at ? formatDate(item.created_at) : '',
+        item.created_by || ''
+      ].join('\t'))
+    ].join('\n');
+
+    const blob = new Blob([tsvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `utility_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const generatePDF = (data: Utility[]) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to generate PDF reports');
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Utility Report</title>
+          <meta charset="utf-8">
+          <style>
+            @media print {
+              @page { 
+                size: A4 landscape; 
+                margin: 0.3in;
+                margin-header: 0;
+                margin-footer: 0;
+              }
+              html, body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+            }
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 0;
+              padding: 20px;
+              font-size: 12px;
+              line-height: 1.4;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 20px; 
+              border-bottom: 2px solid #333;
+              padding-bottom: 15px;
+            }
+            .header h1 { 
+              margin: 0 0 10px 0; 
+              font-size: 20px; 
+              color: #333;
+            }
+            .date-info { 
+              font-size: 12px; 
+              color: #666; 
+            }
+            .data-table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-top: 20px;
+              font-size: 10px;
+            }
+            .data-table th, .data-table td { 
+              border: 1px solid #333; 
+              padding: 8px; 
+              text-align: left; 
+              vertical-align: top;
+            }
+            .data-table th { 
+              background-color: #f5f5f5; 
+              font-weight: bold; 
+              color: #333;
+            }
+            .data-table tr:nth-child(even) { 
+              background-color: #f9f9f9; 
+            }
+            .footer { 
+              margin-top: 20px; 
+              font-size: 10px; 
+              color: #666; 
+              text-align: center;
+              border-top: 1px solid #ccc;
+              padding-top: 10px;
+            }
+            .no-print {
+              margin: 20px 0;
+              text-align: center;
+            }
+            .print-btn {
+              background: #007bff;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              margin: 5px;
+              cursor: pointer;
+              border-radius: 4px;
+            }
+            .close-btn {
+              background: #6c757d;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              margin: 5px;
+              cursor: pointer;
+              border-radius: 4px;
+            }
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Utility Report</h1>
+            <div class="date-info">
+              Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
+              <br>
+              ${reportStartDate && reportEndDate ? `Date Range: ${reportStartDate} to ${reportEndDate}` : 'Current Filters Applied'}
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 5%;">S.No.</th>
+                <th style="width: 15%;">Utility Name</th>
+                <th style="width: 20%;">Utility Websites</th>
+                <th style="width: 18%;">Site Plan Requirements</th>
+                <th style="width: 18%;">Electrical Plan Requirements</th>
+                <th style="width: 14%;">Other Plan Requirements</th>
+                <th style="width: 5%;">Attachments</th>
+                <th style="width: 5%;">Created Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.map((item, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${item.utility_name || 'None'}</td>
+                  <td>${item.utility_websites?.join('; ') || 'None'}</td>
+                  <td>${item.site_plan_requirements || 'None'}</td>
+                  <td>${item.electrical_plan_requirements || 'None'}</td>
+                  <td>${item.other_plan_requirements || 'None'}</td>
+                  <td>${attachmentCounts[item.id] || 0}</td>
+                  <td>${item.created_at ? formatDate(item.created_at) : 'None'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            Total Records: ${data.length} | Generated by Utility Management System | ${new Date().toISOString()}
+          </div>
+
+          <div class="no-print">
+            <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+            <button class="close-btn" onclick="window.close()">Close</button>
+          </div>
+
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const filterDataByDateRange = (data: Utility[]) => {
+    if (!reportStartDate || !reportEndDate) return data;
+    
+    return data.filter(item => {
+      if (!item.created_at) return false;
+      const itemDate = new Date(item.created_at);
+      const startDate = new Date(reportStartDate);
+      const endDate = new Date(reportEndDate);
+      return itemDate >= startDate && itemDate <= endDate;
+    });
+  };
+
+  const handleGenerateReport = () => {
+    const filteredData = filterDataByDateRange(filtered);
+    
+    switch (reportFormat) {
+      case 'csv':
+        generateCSV(filteredData);
+        break;
+      case 'excel':
+        generateExcel(filteredData);
+        break;
+      case 'pdf':
+        generatePDF(filteredData);
+        break;
+    }
+    
+    setShowReportModal(false);
+  };
+
   const handleDeleteConfirm = async () => {
     if (!selectedUtility) return;
     
@@ -94,10 +360,20 @@ export default function UtilitiesPage() {
           </div>
           <p className="text-muted-foreground">Manage utility records</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 shadow-md">
-          <Plus size={18} />
-          <span>Create Utilities</span>
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setShowReportModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Download size={16} />
+            Generate Report
+          </Button>
+          <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 shadow-md">
+            <Plus size={18} />
+            <span>Create Utilities</span>
+          </Button>
+        </div>
       </div>
 
       {/* List Card like AHJ UI */}
@@ -267,6 +543,115 @@ export default function UtilitiesPage() {
         type="danger"
         loading={deleting}
       />
+
+      {/* Report Generation Modal */}
+      <Dialog open={showReportModal} onOpenChange={setShowReportModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText size={20} />
+              Generate Utility Report
+            </DialogTitle>
+            <DialogDescription>
+              Configure your report settings and download in your preferred format.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Date Range */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="start-date" className="text-sm font-medium">
+                  Start Date
+                </Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={reportStartDate}
+                  onChange={(e) => setReportStartDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="end-date" className="text-sm font-medium">
+                  End Date
+                </Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={reportEndDate}
+                  onChange={(e) => setReportEndDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Format Selection */}
+            <div>
+              <Label className="text-sm font-medium">Export Format</Label>
+              <Select value={reportFormat} onValueChange={(value: 'pdf' | 'csv' | 'excel') => setReportFormat(value)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} />
+                      PDF Document
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="csv">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} />
+                      CSV File
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="excel">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} />
+                      Excel File
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Preview Info */}
+            <div className="bg-muted/50 p-3 rounded-lg">
+              <div className="text-sm text-muted-foreground">
+                <div className="flex justify-between items-center">
+                  <span>Total Records:</span>
+                  <span className="font-medium">{filtered.length}</span>
+                </div>
+                {reportStartDate && reportEndDate && (
+                  <div className="flex justify-between items-center mt-1">
+                    <span>Date Range:</span>
+                    <span className="font-medium">
+                      {filterDataByDateRange(filtered).length} records
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowReportModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleGenerateReport}
+              className="flex items-center gap-2"
+            >
+              <Download size={16} />
+              Generate Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
