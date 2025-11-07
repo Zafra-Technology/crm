@@ -975,8 +975,9 @@ export default function ProjectDetailsPage() {
   const isClientOrClientTeam = user.role === 'client' || user.role === 'client_team_member';
   // Errors section should not be visible to clients and client team members
   const canViewErrors = user.role !== 'client' && user.role !== 'client_team_member';
-  // Ball in Court section can only be accessed by team_head and team_lead
-  const canAccessBallCourt = user.role === 'team_head' || user.role === 'team_lead';
+  // Ball in Court section: hidden for client and client_team_member, editable only by admin, project_manager, assistant_project_manager
+  const canViewBallCourt = user.role !== 'client' && user.role !== 'client_team_member';
+  const canEditBallCourt = user.role === 'admin' || user.role === 'project_manager' || user.role === 'assistant_project_manager';
   const canAddUpdates =
     user.role === 'designer' ||
     user.role === 'senior_designer' ||
@@ -1508,8 +1509,8 @@ export default function ProjectDetailsPage() {
               </div>
               )}
 
-              {/* Ball in Court Section - Only visible to team_head and team_lead */}
-              {canAccessBallCourt && (
+              {/* Ball in Court Section - Hidden for client and client_team_member, editable only by admin, project_manager, assistant_project_manager */}
+              {canViewBallCourt && (
               <div className="py-3 border-b flex items-start justify-between gap-4">
                 <div className="flex-shrink-0 w-48">
                   <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Ball in Court</h3>
@@ -1518,7 +1519,7 @@ export default function ProjectDetailsPage() {
                 <RadioGroup
                   value={project.ballInCourt || ''}
                   onValueChange={async (value) => {
-                    if (!canAccessBallCourt || !project) return;
+                    if (!canEditBallCourt || !project) return;
                     const currentValue = project.ballInCourt;
                     setProject({ ...project, ballInCourt: value as Project['ballInCourt'] });
                     try {
@@ -1532,7 +1533,7 @@ export default function ProjectDetailsPage() {
                       alert('Failed to save ball in court. Please try again.');
                     }
                   }}
-                  disabled={!canAccessBallCourt}
+                  disabled={!canEditBallCourt}
                   className="grid grid-cols-2 gap-2"
                 >
                   {[
@@ -1548,12 +1549,12 @@ export default function ProjectDetailsPage() {
                   ].map((option) => (
                     <label
                       key={option.value}
-                      className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${
-                        project.ballInCourt === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'
-                      } ${!canAccessBallCourt ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      className={`flex items-center space-x-2 p-2 rounded-md border transition-colors ${
+                        project.ballInCourt === option.value ? 'bg-primary/10 border-primary' : 'border-border'
+                      } ${canEditBallCourt ? 'cursor-pointer hover:bg-accent' : 'opacity-60 cursor-not-allowed'}`}
                     >
-                      <RadioGroupItem value={option.value} id={`ball-${option.value}`} disabled={!canAccessBallCourt} />
-                      <label htmlFor={`ball-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canAccessBallCourt ? 'cursor-not-allowed' : ''}`}>
+                      <RadioGroupItem value={option.value} id={`ball-${option.value}`} disabled={!canEditBallCourt} />
+                      <label htmlFor={`ball-${option.value}`} className={`text-sm font-medium flex-1 ${canEditBallCourt ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
                         {option.label}
                       </label>
                     </label>
