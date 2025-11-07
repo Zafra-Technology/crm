@@ -107,6 +107,7 @@ export default function ProjectDetailsPage() {
   const [projectClientRequirement, setProjectClientRequirement] = useState<ClientRequirement | null>(null);
   const [showAddClientRequirementModal, setShowAddClientRequirementModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
+  const [activeChatType, setActiveChatType] = useState<'client' | 'team' | 'professional_engineer' | null>(null);
   const [chatCounts, setChatCounts] = useState<{ client: number; team: number; professional_engineer: number }>({
     client: 0,
     team: 0,
@@ -998,19 +999,33 @@ export default function ProjectDetailsPage() {
     onhold: 'On Hold',
   };
 
+  // Handle chat switching
+  const handleChatOpen = (chatType: 'client' | 'team' | 'professional_engineer') => {
+    setActiveChatType(chatType);
+  };
+
+  const handleChatClose = () => {
+    setActiveChatType(null);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-screen bg-background">
+      {/* Main Content Area */}
+      <div className={`flex-1 transition-all duration-300 ${activeChatType ? 'mr-[448px]' : 'mr-16'}`}>
+        <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button
-            onClick={() => router.back()}
-            variant="ghost"
-            size="icon"
-            className="flex items-center justify-center"
-          >
-            <ArrowLeft size={20} />
-          </Button>
+          {!activeChatType && (
+            <Button
+              onClick={() => router.back()}
+              variant="ghost"
+              size="icon"
+              className="flex items-center justify-center"
+            >
+              <ArrowLeft size={20} />
+            </Button>
+          )}
           <div>
             <div className="flex items-center gap-2">
               <span className="text-2xl font-bold text-black whitespace-nowrap">{(project as any).projectCode || (project as any).project_code || ''}</span>
@@ -2236,57 +2251,141 @@ export default function ProjectDetailsPage() {
         </div>
       </div>
 
-      {/* Floating Message Button */}
-      <button
-        onClick={() => {
-          setShowChatModal(true);
-          // Clear counts when chat is opened (will be updated when user views chats)
-        }}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group"
-        title="Open Project Chat"
-      >
-        <MessageSquare size={24} className="group-hover:scale-110 transition-transform" />
-        {(() => {
-          // Calculate total count based on accessible chats only
-          let totalCount = 0;
-          if (canSeeClientChat) totalCount += chatCounts.client;
-          if (canSeeTeamChat) totalCount += chatCounts.team;
-          if (canSeeProfessionalEngineerChat) totalCount += chatCounts.professional_engineer;
+      {/* Chat Icons Sidebar - Fixed right side */}
+      <div className="w-16 bg-card border-l flex flex-col items-center py-6 space-y-2 fixed right-0 top-0 h-full z-20 shadow-sm">
+        <div className="flex flex-col items-center h-full pt-20 space-y-2">
+          {/* Chat Label */}
+          <div className="text-[10px] font-bold text-muted-foreground text-center mb-4">
+            CHAT
+          </div>
+          {/* Client Chat Icon */}
+          {canSeeClientChat && (
+            <button
+              onClick={() => handleChatOpen('client')}
+              className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center transition-all duration-200 relative ${
+                activeChatType === 'client' ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'bg-accent hover:bg-accent/80 hover:scale-105'
+              }`}
+              title="Client Chat"
+            >
+              <UserIcon size={12} />
+              <span className="text-[8px] font-bold mt-0.5">CC</span>
+              {chatCounts.client > 0 && (
+                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center min-w-[16px] text-[10px]">
+                  {chatCounts.client > 9 ? '9+' : chatCounts.client}
+                </span>
+              )}
+            </button>
+          )}
           
-          return totalCount > 0 ? (
-            <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
-              {totalCount > 99 ? '99+' : totalCount}
-            </span>
-          ) : null;
-        })()}
-      </button>
+          {/* Team Chat Icon */}
+          {canSeeTeamChat && (
+            <button
+              onClick={() => handleChatOpen('team')}
+              className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center transition-all duration-200 relative ${
+                activeChatType === 'team' ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'bg-accent hover:bg-accent/80 hover:scale-105'
+              }`}
+              title="Team Chat"
+            >
+              <UsersIcon size={12} />
+              <span className="text-[8px] font-bold mt-0.5">TC</span>
+              {chatCounts.team > 0 && (
+                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center min-w-[16px] text-[10px]">
+                  {chatCounts.team > 9 ? '9+' : chatCounts.team}
+                </span>
+              )}
+            </button>
+          )}
+          
+          {/* Professional Engineer Chat Icon */}
+          {canSeeProfessionalEngineerChat && (
+            <button
+              onClick={() => handleChatOpen('professional_engineer')}
+              className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center transition-all duration-200 relative ${
+                activeChatType === 'professional_engineer' ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'bg-accent hover:bg-accent/80 hover:scale-105'
+              }`}
+              title="Professional Engineer"
+            >
+              <BuildingIcon size={12} />
+              <span className="text-[8px] font-bold mt-0.5">PC</span>
+              {chatCounts.professional_engineer > 0 && (
+                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center min-w-[16px] text-[10px]">
+                  {chatCounts.professional_engineer > 9 ? '9+' : chatCounts.professional_engineer}
+                </span>
+              )}
+            </button>
+          )}
+          
+          {/* Close Chat Button - Only show when a chat is active */}
+          {activeChatType && (
+            <div className="mt-4 pt-3 border-t border-border">
+              <button
+                onClick={handleChatClose}
+                className="w-11 h-11 rounded-lg flex items-center justify-center transition-all duration-200 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                title="Close Chat"
+              >
+                <XIcon size={18} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
-      {/* Chat Sheet - Slides in from right */}
-      <Sheet open={showChatModal} onOpenChange={setShowChatModal}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-4xl p-0 flex flex-col">
-          <SheetHeader className="px-6 pt-6 pb-4 border-b">
-            <SheetTitle>Project Chat</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-hidden px-6 pb-6">
-            <div className="h-[calc(100vh-8rem)]">
+        </div>
+      </div>
+
+      {/* Chat Area - Fixed right side */}
+      {activeChatType && (
+        <div className="w-96 bg-card border-l flex flex-col fixed right-16 top-0 h-full z-10 shadow-lg">
+          {/* Chat Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/30">
+            <div className="flex items-center gap-3">
+              {activeChatType === 'client' && <UserIcon size={18} className="text-primary" />}
+              {activeChatType === 'team' && <UsersIcon size={18} className="text-primary" />}
+              {activeChatType === 'professional_engineer' && <BuildingIcon size={18} className="text-primary" />}
+              <h3 className="text-base font-medium">
+                {activeChatType === 'client' && 'Client Chat'}
+                {activeChatType === 'team' && 'Team Chat'}
+                {activeChatType === 'professional_engineer' && 'Professional Engineer'}
+              </h3>
+            </div>
+            <button
+              onClick={handleChatClose}
+              className="p-2 hover:bg-muted rounded-lg transition-colors"
+              title="Close Chat"
+            >
+              <XIcon size={16} />
+            </button>
+          </div>
+          
+          {/* Chat Content */}
+          <div className="flex-1 overflow-hidden px-4 py-2">
+            <div className="h-full text-sm">
               <ProjectChat 
                 projectId={projectId}
                 currentUser={user}
                 messages={chatMessages}
                 isAssignedMember={
-                  // Check if current user is in the project's assigned members (designerIds)
-                  // Also check if user is in the designers array (loaded separately)
                   (project?.designerIds?.some(id => String(id) === String(user.id)) ?? false) ||
                   designers.some(d => d.id === user.id)
                 }
                 isModal={true}
                 onCountsChange={setChatCounts}
                 unreadCounts={chatCounts}
+                initialChatType={activeChatType}
               />
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+          
+          {/* Chat Footer */}
+          <div className="px-4 py-3 border-t bg-muted/20">
+            <div className="text-xs text-muted-foreground text-center">
+              {activeChatType === 'client' && 'Client communication channel'}
+              {activeChatType === 'team' && 'Internal team discussion'}
+              {activeChatType === 'professional_engineer' && 'Engineering consultation'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Project Modal */}
       <Dialog open={isEditing} onOpenChange={setIsEditing}>

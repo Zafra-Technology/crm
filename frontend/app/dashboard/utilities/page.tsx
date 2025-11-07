@@ -20,14 +20,28 @@ export default function UtilitiesPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUtility, setSelectedUtility] = useState<Utility | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [attachmentCounts, setAttachmentCounts] = useState<{[key: number]: number}>({});
 
   const load = async () => {
     try {
       setLoading(true);
       const data = await utilitiesApi.list();
       setItems(data);
+      
+      // Get attachment count for each utility
+      const counts: {[key: number]: number} = {};
+      for (const utility of data) {
+        try {
+          const utilityDetail = await utilitiesApi.get(utility.id);
+          counts[utility.id] = utilityDetail.files && Array.isArray(utilityDetail.files) ? utilityDetail.files.length : 0;
+        } catch (e) {
+          counts[utility.id] = 0;
+        }
+      }
+      setAttachmentCounts(counts);
     } catch (e) {
       setItems([]);
+      setAttachmentCounts({});
     } finally {
       setLoading(false);
     }
@@ -72,7 +86,12 @@ export default function UtilitiesPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Utilities</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">Utilities</h1>
+            <div className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+              {filtered.length} Total
+            </div>
+          </div>
           <p className="text-muted-foreground">Manage utility records</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 shadow-md">
@@ -116,29 +135,109 @@ export default function UtilitiesPage() {
               <table className="min-w-full divide-y divide-border">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utility Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Updated</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Action</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">S.No.</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utility Name</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utility Websites</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Site Plan Requirements</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Electrical Plan Requirements</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Other Plan Requirements</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utility Attachments</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="bg-background divide-y divide-border">
-                  {filtered.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">{row.utility_name || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{formatDate(row.created_at)} - <span className="text-foreground">{row.created_by}</span></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{formatDate(row.updated_at)} - <span className="text-foreground">{row.updated_by}</span></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-3">
-                          <Link href={`/dashboard/utilities/${row.id}`} className="text-primary hover:underline">View Details</Link>
+                  {filtered.map((row, index) => (
+                    <tr 
+                      key={row.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => window.location.href = `/dashboard/utilities/${row.id}`}
+                    >
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{index + 1}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{row.utility_name || '-'}</td>
+                      <td className="px-3 py-4 text-sm text-foreground max-w-[200px]">
+                        {row.utility_websites && row.utility_websites.length > 0 ? (
+                          <div className="space-y-1">
+                            {row.utility_websites.slice(0, 2).map((website, idx) => (
+                              <a
+                                key={idx}
+                                href={website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 text-xs block truncate"
+                                title={website}
+                              >
+                                {website}
+                              </a>
+                            ))}
+                            {row.utility_websites.length > 2 && (
+                              <span className="text-xs text-gray-500">
+                                +{row.utility_websites.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No websites</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-foreground max-w-[180px]">
+                        {row.site_plan_requirements ? (
+                          <p className="text-xs truncate" title={row.site_plan_requirements}>
+                            {row.site_plan_requirements}
+                          </p>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No requirements</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-foreground max-w-[180px]">
+                        {row.electrical_plan_requirements ? (
+                          <p className="text-xs truncate" title={row.electrical_plan_requirements}>
+                            {row.electrical_plan_requirements}
+                          </p>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No requirements</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-foreground max-w-[180px]">
+                        {row.other_plan_requirements ? (
+                          <p className="text-xs truncate" title={row.other_plan_requirements}>
+                            {row.other_plan_requirements}
+                          </p>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No requirements</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-foreground">
+                        {(() => {
+                          const attachmentCount = attachmentCounts[row.id] || 0;
+                          return attachmentCount > 0 ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                              {attachmentCount} {attachmentCount === 1 ? 'file' : 'files'}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">0 files</span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          <Link 
+                            href={`/dashboard/utilities/${row.id}`} 
+                            className="text-primary hover:underline text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            View Details
+                          </Link>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteClick(row)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(row);
+                            }}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                           </Button>
                         </div>
                       </td>

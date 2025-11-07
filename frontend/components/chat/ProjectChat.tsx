@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon, ArrowLeft, Users, Building2, MessageSquare, ChevronRight, Wrench } from 'lucide-react';
+import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon, Users, Building2, MessageSquare, ChevronRight, Wrench } from 'lucide-react';
 import { MoreVertical } from 'lucide-react';
 import { Forward } from 'lucide-react';
 import { CheckSquare } from 'lucide-react';
@@ -32,11 +32,24 @@ interface ProjectChatProps {
   isModal?: boolean; // Optional prop to indicate if component is used in a modal (removes card styling)
   onCountsChange?: (counts: { client: number; team: number; professional_engineer: number }) => void;
   unreadCounts?: { client: number; team: number; professional_engineer: number }; // Optional prop to receive unread counts
+  initialChatType?: 'client' | 'team' | 'professional_engineer' | null; // Optional prop to set initial chat type
 }
 
 type ChatType = 'client' | 'team' | 'professional_engineer' | null;
 
-export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false, isModal = false, onCountsChange, unreadCounts }: ProjectChatProps) {
+// Utility function to truncate filename to 10 characters + extension
+const truncateFileName = (filename: string) => {
+  const lastDotIndex = filename.lastIndexOf('.');
+  if (lastDotIndex === -1) {
+    // No extension, just truncate to 10 chars
+    return filename.length > 10 ? filename.substring(0, 10) + '...' : filename;
+  }
+  const name = filename.substring(0, lastDotIndex);
+  const extension = filename.substring(lastDotIndex);
+  return name.length > 10 ? name.substring(0, 10) + '...' + extension : filename;
+};
+
+export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false, isModal = false, onCountsChange, unreadCounts, initialChatType }: ProjectChatProps) {
   const [selectedChatType, setSelectedChatType] = useState<ChatType>(null);
   const [userHasSelected, setUserHasSelected] = useState(false); // Track if user explicitly selected
   const lastExplicitSelectionRef = useRef<ChatType>(null);
@@ -432,8 +445,18 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     loadMembers();
   }, [selectedChatType, projectId, project]);
 
+  // Handle initial chat type from parent component - auto-select immediately
+  useEffect(() => {
+    if (initialChatType) {
+      setSelectedChatType(initialChatType);
+      setUserHasSelected(true);
+      lastExplicitSelectionRef.current = initialChatType;
+    }
+  }, [initialChatType]);
+
   // Restore last explicit selection from sessionStorage (sticky selection to prevent auto-switch)
   useEffect(() => {
+    if (initialChatType) return; // Skip session storage if initial chat type is provided
     try {
       const key = `projectChat:lastSelection:${projectId}`;
       const saved = sessionStorage.getItem(key) as ChatType | null;
@@ -443,7 +466,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         lastExplicitSelectionRef.current = saved;
       }
     } catch (_) {}
-  }, [projectId]);
+  }, [projectId, initialChatType]);
 
   // Persist explicit selection to sessionStorage
   useEffect(() => {
@@ -786,9 +809,10 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             fileType: file.type,
           };
 
+          const truncatedName = truncateFileName(file.name);
           const messageText = messageType === 'image' 
-            ? `📷 Shared an image: ${file.name}`
-            : `📎 Shared a file: ${file.name}`;
+            ? `📷 ${truncatedName}`
+            : `📎 ${truncatedName}`;
 
           await sendMessage(messageText, messageType, fileData);
           console.log('File upload completed successfully');
@@ -1245,7 +1269,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             className="text-gray-600 hover:text-gray-900 transition-colors"
             title="Back to chat selection"
           >
-            <ArrowLeft size={20} />
+           
           </button>
           <h3 className="text-lg font-semibold text-black">
             Project Chat
@@ -1267,7 +1291,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             className="text-gray-600 hover:text-gray-900 transition-colors"
             title="Back to chat selection"
           >
-            <ArrowLeft size={20} />
+            
           </button>
           <span className="text-sm text-gray-700 font-medium">
             {selectedChatType === 'client' ? 'Client Chat' : selectedChatType === 'team' ? 'Team Chat' : 'Professional Engineer Chat'}
@@ -1287,7 +1311,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
               className="text-gray-600 hover:text-gray-900 transition-colors"
               title="Back to chat selection"
             >
-              <ArrowLeft size={20} />
+            
             </button>
             <div className="text-sm text-gray-700">
               {selectedMessageIds.size} selected
@@ -1541,7 +1565,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                           {getFileIcon(message.fileType)}
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate text-gray-700">
-                              {message.fileName || 'Unknown file'}
+                              {truncateFileName(message.fileName || 'Unknown file')}
                             </p>
                           </div>
                           <div className="flex items-center gap-1">
@@ -1667,9 +1691,10 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                 const dataUrl = await urlToDataUrl(sharedMsg.fileUrl);
                 const isImg = isImageFile(sharedMsg.fileType);
                 const messageType: 'file' | 'image' = isImg ? 'image' : 'file';
+                const truncatedName = truncateFileName(sharedMsg.fileName || '');
                 const messageText = messageType === 'image' 
-                  ? `📷 Shared an image: ${sharedMsg.fileName || ''}` 
-                  : `📎 Shared a file: ${sharedMsg.fileName || ''}`;
+                  ? `📷 ${truncatedName}` 
+                  : `📎 ${truncatedName}`;
                 payload = {
                   message: messageText,
                   message_type: messageType,
@@ -1748,7 +1773,8 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
                 const dataUrl = await urlToDataUrl(msg.fileUrl);
                 const isImg = isImageFile(msg.fileType);
                 const messageType: 'file' | 'image' = isImg ? 'image' : 'file';
-                const messageText = messageType === 'image' ? `📷 Shared an image: ${msg.fileName || ''}` : `📎 Shared a file: ${msg.fileName || ''}`;
+                const truncatedName = truncateFileName(msg.fileName || '');
+                const messageText = messageType === 'image' ? `📷 ${truncatedName}` : `📎 ${truncatedName}`;
                 const payload = {
                   message: messageText,
                   message_type: messageType,

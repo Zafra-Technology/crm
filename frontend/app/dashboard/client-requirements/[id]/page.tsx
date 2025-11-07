@@ -134,27 +134,13 @@ export default function ClientRequirementDetailPage() {
     <div className="space-y-6">
       <div className="space-y-3">
         <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/client-requirements')} className="h-8 w-8">
-                <ArrowLeft size={18} />
-              </Button>
-              <div className="flex items-center gap-2">
-                <Building2 size={20} className="text-primary" />
-                <h1 className="text-2xl font-semibold tracking-tight">{data.client_name || 'Client Requirement'}</h1>
-              </div>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <FileTextIcon size={16} />
-                <span>{fileCount} {fileCount === 1 ? 'file' : 'files'}</span>
-              </div>
-              <div className="hidden md:flex items-center gap-2">
-                <span>Created by</span>
-                <span className="text-foreground font-medium">{data.created_by || '—'}</span>
-                <span>• Updated by</span>
-                <span className="text-foreground font-medium">{data.updated_by || '—'}</span>
-              </div>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/client-requirements')} className="h-8 w-8">
+              <ArrowLeft size={18} />
+            </Button>
+            <div className="flex items-center gap-2">
+              <Building2 size={20} className="text-primary" />
+              <h1 className="text-2xl font-semibold tracking-tight">Client Requirement Details</h1>
             </div>
           </div>
           {!edit ? (
@@ -329,6 +315,7 @@ export default function ClientRequirementDetailPage() {
           </CardContent>
         </Card>
       </div>
+
     </div>
   );
 }
