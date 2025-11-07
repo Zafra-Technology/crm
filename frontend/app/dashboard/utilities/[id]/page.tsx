@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { utilitiesApi, Utility } from '@/lib/api/utilities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +11,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ProjectAttachments from '@/components/ProjectAttachments';
-import type { ProjectAttachment } from '@/types';
+import type { ProjectAttachment, Project } from '@/types';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Zap, Globe, FileText, Plus, X } from 'lucide-react';
+import { ArrowLeft, Zap, Globe, FileText, Plus, X, FolderKanban } from 'lucide-react';
 import UtilityWebsiteCard from '@/components/UtilityWebsiteCard';
 
 export default function UtilityDetailsPage() {
@@ -24,6 +25,7 @@ export default function UtilityDetailsPage() {
   const [edit, setEdit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [utilityWebsites, setUtilityWebsites] = useState<string[]>(['']);
+  const [relatedProjects, setRelatedProjects] = useState<Project[]>([]);
 
   const load = async () => {
     try {
@@ -34,6 +36,13 @@ export default function UtilityDetailsPage() {
         setUtilityWebsites([...res.utility_websites, '']);
       } else {
         setUtilityWebsites(['']);
+      }
+      // Load related projects for this utility
+      try {
+        const projects = await utilitiesApi.getProjects(id);
+        setRelatedProjects(projects);
+      } catch (e) {
+        setRelatedProjects([]);
       }
     } catch (e) {
       console.error('Failed to load utility:', e);
@@ -313,6 +322,39 @@ export default function UtilityDetailsPage() {
           }}
         />
       </div>
+
+      <Separator />
+
+      {/* Related Projects */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Related Projects</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {relatedProjects.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No projects linked to this utility.</div>
+          ) : (
+            <div className="divide-y border rounded-md">
+              {relatedProjects.map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-3 hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <FolderKanban size={20} className="text-primary flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-foreground truncate">{p.name}</div>
+                      {p.projectCode && (
+                        <div className="text-xs text-muted-foreground truncate">{p.projectCode}</div>
+                      )}
+                    </div>
+                  </div>
+                  <Link href={`/dashboard/project/${p.id}`}>
+                    <Button variant="outline" size="sm">View</Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Separator />
 

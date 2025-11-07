@@ -1,4 +1,6 @@
 import { getAuthToken } from '@/lib/auth';
+import { projectsApi } from '@/lib/api/projects';
+import type { Project } from '@/types';
 
 export interface Utility {
   id: number;
@@ -165,6 +167,23 @@ export const utilitiesApi = {
       },
     });
     return res.ok;
+  },
+
+  // Get projects linked to a given utility
+  async getProjects(utilityId: number): Promise<Project[]> {
+    const token = await getAuthToken();
+    const res = await fetch(`${API_BASE}/utilities/${utilityId}/projects/`, {
+      headers: {
+        'Accept': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      cache: 'no-store',
+      credentials: 'include',
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : [];
+    return arr.map((p: any) => projectsApi._mapApiProject(p));
   },
 
   // Delete utility

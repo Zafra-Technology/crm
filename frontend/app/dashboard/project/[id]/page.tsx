@@ -260,6 +260,14 @@ export default function ProjectDetailsPage() {
   );
   const isProfessionalEngineerAssigned = isProfessionalEngineer && isAssignedMember;
 
+  // Check if project has any professional engineers assigned
+  const hasProfessionalEngineerAssigned = designers.some(d => 
+    d.role === 'professional_engineer' || d.role === 'Professional Engineer'
+  ) || (project?.designerIds && project.designerIds.length > 0 && 
+    // Fallback: check if any designerIds correspond to professional engineers
+    // This will be checked more accurately when designers are loaded
+    false);
+
   const canSeeClientChat = !isProfessionalEngineerAssigned && [
     'admin',
     'project_manager',
@@ -278,11 +286,14 @@ export default function ProjectDetailsPage() {
     ].includes(user?.role || '') || isAssignedMember
   );
 
-  const canSeeProfessionalEngineerChat = [
-    'admin',
-    'project_manager',
-    'assistant_project_manager'
-  ].includes(user?.role || '') || isProfessionalEngineerAssigned;
+  // Professional engineer chat visible to: admin, PM, APM (only if PE is assigned), and professional engineers assigned to project
+  const canSeeProfessionalEngineerChat = isProfessionalEngineerAssigned || (
+    [
+      'admin',
+      'project_manager',
+      'assistant_project_manager'
+    ].includes(user?.role || '') && hasProfessionalEngineerAssigned
+  );
 
   // Load unread chat counts
   useEffect(() => {

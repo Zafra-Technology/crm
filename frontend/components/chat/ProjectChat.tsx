@@ -85,6 +85,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     team: 0,
     professional_engineer: 0
   });
+  const [hasProfessionalEngineerAssigned, setHasProfessionalEngineerAssigned] = useState(false);
   
   // Check if current user is a professional engineer assigned to this project
   const isProfessionalEngineer = currentUser?.role === 'professional_engineer';
@@ -112,12 +113,14 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     ].includes(currentUser?.role || '') || isAssignedMember
   );
   
-  // Professional engineer chat visible to: admin, project_manager, assistant_project_manager, and professional engineers assigned to project
-  const canSeeProfessionalEngineerChat = [
-    'admin',
-    'project_manager',
-    'assistant_project_manager'
-  ].includes(currentUser?.role || '') || isProfessionalEngineerAssigned;
+  // Professional engineer chat visible to: admin, PM, APM (only if PE is assigned), and professional engineers assigned to project
+  const canSeeProfessionalEngineerChat = isProfessionalEngineerAssigned || (
+    [
+      'admin',
+      'project_manager',
+      'assistant_project_manager'
+    ].includes(currentUser?.role || '') && hasProfessionalEngineerAssigned
+  );
   
   // Debug logging for team chat visibility
   useEffect(() => {
@@ -301,6 +304,29 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
       try {
         const projectData = await projectsApi.getById(projectId);
         setProject(projectData);
+        
+        // Check if project has any professional engineers assigned
+        if (projectData) {
+          try {
+            const allUsers = await authAPI.getUsers();
+            const assignedIds: string[] = Array.isArray((projectData as any).designerIds) && (projectData as any).designerIds.length
+              ? (projectData as any).designerIds.map((d: any) => String(d))
+              : (Array.isArray((projectData as any).designers)
+                ? (projectData as any).designers.map((d: any) => (typeof d === 'object' && d !== null ? String(d.id) : String(d)))
+                : []);
+            
+            // Check if any assigned designer is a professional engineer
+            const hasPE = assignedIds.some((id) => {
+              const user = allUsers.find((u: any) => String(u.id) === String(id));
+              return user && user.role === 'professional_engineer';
+            });
+            
+            setHasProfessionalEngineerAssigned(hasPE);
+          } catch (error) {
+            console.error('Error checking for professional engineers:', error);
+            setHasProfessionalEngineerAssigned(false);
+          }
+        }
       } catch (error) {
         console.error('Error loading project:', error);
       }
@@ -1677,6 +1703,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         currentChatType={selectedChatType || undefined}
         userRole={currentUser?.role}
         isAssignedMember={isAssignedMember}
+        hasProfessionalEngineerAssigned={hasProfessionalEngineerAssigned}
         onConfirm={async ({ groupIds, userIds, projectChatTypes }) => {
           try {
             setShareLoading(true);
