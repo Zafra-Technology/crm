@@ -973,6 +973,8 @@ export default function ProjectDetailsPage() {
   const isClientOrClientTeam = user.role === 'client' || user.role === 'client_team_member';
   // Errors section should not be visible to clients and client team members
   const canViewErrors = user.role !== 'client' && user.role !== 'client_team_member';
+  // Ball in Court section can only be accessed by team_head and team_lead
+  const canAccessBallCourt = user.role === 'team_head' || user.role === 'team_lead';
   const canAddUpdates =
     user.role === 'designer' ||
     user.role === 'senior_designer' ||
@@ -1024,7 +1026,7 @@ export default function ProjectDetailsPage() {
       {/* Main Content Area */}
       <div className={`flex-1 transition-all duration-300 ${activeChatType ? 'mr-[448px]' : 'mr-16'}`}>
         <div className="space-y-6 p-6">
-      {/* Header */}
+      {/* Header Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {!activeChatType && (
@@ -1037,13 +1039,6 @@ export default function ProjectDetailsPage() {
               <ArrowLeft size={20} />
             </Button>
           )}
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-black whitespace-nowrap">{(project as any).projectCode || (project as any).project_code || ''}</span>
-              <h1 className="text-2xl font-bold text-black">{project.name.charAt(0).toUpperCase() + project.name.slice(1)}</h1>
-            </div>
-            <p className="text-gray-600 mt-1">Project management and team collaboration</p>
-          </div>
         </div>
         {canEdit && (
           <Button
@@ -1062,46 +1057,52 @@ export default function ProjectDetailsPage() {
         <div className="space-y-4">
           {/* Project Details */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-4 border-b">
               <div className="flex items-center justify-between">
-                <CardTitle>Project Overview</CardTitle>
-                <Badge variant="outline" className={`${statusColors[project.status]}`}>
-                  {statusLabels[project.status]}
-                </Badge>
+                <CardTitle className="text-xl font-bold">Project Details</CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Project Overview Section */}
-              <div className="space-y-4">
-                <div>
-                  <p className="text-muted-foreground leading-relaxed">{project.description}</p>
+            <CardContent className="space-y-0">
+              {/* Project Id */}
+              <div className="py-3 flex items-start justify-between gap-4 border-b">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project Id</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-                  <div>
-                    <h4 className="font-medium text-foreground mb-2">Client</h4>
-                    <div className="flex items-center space-x-2 text-muted-foreground">
-                      <BuildingIcon size={16} />
-                      <div className="flex flex-col">
-                        <span className="font-medium">{project.clientName || 'Unknown Client'}</span>
-                        {project.clientCompany && (
-                          <span className="text-sm text-muted-foreground/70">{project.clientCompany}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-2">Team Size</h4>
-                    <div className="flex items-center space-x-2 text-muted-foreground">
-                      <UsersIcon size={16} />
-                      <span>{designers.length} member{designers.length !== 1 ? 's' : ''}</span>
-                    </div>
-                  </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-semibold text-foreground">{(project as any).projectCode || (project as any).project_code || 'N/A'}</p>
                 </div>
               </div>
 
-              {/* Project Type Section */}
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">Project Type</h3>
+              {/* Project Title */}
+              <div className="py-3 flex items-start justify-between gap-4 border-b">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project Title</h3>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-semibold text-foreground">
+                    {((project as any).projectCode || (project as any).project_code || '') + ' ' + (project.name.charAt(0).toUpperCase() + project.name.slice(1))}
+                  </p>
+                </div>
+              </div>
+
+              {/* Project Status */}
+              <div className="py-3 flex items-start justify-between gap-4 border-b">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project Status</h3>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Badge variant="outline" className={`${statusColors[project.status]} text-sm font-medium px-3 py-1`}>
+                    {statusLabels[project.status]}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Project Category Section (formerly Project Type) */}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project Category</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project.projectType}
                   onValueChange={async (value) => {
@@ -1146,38 +1147,18 @@ export default function ProjectDetailsPage() {
                     </label>
                   ))}
                 </RadioGroup>
-              </div>
-
-              {/* Project Attachments Section */}
-              {Array.isArray(project.attachments) && project.attachments.length > 0 && (
-                <div className="pt-4 border-t">
-                  <ProjectAttachments
-                    attachments={project.attachments}
-                    canEdit={true}
-                    canRemove={user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin'}
-                    onAddAttachment={handleAddAttachment}
-                    onRemoveAttachment={handleRemoveAttachment}
-                  />
                 </div>
-              )}
-
-              {/* Project Updates Section */}
-              <div className="pt-4 border-t">
-                <ProjectUpdates
-                  projectId={projectId}
-                  updates={updates}
-                  currentUser={user}
-                  canEdit={canAddUpdates}
-                  onUpdateAdded={loadProjectData}
-                />
               </div>
 
               {/* Services Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">
-                  Services<span className="text-destructive ml-1">*</span>
-                </h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Services<span className="text-destructive ml-1">*</span>
+                  </h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <div className="grid grid-cols-2 gap-2 border rounded-lg bg-muted/30 p-2">
                   {[
                     { code: 'single_line_diagram', label: 'Single Line Diagram' },
@@ -1234,16 +1215,19 @@ export default function ProjectDetailsPage() {
                     );
                   })}
                 </div>
+                </div>
               </div>
               )}
 
               {/* Wetstamp Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-foreground">
-                    <span className="text-destructive mr-1">*</span>WETSTAMP
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    <span className="text-destructive mr-1">*</span>Wetstamp
                   </h3>
+                </div>
+                <div className="flex-1 min-w-0">
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -1298,41 +1282,52 @@ export default function ProjectDetailsPage() {
               </div>
               )}
 
-              {/* Project Address Section */}
-              <div className="pt-4 border-t">
-                <div className="flex items-center gap-4 mb-3">
-                  <h3 className="text-base font-semibold text-foreground">
+              {/* Project Name */}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project Name</h3>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-semibold text-foreground">{project.name.charAt(0).toUpperCase() + project.name.slice(1)}</p>
+                </div>
+              </div>
+
+              {/* Project Address */}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                     <span className="text-destructive mr-1">*</span>Project Address
                   </h3>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <p className="text-muted-foreground">
-                      {project.projectAddress || 'No address provided'}
-                    </p>
-                  </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base text-foreground">
+                    {project.projectAddress || 'No address provided'}
+                  </p>
                 </div>
               </div>
 
               {/* Project Location Section */}
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-foreground">Location</h3>
-                  {canEdit && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setLocationUrl(project.projectLocationUrl || '');
-                        setIsEditingLocation(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  )}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project Location</h3>
                 </div>
-                <div className="space-y-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-end mb-2">
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setLocationUrl(project.projectLocationUrl || '');
+                          setIsEditingLocation(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
                   <p className="text-muted-foreground">
                     {project.projectAddress || 'No address provided'}
                   </p>
@@ -1388,20 +1383,24 @@ export default function ProjectDetailsPage() {
                     </div>
                   )}
                 </div>
+                </div>
               </div>
 
               {/* Project AHJ Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-foreground">Project AHJ</h3>
-                  {canEditServices && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddAhjModal(true)}>
-                      <PlusIcon size={16} className="mr-1" />
-                      Add AHJ
-                    </Button>
-                  )}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project AHJ</h3>
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-end mb-2">
+                    {canEditServices && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowAddAhjModal(true)}>
+                        <PlusIcon size={16} className="mr-1" />
+                        Add AHJ
+                      </Button>
+                    )}
+                  </div>
                 {projectAhjs.length > 0 ? (
                   <div className="max-h-60 overflow-y-auto space-y-2">
                     {projectAhjs.map((ahj) => (
@@ -1451,13 +1450,17 @@ export default function ProjectDetailsPage() {
                 ) : (
                   <p className="text-sm text-muted-foreground">No AHJs added</p>
                 )}
+                </div>
               </div>
               )}
 
               {/* Project AHJ Type Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">Project AHJ Type</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project AHJ Type</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project.projectAhjType || ''}
                   onValueChange={async (value) => {
@@ -1497,19 +1500,23 @@ export default function ProjectDetailsPage() {
                         {option.label}
                       </label>
                     </label>
-                  ))}
+                  ))} 
                 </RadioGroup>
+                </div>
               </div>
               )}
 
-              {/* Ball in Court Section */}
-              {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">Ball in court</h3>
+              {/* Ball in Court Section - Only visible to team_head and team_lead */}
+              {canAccessBallCourt && (
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Ball in Court</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project.ballInCourt || ''}
                   onValueChange={async (value) => {
-                    if (!canEditServices || !project) return;
+                    if (!canAccessBallCourt || !project) return;
                     const currentValue = project.ballInCourt;
                     setProject({ ...project, ballInCourt: value as Project['ballInCourt'] });
                     try {
@@ -1523,7 +1530,7 @@ export default function ProjectDetailsPage() {
                       alert('Failed to save ball in court. Please try again.');
                     }
                   }}
-                  disabled={!canEditServices}
+                  disabled={!canAccessBallCourt}
                   className="grid grid-cols-2 gap-2"
                 >
                   {[
@@ -1541,22 +1548,26 @@ export default function ProjectDetailsPage() {
                       key={option.value}
                       className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${
                         project.ballInCourt === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'
-                      } ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      } ${!canAccessBallCourt ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
-                      <RadioGroupItem value={option.value} id={`ball-${option.value}`} disabled={!canEditServices} />
-                      <label htmlFor={`ball-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
+                      <RadioGroupItem value={option.value} id={`ball-${option.value}`} disabled={!canAccessBallCourt} />
+                      <label htmlFor={`ball-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canAccessBallCourt ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>
                   ))}
                 </RadioGroup>
+                </div>
               </div>
               )}
 
               {/* Structural PE Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">Structural PE</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Structural PE</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project?.structuralPe ?? ''}
                   onValueChange={async (value) => {
@@ -1601,13 +1612,17 @@ export default function ProjectDetailsPage() {
                     </label>
                   ))}
                 </RadioGroup>
+                </div>
               </div>
               )}
 
               {/* Structural PE Status Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3"><span className="text-destructive mr-1">*</span>Structural PE Status</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide"><span className="text-destructive mr-1">*</span>Structural PE Status</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project?.structuralPeStatus ?? 'new'}
                   onValueChange={async (value) => {
@@ -1647,13 +1662,17 @@ export default function ProjectDetailsPage() {
                     </label>
                   ))}
                 </RadioGroup>
+                </div>
               </div>
               )}
 
               {/* Electrical PE Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">Electrical PE</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Electrical PE</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project?.electricalPe ?? ''}
                   onValueChange={async (value) => {
@@ -1695,13 +1714,17 @@ export default function ProjectDetailsPage() {
                     </label>
                   ))}
                 </RadioGroup>
+                </div>
               </div>
               )}
 
               {/* Electrical PE Status Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3"><span className="text-destructive mr-1">*</span>Electrical PE Status</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide"><span className="text-destructive mr-1">*</span>Electrical PE Status</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project?.electricalPeStatus ?? 'new'}
                   onValueChange={async (value) => {
@@ -1741,13 +1764,17 @@ export default function ProjectDetailsPage() {
                     </label>
                   ))}
                 </RadioGroup>
+                </div>
               </div>
               )}
 
               {/* Priority Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">Priority</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Priority</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project.priority || ''}
                   onValueChange={async (value) => {
@@ -1781,21 +1808,27 @@ export default function ProjectDetailsPage() {
                     </label>
                   ))}
                 </RadioGroup>
+                </div>
               </div>
               )}
 
-              {/* Project Requirements Section */}
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">Project Requirements</h3>
-                <div className="prose prose-sm max-w-none">
-                  <p className="text-muted-foreground leading-relaxed">{project.requirements}</p>
+              {/* Project Notes Section (Project Requirements) */}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project Notes</h3>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base text-foreground leading-relaxed whitespace-pre-wrap">{project.requirements || 'No notes provided'}</p>
                 </div>
               </div>
 
               {/* Project Report Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">Project Report</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project Report</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project?.projectReport ?? ''}
                   onValueChange={async (value) => {
@@ -1836,21 +1869,25 @@ export default function ProjectDetailsPage() {
                     </label>
                   ))}
                 </RadioGroup>
+                </div>
               </div>
               )}
 
               {/* Errors Section */}
               {canViewErrors && !isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-foreground">Errors</h3>
-                  {canEdit && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => { setErrorsForm({ numberOfErrors: project.numberOfErrors || 0, numberOfErrorsTeamLead: project.numberOfErrorsTeamLead || 0, numberOfErrorsDrafter: project.numberOfErrorsDrafter || 0 }); setIsEditingErrors(true); }}>
-                      Edit
-                    </Button>
-                  )}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Errors</h3>
                 </div>
-                <div className="space-y-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-end mb-2">
+                    {canEdit && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setErrorsForm({ numberOfErrors: project.numberOfErrors || 0, numberOfErrorsTeamLead: project.numberOfErrorsTeamLead || 0, numberOfErrorsDrafter: project.numberOfErrorsDrafter || 0 }); setIsEditingErrors(true); }}>
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground mb-1 block">Number of Errors</Label>
                     <p className="text-foreground">{project?.numberOfErrors !== null && project?.numberOfErrors !== undefined ? project.numberOfErrors : 0}</p>
@@ -1864,12 +1901,16 @@ export default function ProjectDetailsPage() {
                     <p className="text-foreground">{project?.numberOfErrorsDrafter !== null && project?.numberOfErrorsDrafter !== undefined ? project.numberOfErrorsDrafter : 0}</p>
                   </div>
                 </div>
+                </div>
               </div>
               )}
 
               {/* Team Members Section */}
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3">Team Members</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Team Members</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <div className="space-y-3">
                   {designers.map((designer) => (
                     <div key={designer.id} className="flex items-center space-x-3 p-3 bg-accent/50 rounded-lg">
@@ -1909,12 +1950,16 @@ export default function ProjectDetailsPage() {
                     </div>
                   ))}
                 </div>
+                </div>
               </div>
 
               {/* Design Status Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <h3 className="text-base font-semibold text-foreground mb-3"><span className="text-destructive mr-1">*</span>Design Status</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide"><span className="text-destructive mr-1">*</span>Design Status</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 <RadioGroup
                   value={project?.designStatus ?? 'new'}
                   onValueChange={async (value) => {
@@ -1959,21 +2004,25 @@ export default function ProjectDetailsPage() {
                     </label>
                   ))}
                 </RadioGroup>
+                </div>
               </div>
               )}
 
               {/* Utilities Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-foreground">Utilities</h3>
-                  {canEditServices && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddUtilitiesModal(true)}>
-                      <PlusIcon size={16} className="mr-1" />
-                      Add Utilities
-                    </Button>
-                  )}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Utilities</h3>
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-end mb-2">
+                    {canEditServices && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowAddUtilitiesModal(true)}>
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Utilities
+                      </Button>
+                    )}
+                  </div>
                 {projectUtilities.length > 0 ? (
                   <div className="space-y-2">
                     {projectUtilities.map((utility) => (
@@ -2023,21 +2072,25 @@ export default function ProjectDetailsPage() {
                 ) : (
                   <p className="text-sm text-muted-foreground">No utilities added</p>
                 )}
+                </div>
               </div>
               )}
 
               {/* Client Requirements Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-foreground">Client Requirements</h3>
-                  {canEditServices && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddClientRequirementModal(true)}>
-                      <PlusIcon size={16} className="mr-1" />
-                      Add Req
-                    </Button>
-                  )}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Client Requirements</h3>
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-end mb-2">
+                    {canEditServices && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowAddClientRequirementModal(true)}>
+                        <PlusIcon size={16} className="mr-1" />
+                        Add Req
+                      </Button>
+                    )}
+                  </div>
                 {projectClientRequirement ? (
                   <div className="flex items-center justify-between p-2 bg-accent/50 rounded-md">
                     <span className="text-sm text-foreground">
@@ -2097,13 +2150,17 @@ export default function ProjectDetailsPage() {
                 ) : (
                   <p className="text-sm text-muted-foreground">No client requirement added</p>
                 )}
+                </div>
               </div>
               )}
 
               {/* Data Sheet Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t space-y-4">
-                <h3 className="text-base font-semibold text-foreground">Datasheets</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Data Sheet</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                 {categories.map((category) => {
                   const categoryIconMap: Record<string, any> = {
                     'Module': PackageIcon,
@@ -2174,14 +2231,17 @@ export default function ProjectDetailsPage() {
                     </div>
                   );
                 })}
+                </div>
               </div>
               )}
 
               {/* Post Installation Letter Section */}
               {!isClientOrClientTeam && (
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-foreground"><span className="text-destructive mr-1">*</span>Post Installation Letter</h3>
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide"><span className="text-destructive mr-1">*</span>Post Installation Letter</h3>
+                </div>
+                <div className="flex-1 min-w-0">
                   <div className="flex gap-2">
                     <Button type="button" variant={(project.postInstallationLetter ?? false) ? "default" : "outline"} disabled={!canEditServices} onClick={async () => { if (!canEditServices || !project || project.postInstallationLetter === true) return; const currentValue = project.postInstallationLetter ?? false; setProject({ ...project, postInstallationLetter: true }); try { await projectsApi.update(project.id, { postInstallationLetter: true }); } catch (error) { console.error('Error saving post installation letter:', error); setProject({ ...project, postInstallationLetter: currentValue }); alert('Failed to save post installation letter. Please try again.'); } }} className={`px-6 py-2 ${(project.postInstallationLetter ?? false) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-background hover:bg-accent hover:text-accent-foreground'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>YES</Button>
                     <Button type="button" variant={!(project.postInstallationLetter ?? false) ? "default" : "outline"} disabled={!canEditServices} onClick={async () => { if (!canEditServices || !project || project.postInstallationLetter === false) return; const currentValue = project.postInstallationLetter ?? false; setProject({ ...project, postInstallationLetter: false }); try { await projectsApi.update(project.id, { postInstallationLetter: false }); } catch (error) { console.error('Error saving post installation letter:', error); setProject({ ...project, postInstallationLetter: currentValue }); alert('Failed to save post installation letter. Please try again.'); } }} className={`px-6 py-2 ${!project.postInstallationLetter ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-background hover:bg-accent hover:text-accent-foreground'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>NO</Button>
@@ -2191,13 +2251,16 @@ export default function ProjectDetailsPage() {
               )}
 
               {/* Final Output Section */}
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-foreground">Final Output</h3>
-                  {canEdit && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => { setFinalOutputFiles([]); setIsEditingFinalOutput(true); }}>Edit</Button>
-                  )}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Final Output</h3>
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-end mb-2">
+                    {canEdit && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setFinalOutputFiles([]); setIsEditingFinalOutput(true); }}>Edit</Button>
+                    )}
+                  </div>
                 <div className="space-y-3">
                   {project.finalOutputFiles && project.finalOutputFiles.length > 0 ? (
                     project.finalOutputFiles.map((file) => (
@@ -2222,16 +2285,20 @@ export default function ProjectDetailsPage() {
                     <p className="text-muted-foreground text-sm">No final output files</p>
                   )}
                 </div>
+                </div>
               </div>
 
               {/* Stamped Output Section */}
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-foreground">Stamped Files</h3>
-                  {canEdit && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => { setStampedFiles([]); setIsEditingStampedFiles(true); }}>Edit</Button>
-                  )}
+              <div className="py-3 border-b flex items-start justify-between gap-4">
+                <div className="flex-shrink-0 w-48">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Stamped Output</h3>
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-end mb-2">
+                    {canEdit && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setStampedFiles([]); setIsEditingStampedFiles(true); }}>Edit</Button>
+                    )}
+                  </div>
                 <div className="space-y-3">
                   {project.stampedFiles && project.stampedFiles.length > 0 ? (
                     project.stampedFiles.map((file) => (
@@ -2256,9 +2323,37 @@ export default function ProjectDetailsPage() {
                     <p className="text-muted-foreground text-sm">No stamped files</p>
                   )}
                 </div>
+                </div>
               </div>
+
+              {/* Project Attachments Section */}
+              {Array.isArray(project.attachments) && project.attachments.length > 0 && (
+                <div className="py-3 border-b">
+                  <ProjectAttachments
+                    attachments={project.attachments}
+                    canEdit={true}
+                    canRemove={user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin'}
+                    onAddAttachment={handleAddAttachment}
+                    onRemoveAttachment={handleRemoveAttachment}
+                  />
+                </div>
+              )}
+
+              {/* Project Updates Section */}
+              {user && (
+                <div className="py-3">
+                  <ProjectUpdates
+                    projectId={projectId}
+                    updates={updates}
+                    currentUser={user}
+                    canEdit={canAddUpdates}
+                    onUpdateAdded={loadProjectData}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
+        </div>
         </div>
       </div>
 
@@ -2341,9 +2436,6 @@ export default function ProjectDetailsPage() {
         </div>
       </div>
 
-        </div>
-      </div>
-
       {/* Chat Area - Fixed right side */}
       {activeChatType && (
         <div className="w-96 bg-card border-l flex flex-col fixed right-16 top-0 h-full z-10 shadow-lg">
@@ -2371,19 +2463,21 @@ export default function ProjectDetailsPage() {
           {/* Chat Content */}
           <div className="flex-1 overflow-hidden px-4 py-2">
             <div className="h-full text-sm">
-              <ProjectChat 
-                projectId={projectId}
-                currentUser={user}
-                messages={chatMessages}
-                isAssignedMember={
-                  (project?.designerIds?.some(id => String(id) === String(user.id)) ?? false) ||
-                  designers.some(d => d.id === user.id)
-                }
-                isModal={true}
-                onCountsChange={setChatCounts}
-                unreadCounts={chatCounts}
-                initialChatType={activeChatType}
-              />
+              {user && (
+                <ProjectChat 
+                  projectId={projectId}
+                  currentUser={user}
+                  messages={chatMessages}
+                  isAssignedMember={
+                    (project?.designerIds?.some(id => String(id) === String(user?.id)) ?? false) ||
+                    designers.some(d => d.id === user?.id)
+                  }
+                  isModal={true}
+                  onCountsChange={setChatCounts}
+                  unreadCounts={chatCounts}
+                  initialChatType={activeChatType}
+                />
+              )}
             </div>
           </div>
           
@@ -2455,13 +2549,13 @@ export default function ProjectDetailsPage() {
                 </div>
 
                 <div className="space-y-2 col-span-2">
-                  <Label htmlFor="project-description">Description</Label>
+                  <Label htmlFor="project-notes">Project Notes</Label>
                   <Textarea
-                    id="project-description"
+                    id="project-notes"
                     required
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    placeholder="Enter project description"
+                    value={editForm.requirements}
+                    onChange={(e) => setEditForm({ ...editForm, requirements: e.target.value })}
+                    placeholder="Enter project notes"
                     rows={3}
                   />
                 </div>
@@ -2980,5 +3074,6 @@ export default function ProjectDetailsPage() {
         />
       )}
     </div>
-  );
+  </div>
+);
 }
