@@ -354,7 +354,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       await loadProjects();
       setShowQuotationModal(false);
       setSelectedProject(null);
-      setSuccessMessage('Quotation submitted successfully!');
+      setSuccessMessage('Quotation submitted and project approved successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error submitting quotation:', error);

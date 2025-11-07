@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { UsersIcon, ClockIcon, MessageSquare, MoreVertical, XIcon } from 'lucide-react';
+import { UserPlus, UsersIcon, ClockIcon, MessageSquare, Trash2 } from 'lucide-react';
 import { Project } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,12 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 interface ProjectTableProps {
   projects: Project[];
@@ -162,8 +156,8 @@ export default function ProjectTable({
             <TableHead className="w-[250px]">Description</TableHead>
             <TableHead>Team</TableHead>
             <TableHead>Updated</TableHead>
+            {onAssign && <TableHead className="w-[50px]">Assign</TableHead>}
             {showActions && <TableHead className="w-[150px]">Actions</TableHead>}
-            {(onAssign || (canDelete && onDelete)) && <TableHead className="w-[50px]">Assign</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -212,6 +206,22 @@ export default function ProjectTable({
                     <span>{formatDate(project.updatedAt)}</span>
                   </div>
                 </TableCell>
+                {onAssign && (
+                  <TableCell>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAssign(project);
+                      }}
+                      title="Assign Team Members"
+                    >
+                      <UserPlus size={16} className="text-blue-600" />
+                    </Button>
+                  </TableCell>
+                )}
                 {showActions && (
                   <TableCell>
                     <div className="flex flex-col gap-1.5 min-w-[140px]">
@@ -226,49 +236,23 @@ export default function ProjectTable({
                           View Feedback
                         </Button>
                       )}
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-2">
                         {getActionButton(project)}
-                      </div>
-                    </div>
-                  </TableCell>
-                )}
-                {(onAssign || (canDelete && onDelete)) && (
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical size={16} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {onAssign && (
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            onAssign(project);
-                          }}>
-                            <UsersIcon size={14} className="mr-2 text-blue-600" />
-                            Assign Team Members
-                          </DropdownMenuItem>
-                        )}
                         {canDelete && onDelete && (
-                          <DropdownMenuItem 
+                          <Button
                             onClick={(e) => {
                               e.stopPropagation();
                               onDelete(project);
                             }}
-                            className="text-red-600 focus:text-red-600"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
-                            <XIcon size={14} className="mr-2" />
-                            Delete Project
-                          </DropdownMenuItem>
+                            <Trash2 size={16} />
+                          </Button>
                         )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </div>
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
