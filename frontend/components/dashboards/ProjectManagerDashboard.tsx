@@ -41,7 +41,6 @@ interface ProjectManagerDashboardProps {
 interface CreateProjectForm {
   name: string;
   projectCode: string;
-  description: string;
   requirements: string;
   clientId: string;
   designerIds: string[];
@@ -75,7 +74,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   const [formData, setFormData] = useState<CreateProjectForm>({
     name: '',
     projectCode: '',
-    description: '',
     requirements: '',
     clientId: '',
     designerIds: [],
@@ -189,10 +187,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       errors.name = 'Project name is required';
     }
 
-    if (!formData.description.trim()) {
-      errors.description = 'Description is required';
-    }
-
     if (!formData.requirements.trim()) {
       errors.requirements = 'Requirements are required';
     }
@@ -243,7 +237,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       const projectData = {
         name: formData.name,
         projectCode: formData.projectCode || undefined,
-        description: formData.description,
         requirements: formData.requirements,
         projectType: formData.projectType,
         projectAddress: formData.projectAddress || undefined,
@@ -271,7 +264,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
         setFormData({
           name: '',
           projectCode: '',
-          description: '',
           requirements: '',
           clientId: '',
           designerIds: [],
@@ -790,32 +782,6 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                     <p className="text-sm text-muted-foreground mt-1">No active clients available</p>
                   )}
                 </div>
-              </div>
-
-              {/* Description - Full Width */}
-              <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
-                <Textarea
-                  id="description"
-                  required
-                  value={formData.description}
-                  onChange={(e) => {
-                    setFormData({ ...formData, description: e.target.value });
-                    if (validationErrors.description) {
-                      setValidationErrors(prev => {
-                        const newErrors = { ...prev };
-                        delete newErrors.description;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  rows={3}
-                  placeholder="Describe the project"
-                  className={validationErrors.description ? 'border-destructive' : ''}
-                />
-                {validationErrors.description && (
-                  <p className="text-sm text-destructive">{validationErrors.description}</p>
-                )}
               </div>
 
               {/* Requirements - Full Width */}

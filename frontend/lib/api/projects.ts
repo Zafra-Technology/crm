@@ -254,7 +254,7 @@ export const projectsApi = {
   create: async (projectData: {
     name: string;
     projectCode?: string;
-    description: string;
+    description?: string;
     requirements: string;
     projectType?: string;
     status?: string;
@@ -276,7 +276,7 @@ export const projectsApi = {
       const payload: Record<string, any> = {
         name: projectData.name,
         project_code: projectData.projectCode || undefined,
-        description: projectData.description,
+        description: projectData.description || undefined,
         requirements: projectData.requirements,
         project_type: projectData.projectType || 'residential',
         status: projectData.status || 'inactive',

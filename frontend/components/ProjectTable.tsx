@@ -174,8 +174,7 @@ export default function ProjectTable({
             return (
               <TableRow 
                 key={project.id} 
-                className="hover:bg-muted/50 transition-colors cursor-pointer"
-                onClick={() => window.location.href = `/dashboard/project/${project.id}`}
+                className="hover:bg-muted/50 transition-colors"
               >
                 <TableCell>
                   <span className="font-medium text-foreground">{index + 1}</span>
