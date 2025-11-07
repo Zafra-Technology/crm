@@ -60,28 +60,28 @@ export default function Sidebar({ userRole }: SidebarProps) {
       label: 'AHJ',
       href: '/dashboard/ahj',
       active: pathname.startsWith('/dashboard/ahj'),
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager', 'team_head', 'team_lead']
     },
     {
       icon: ZapIcon,
       label: 'Utility',
       href: '/dashboard/utilities',
       active: pathname.startsWith('/dashboard/utilities'),
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager', 'team_head', 'team_lead']
     },
     { 
       icon: FileTextIcon, 
       label: 'Client Requirements', 
       href: '/dashboard/client-requirements',
       active: pathname.startsWith('/dashboard/client-requirements'),
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager', 'team_head', 'team_lead']
     },
     { 
-      icon: WrenchIcon, 
+      icon: WrenchIcon,
       label: 'Equipments', 
       href: '/dashboard/equipments',
       active: pathname.startsWith('/dashboard/equipments'),
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager', 'team_head', 'team_lead']
     },
     { 
       icon: ClockIcon, 
