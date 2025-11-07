@@ -350,8 +350,8 @@ export default function HomeDashboard({ user, projects, tasks }: HomeDashboardPr
     );
   };
 
-  // Admin-specific streamlined dashboard
-  if (user.role === 'admin') {
+  // Multi-role dashboard - Admin, Designer, Team Lead, Project Manager, Team Head
+  if (['admin', 'designer', 'senior_designer', 'auto_cad_drafter', 'team_lead', 'team_head', 'project_manager'].includes(user.role)) {
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -360,10 +360,18 @@ export default function HomeDashboard({ user, projects, tasks }: HomeDashboardPr
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-semibold">Welcome, {user.name}</h1>
-                <p className="opacity-90 text-sm mt-1">Admin Dashboard Overview</p>
+                <p className="opacity-90 text-sm mt-1">
+                  {user.role === 'admin' ? 'Admin Dashboard Overview' :
+                   user.role === 'project_manager' ? 'Project Manager Dashboard' :
+                   user.role === 'team_lead' ? 'Team Lead Dashboard' :
+                   ['designer', 'senior_designer', 'auto_cad_drafter'].includes(user.role) ? 'Designer Dashboard' :
+                   'Dashboard Overview'}
+                </p>
               </div>
               <div className="hidden md:flex items-center gap-2">
-                <Badge variant="secondary" className="capitalize bg-primary-foreground/15 text-primary-foreground border-none">Admin</Badge>
+                <Badge variant="secondary" className="capitalize bg-primary-foreground/15 text-primary-foreground border-none">
+                  {user.role.replace('_', ' ')}
+                </Badge>
               </div>
             </div>
           </CardContent>
@@ -612,7 +620,8 @@ export default function HomeDashboard({ user, projects, tasks }: HomeDashboardPr
           </CardContent>
         </Card>
 
-        {/* Reports Section */}
+        {/* Reports Section - Hidden for Designers */}
+        {!['designer', 'senior_designer', 'auto_cad_drafter'].includes(user.role) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Reports</CardTitle>
@@ -1036,8 +1045,10 @@ export default function HomeDashboard({ user, projects, tasks }: HomeDashboardPr
             })()}
           </CardContent>
         </Card>
+        )}
 
-        {/* Performance Chart Section - Separate from Reports */}
+        {/* Performance Chart Section - Hidden for Designers */}
+        {!['designer', 'senior_designer', 'auto_cad_drafter'].includes(user.role) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Project Volume vs. Date</CardTitle>
@@ -1208,6 +1219,7 @@ export default function HomeDashboard({ user, projects, tasks }: HomeDashboardPr
             </div>
           </CardContent>
         </Card>
+        )}
 
       </div>
     );
