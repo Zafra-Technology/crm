@@ -156,7 +156,8 @@ export default function ProjectTable({
         <TableHeader>
           <TableRow>
             <TableHead className="w-[60px]">S.No.</TableHead>
-            <TableHead className="w+[300px]">Project Name</TableHead>
+            <TableHead className="w-[120px]">Project Code</TableHead>
+            <TableHead className="w-[250px]">Project Name</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[250px]">Description</TableHead>
             <TableHead>Team</TableHead>
@@ -180,10 +181,14 @@ export default function ProjectTable({
                   <span className="font-medium text-foreground">{index + 1}</span>
                 </TableCell>
                 <TableCell>
-                  <div className="font-medium text-foreground flex items-center gap-2">
-                    <span className="text-foreground font-medium whitespace-nowrap">{(project as any).projectCode || (project as any).project_code || ''}</span>
-                    <span>{project.name}</span>
-                  </div>
+                  <span className="text-foreground font-medium whitespace-nowrap">
+                    {(project as any).projectCode || (project as any).project_code || '-'}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className="font-medium text-foreground">
+                    {project.name}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className={`whitespace-nowrap ${statusStyles[project.status]}`}>

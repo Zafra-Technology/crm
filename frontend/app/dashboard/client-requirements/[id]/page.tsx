@@ -148,7 +148,7 @@ export default function ClientRequirementDetailPage() {
           ) : (
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleCancel} disabled={saving}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
+              <Button onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
             </div>
           )}
         </div>
