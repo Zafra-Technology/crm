@@ -28,7 +28,23 @@ export const ahjApi = {
     return res.json();
   },
 
-  async create(payload: { ahj: string; us_state?: string | null }): Promise<ProjectAhj> {
+  async create(payload: {
+    ahj: string;
+    us_state?: string | null;
+    electric_code?: string | null;
+    building_code?: string | null;
+    residential_code?: string | null;
+    fire_code?: string | null;
+    wind_speed_mph?: string | null;
+    snow_load_psf?: string | null;
+    fire_setback_required?: boolean | null;
+    building_department_web?: string | null;
+    site_plan?: string | null;
+    structural_notes?: string | null;
+    electrical_notes?: string | null;
+    placards_notes?: string | null;
+    files?: any[] | null;
+  }): Promise<ProjectAhj> {
     const token = await getAuthToken();
     const res = await fetch(`${API_BASE}/projects/ahj/`, {
       method: 'POST',
