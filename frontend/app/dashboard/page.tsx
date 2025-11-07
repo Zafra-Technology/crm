@@ -11,6 +11,7 @@ import DesignerDashboard from '@/components/dashboards/DesignerDashboard';
 import DesignerSharedDashboard from '@/components/dashboards/DesignerSharedDashboard';
 import DigitalMarketingDashboard from '@/components/dashboards/DigitalMarketingDashboard';
 import WelcomeDashboard from '@/components/dashboards/WelcomeDashboard';
+import HomeDashboard from '@/components/dashboards/HomeDashboard';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
