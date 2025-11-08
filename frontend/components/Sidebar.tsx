@@ -59,29 +59,29 @@ export default function Sidebar({ userRole }: SidebarProps) {
       icon: ShieldIcon,
       label: 'AHJ',
       href: '/dashboard/ahj',
-      active: pathname === '/dashboard/ahj',
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+      active: pathname.startsWith('/dashboard/ahj'),
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager', 'team_head', 'team_lead']
     },
     {
       icon: ZapIcon,
       label: 'Utility',
       href: '/dashboard/utilities',
-      active: pathname === '/dashboard/utilities',
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+      active: pathname.startsWith('/dashboard/utilities'),
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager', 'team_head', 'team_lead']
     },
     { 
       icon: FileTextIcon, 
       label: 'Client Requirements', 
       href: '/dashboard/client-requirements',
-      active: pathname === '/dashboard/client-requirements',
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+      active: pathname.startsWith('/dashboard/client-requirements'),
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager', 'team_head', 'team_lead']
     },
     { 
-      icon: WrenchIcon, 
+      icon: WrenchIcon,
       label: 'Equipments', 
       href: '/dashboard/equipments',
-      active: pathname === '/dashboard/equipments',
-      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager']
+      active: pathname.startsWith('/dashboard/equipments'),
+      roles: ['admin', 'project_manager', 'assistant_project_manager', 'operation_manager', 'team_head', 'team_lead']
     },
     { 
       icon: ClockIcon, 

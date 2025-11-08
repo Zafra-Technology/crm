@@ -152,7 +152,7 @@ export default function QuotationModal({
               type="submit"
               disabled={loading || !quotationMessage.trim()}
             >
-              {loading ? 'Accepting...' : 'Accept & Submit Quotation'}
+              {loading ? 'Submitting...' : 'Accept & Submit'}
             </Button>
           </DialogFooter>
         </form>

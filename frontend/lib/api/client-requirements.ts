@@ -17,6 +17,11 @@ export interface ClientRequirement {
 
 export interface CreateClientRequirementData {
   client_name: string;
+  other?: string;
+  layout?: string;
+  structural?: string;
+  electrical?: string;
+  files?: any[];
 }
 
 export interface UpdateClientRequirementData {

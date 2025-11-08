@@ -28,7 +28,6 @@ interface CreateProjectModalProps {
 
 interface ProjectFormData {
   name: string;
-  description: string;
   requirements: string;
   projectType: 'residential' | 'commercial' | '';
   projectAddress: string;
@@ -39,7 +38,6 @@ interface ProjectFormData {
 export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, userId }: CreateProjectModalProps) {
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
-    description: '',
     requirements: '',
     projectType: '',
     projectAddress: '',
@@ -56,10 +54,6 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
 
     if (!formData.name.trim()) {
       errors.name = 'Project name is required';
-    }
-
-    if (!formData.description.trim()) {
-      errors.description = 'Description is required';
     }
 
     if (!formData.projectType) {
@@ -108,7 +102,6 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
 
       const projectData = {
         name: formData.name,
-        description: formData.description,
         requirements: formData.requirements,
         projectType: formData.projectType,
         projectAddress: formData.projectAddress || undefined,
@@ -133,7 +126,6 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
       // Reset form
       setFormData({
         name: '',
-        description: '',
         requirements: '',
         projectType: '',
         projectAddress: '',
@@ -225,23 +217,6 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated, 
               />
               {validationErrors.name && (
                 <p className="text-sm text-destructive">{validationErrors.name}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description *</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                required
-                rows={3}
-                placeholder="Describe your project"
-                className={validationErrors.description ? 'border-destructive' : ''}
-              />
-              {validationErrors.description && (
-                <p className="text-sm text-destructive">{validationErrors.description}</p>
               )}
             </div>
 

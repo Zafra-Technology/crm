@@ -32,7 +32,10 @@ export default function EquipmentCard({ equipment, onViewDetails, onDelete }: Eq
   const CategoryIcon = config.icon;
 
   return (
-    <Card className="hover:shadow-md transition-shadow h-full flex flex-col">
+    <Card 
+      className="hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer" 
+      onClick={() => onViewDetails?.(equipment)}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className={`${config.bgColor} p-3 rounded-lg mb-3`}>
@@ -79,7 +82,10 @@ export default function EquipmentCard({ equipment, onViewDetails, onDelete }: Eq
       <CardFooter className="pt-0 flex gap-2">
         {onViewDetails && (
           <Button
-            onClick={() => onViewDetails(equipment)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails(equipment);
+            }}
             className="flex-1"
             size="sm"
             variant="outline"
@@ -89,7 +95,10 @@ export default function EquipmentCard({ equipment, onViewDetails, onDelete }: Eq
         )}
         {onDelete && (
           <Button
-            onClick={() => onDelete(equipment)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(equipment);
+            }}
             size="sm"
             variant="outline"
             className="text-destructive hover:text-destructive"

@@ -156,35 +156,20 @@ export default function EquipmentDetailsPage() {
       {/* Header */}
       <div className="space-y-3">
         <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push('/dashboard/equipments')}
-                className="h-8 w-8"
-              >
-                <ArrowLeft size={18} />
-              </Button>
-              <div className="flex items-center gap-2">
-                <PackageIcon size={20} className="text-primary" />
-                <h1 className="text-2xl font-semibold tracking-tight">
-                  {data.model_name || 'Equipment Details'}
-                </h1>
-              </div>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <TagIcon size={16} />
-                <span>Category</span>
-                <Badge className={config.color}>{data.category}</Badge>
-              </div>
-              {data.created_at && (
-                <div className="flex items-center gap-2">
-                  <CalendarIcon size={16} />
-                  <span>Created {formatDate(data.created_at)}</span>
-                </div>
-              )}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push('/dashboard/equipments')}
+              className="h-8 w-8"
+            >
+              <ArrowLeft size={18} />
+            </Button>
+            <div className="flex items-center gap-2">
+              <PackageIcon size={20} className="text-primary" />
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Equipment Details
+              </h1>
             </div>
           </div>
           
@@ -211,157 +196,147 @@ export default function EquipmentDetailsPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="grid gap-6">
-        {/* Equipment Details Card */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* Model Name */}
-              <div className="space-y-2">
-                <Label htmlFor="model_name" className="text-sm font-medium">
-                  Model Name
-                </Label>
-                {edit ? (
-                  <Input
-                    id="model_name"
-                    value={data.model_name || ''}
-                    onChange={(e) => onChange('model_name', e.target.value)}
-                    placeholder="Enter model name"
-                  />
-                ) : (
-                  <div className="text-sm text-foreground py-2">
-                    {data.model_name || '—'}
-                  </div>
-                )}
-              </div>
-
-              {/* Category */}
-              <div className="space-y-2">
-                <Label htmlFor="category" className="text-sm font-medium">
-                  Category
-                </Label>
-                {edit ? (
-                  <Select
-                    value={data.category}
-                    onValueChange={(value) => onChange('category', value)}
-                  >
-                    <SelectTrigger id="category">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="py-2">
-                    <Badge className={getCategoryConfig(data.category).color}>{data.category}</Badge>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Files Section */}
-        <Card>
-          <CardContent className="pt-6">
-            <ProjectAttachments
-              title="Equipment Files"
-              attachments={attachments}
-              canEdit={edit}
-              onAddAttachment={async (files: File[]) => {
-                // Add files to be uploaded
-                setNewFiles((prev) => [...prev, ...files]);
-              }}
-              onRemoveAttachment={async (attachmentId: string) => {
-                try {
-                  // Delete attachment from backend
-                  await equipmentsApi.deleteAttachment(id, parseInt(attachmentId));
-                  toast({
-                    title: 'Success',
-                    description: 'File deleted successfully',
-                  });
-                  // Reload attachments
-                  await load();
-                } catch (error: any) {
-                  toast({
-                    title: 'Error',
-                    description: error.message || 'Failed to delete file',
-                    variant: 'destructive',
-                  });
-                }
-              }}
+      {/* Main Content - Vertical Layout */}
+      <div className="space-y-4">
+        {/* Model Name */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Model Name
+          </Label>
+          {edit ? (
+            <Input
+              value={data.model_name || ''}
+              onChange={(e) => onChange('model_name', e.target.value)}
+              placeholder="Enter model name"
             />
-            
-            {/* Show pending files in edit mode */}
-            {edit && newFiles.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-xs text-muted-foreground font-medium">Pending Upload ({newFiles.length} files)</p>
-                <div className="grid gap-2">
-                  {newFiles.map((file, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-3 border rounded-lg bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
-                    >
-                      <div className="flex items-center gap-2">
-                        <FileIcon size={16} className="text-amber-600" />
-                        <div>
-                          <span className="text-sm font-medium">{file.name}</span>
-                          <span className="text-xs text-muted-foreground ml-2">
-                            ({(file.size / 1024).toFixed(1)} KB)
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeNewFile(idx)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          ) : (
+            <div className="text-lg font-medium text-foreground">
+              {data.model_name || '-'}
+            </div>
+          )}
+        </div>
 
-        {/* Related Items Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Related Projects</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {relatedProjects.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No projects are using this equipment.</div>
-            ) : (
-              <div className="divide-y border rounded-md">
-                {relatedProjects.map((project) => (
-                  <div key={project.id} className="flex items-center justify-between p-3 hover:bg-accent/50 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <FolderKanban size={20} className="text-primary flex-shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium text-foreground truncate">{project.name}</div>
-                        {(project as any).projectCode && (
-                          <div className="text-xs text-muted-foreground truncate">{(project as any).projectCode}</div>
-                        )}
+        {/* Category */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Category
+          </Label>
+          {edit ? (
+            <Select
+              value={data.category}
+              onValueChange={(value) => onChange('category', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="flex items-center">
+              <Badge className={getCategoryConfig(data.category).color}>{data.category}</Badge>
+            </div>
+          )}
+        </div>
+
+        {/* Equipment Files */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Equipment Files
+          </Label>
+          <ProjectAttachments
+            attachments={attachments}
+            canEdit={edit}
+            onAddAttachment={async (files: File[]) => {
+              // Add files to be uploaded
+              setNewFiles((prev) => [...prev, ...files]);
+            }}
+            onRemoveAttachment={async (attachmentId: string) => {
+              try {
+                // Delete attachment from backend
+                await equipmentsApi.deleteAttachment(id, parseInt(attachmentId));
+                toast({
+                  title: 'Success',
+                  description: 'File deleted successfully',
+                });
+                // Reload attachments
+                await load();
+              } catch (error: any) {
+                toast({
+                  title: 'Error',
+                  description: error.message || 'Failed to delete file',
+                  variant: 'destructive',
+                });
+              }
+            }}
+          />
+          
+          {/* Show pending files in edit mode */}
+          {edit && newFiles.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs text-muted-foreground font-medium">Pending Upload ({newFiles.length} files)</p>
+              <div className="grid gap-2">
+                {newFiles.map((file, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 border rounded-lg bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileIcon size={16} className="text-amber-600" />
+                      <div>
+                        <span className="text-sm font-medium">{file.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          ({(file.size / 1024).toFixed(1)} KB)
+                        </span>
                       </div>
                     </div>
-                    <Link href={`/dashboard/project/${project.id}`}>
-                      <Button variant="outline" size="sm">View</Button>
-                    </Link>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeNewFile(idx)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      Remove
+                    </Button>
                   </div>
                 ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+        </div>
+
+        {/* Related Projects */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Related Projects
+          </Label>
+          {relatedProjects.length === 0 ? (
+            <div className="text-muted-foreground">No projects are using this equipment.</div>
+          ) : (
+            <div className="divide-y border rounded-md">
+              {relatedProjects.map((project) => (
+                <div key={project.id} className="flex items-center justify-between p-3 hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <FolderKanban size={20} className="text-primary flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-foreground truncate">{project.name}</div>
+                      {(project as any).projectCode && (
+                        <div className="text-xs text-muted-foreground truncate">{(project as any).projectCode}</div>
+                      )}
+                    </div>
+                  </div>
+                  <Link href={`/dashboard/project/${project.id}`}>
+                    <Button variant="outline" size="sm">View</Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* File Viewer Modal */}

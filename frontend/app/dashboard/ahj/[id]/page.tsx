@@ -105,81 +105,53 @@ export default function AhjDetailsPage() {
       <div className="space-y-6">
         <div className="space-y-3">
           <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/ahj')} className="h-8 w-8">
-                  <ArrowLeft size={18} />
-                </Button>
-                <div className="flex items-center gap-2">
-                  <Building2 size={20} className="text-primary" />
-                  <h1 className="text-2xl font-semibold tracking-tight">{data.ahj || 'Project AHJ'}</h1>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <MapPin size={16} />
-                  <span>State</span>
-                  <Badge variant="secondary" className="uppercase">{data.us_state || '—'}</Badge>
-                </div>
-                <div className="hidden md:flex items-center gap-2">
-                  <span>Created by</span>
-                  <span className="text-foreground font-medium">{data.created_by || '—'}</span>
-                  <span>• Updated by</span>
-                  <span className="text-foreground font-medium">{data.updated_by || '—'}</span>
-                </div>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/ahj')} className="h-8 w-8">
+                <ArrowLeft size={18} />
+              </Button>
+              <div className="flex items-center gap-2">
+                <Building2 size={20} className="text-primary" />
+                <h1 className="text-2xl font-semibold tracking-tight">AHJ Details</h1>
               </div>
             </div>
-        {!edit ? (
-          <Button onClick={() => setEdit(true)}>Edit</Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { setEdit(false); load(); }}>Cancel</Button>
-            <Button onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
-          </div>
-        )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {data.electric_code && (
-              <Badge variant="outline" className="capitalize flex items-center gap-1"><Plug size={14} /> {data.electric_code}</Badge>
-            )}
-            {data.building_code && (
-              <Badge variant="outline" className="capitalize flex items-center gap-1"><Building2 size={14} /> {data.building_code}</Badge>
-            )}
-            {data.residential_code && (
-              <Badge variant="outline" className="capitalize flex items-center gap-1"><Home size={14} /> {data.residential_code}</Badge>
-            )}
-            {data.fire_code && (
-              <Badge variant="outline" className="capitalize flex items-center gap-1"><Flame size={14} /> {data.fire_code}</Badge>
-            )}
-            {!data.electric_code && !data.building_code && !data.residential_code && !data.fire_code && (
-              <span className="text-sm text-muted-foreground">No codes selected</span>
+            {!edit ? (
+              <Button onClick={() => setEdit(true)}>Edit</Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => { setEdit(false); load(); }}>Cancel</Button>
+                <Button onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
+              </div>
             )}
           </div>
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="space-y-4">
         {/* Project AHJ name */}
         <div className="border rounded-lg p-4 bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Building2 size={18} className="text-primary" />
-            <Label className="text-sm font-semibold text-muted-foreground">Project AHJ name</Label>
-          </div>
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Project AHJ Name
+          </Label>
           {edit ? (
-            <Input value={data.ahj || ''} onChange={e => onChange('ahj', e.target.value)} className="mt-1" />
+            <Input 
+              value={data.ahj || ''} 
+              onChange={e => onChange('ahj', e.target.value)} 
+              placeholder="Enter AHJ name"
+            />
           ) : (
-            <div className="text-lg font-medium text-foreground mt-1">{data.ahj || '-'}</div>
+            <div className="text-lg font-medium text-foreground">
+              {data.ahj || '-'}
+            </div>
           )}
         </div>
 
         {/* US state */}
         <div className="border rounded-lg p-4 bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <MapPin size={18} className="text-primary" />
-            <Label className="text-sm font-semibold text-muted-foreground">US state</Label>
-          </div>
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            US State
+          </Label>
           {edit ? (
             <Select value={data.us_state || ''} onValueChange={onStateChange}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Select state" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
               <SelectContent>
                 {['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'].map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
@@ -187,92 +159,96 @@ export default function AhjDetailsPage() {
               </SelectContent>
             </Select>
           ) : (
-            <div className="text-lg font-medium text-foreground mt-1">{data.us_state || '-'}</div>
+            <div className="text-lg font-medium text-foreground">
+              {data.us_state || '-'}
+            </div>
           )}
         </div>
 
-        {/* Codes Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Electric code */}
-          <div className="border rounded-lg p-4 bg-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Plug size={18} className="text-primary" />
-              <Label className="text-sm font-semibold text-muted-foreground">Electric code</Label>
+        {/* Electric code */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Electric Code
+          </Label>
+          {edit ? (
+            <Select value={data.electric_code || ''} onValueChange={(v) => onChange('electric_code', v)}>
+              <SelectTrigger><SelectValue placeholder="Select electric code" /></SelectTrigger>
+              <SelectContent>
+                {codes.electric.map((c) => (
+                  <SelectItem key={`electric-${c}`} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-lg font-medium text-foreground">
+              {data.electric_code || '-'}
             </div>
-            {edit ? (
-              <Select value={data.electric_code || ''} onValueChange={(v) => onChange('electric_code', v)}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {codes.electric.map((c) => (
-                    <SelectItem key={`electric-${c}`} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="text-lg font-medium text-foreground mt-1">{data.electric_code || '-'}</div>
-            )}
-          </div>
-
-          {/* Building code */}
-          <div className="border rounded-lg p-4 bg-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Building2 size={18} className="text-primary" />
-              <Label className="text-sm font-semibold text-muted-foreground">Building code</Label>
-            </div>
-            {edit ? (
-              <Select value={data.building_code || ''} onValueChange={(v) => onChange('building_code', v)}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {codes.building.map((c) => (
-                    <SelectItem key={`building-${c}`} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="text-lg font-medium text-foreground mt-1">{data.building_code || '-'}</div>
-            )}
-          </div>
-
-          {/* Residential code */}
-          <div className="border rounded-lg p-4 bg-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Home size={18} className="text-primary" />
-              <Label className="text-sm font-semibold text-muted-foreground">Residential code</Label>
-            </div>
-            {edit ? (
-              <Select value={data.residential_code || ''} onValueChange={(v) => onChange('residential_code', v)}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {codes.residential.map((c) => (
-                    <SelectItem key={`residential-${c}`} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="text-lg font-medium text-foreground mt-1">{data.residential_code || '-'}</div>
-            )}
-          </div>
-
-          {/* Fire code */}
-          <div className="border rounded-lg p-4 bg-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Flame size={18} className="text-primary" />
-              <Label className="text-sm font-semibold text-muted-foreground">Fire code</Label>
-            </div>
-            {edit ? (
-              <Select value={data.fire_code || ''} onValueChange={(v) => onChange('fire_code', v)}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {codes.fire.map((c) => (
-                    <SelectItem key={`fire-${c}`} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="text-lg font-medium text-foreground mt-1">{data.fire_code || '-'}</div>
-            )}
-          </div>
+          )}
         </div>
+
+        {/* Building code */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Building Code
+          </Label>
+          {edit ? (
+            <Select value={data.building_code || ''} onValueChange={(v) => onChange('building_code', v)}>
+              <SelectTrigger><SelectValue placeholder="Select building code" /></SelectTrigger>
+              <SelectContent>
+                {codes.building.map((c) => (
+                  <SelectItem key={`building-${c}`} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-lg font-medium text-foreground">
+              {data.building_code || '-'}
+            </div>
+          )}
+        </div>
+
+        {/* Residential code */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Residential Code
+          </Label>
+          {edit ? (
+            <Select value={data.residential_code || ''} onValueChange={(v) => onChange('residential_code', v)}>
+              <SelectTrigger><SelectValue placeholder="Select residential code" /></SelectTrigger>
+              <SelectContent>
+                {codes.residential.map((c) => (
+                  <SelectItem key={`residential-${c}`} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-lg font-medium text-foreground">
+              {data.residential_code || '-'}
+            </div>
+          )}
+        </div>
+
+        {/* Fire code */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Fire Code
+          </Label>
+          {edit ? (
+            <Select value={data.fire_code || ''} onValueChange={(v) => onChange('fire_code', v)}>
+              <SelectTrigger><SelectValue placeholder="Select fire code" /></SelectTrigger>
+              <SelectContent>
+                {codes.fire.map((c) => (
+                  <SelectItem key={`fire-${c}`} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-lg font-medium text-foreground">
+              {data.fire_code || '-'}
+            </div>
+          )}
+        </div>
+
 
         {/* Environmental Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -448,6 +424,26 @@ export default function AhjDetailsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Created By */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Created By
+          </Label>
+          <div className="text-foreground">
+            {data.created_by || '-'}
+          </div>
+        </div>
+
+        {/* Updated By */}
+        <div className="border rounded-lg p-4 bg-card">
+          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
+            Updated By
+          </Label>
+          <div className="text-foreground">
+            {data.updated_by || '-'}
+          </div>
+        </div>
       </div>
     </div>
   );

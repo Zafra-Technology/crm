@@ -31,6 +31,7 @@ export default function PendingRequestsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submittingQuotation, setSubmittingQuotation] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showQuotationModal, setShowQuotationModal] = useState(false);
@@ -118,42 +119,44 @@ export default function PendingRequestsPage() {
   };
 
   const handleApproveProject = async (project: Project) => {
-    try {
-      await projectsApi.approveProject(project.id);
-      
-      // For commercial projects, immediately open quotation modal
-      if (project.projectType === 'commercial') {
-        openQuotationModal(project);
-      } else {
-        // For residential projects, show success message
+    // For commercial projects, open quotation modal (approval happens after quotation submission)
+    if (project.projectType === 'commercial') {
+      openQuotationModal(project);
+    } else {
+      // For residential projects, approve immediately
+      try {
+        await projectsApi.approveProject(project.id);
         toast({
           title: "Success",
           description: "Project approved successfully",
         });
         await loadPendingProjects();
+      } catch (error) {
+        console.error('Error approving project:', error);
+        toast({
+          title: "Error",
+          description: "Failed to approve project",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error('Error approving project:', error);
-      toast({
-        title: "Error",
-        description: "Failed to approve project",
-        variant: "destructive",
-      });
     }
   };
 
   const handleSubmitQuotation = async (quotationMessage: string, quotationFile?: File) => {
     if (!selectedProject) return;
     
+    setSubmittingQuotation(true);
     try {
+      // Submit quotation (backend automatically approves the project)
       await projectsApi.submitQuotation(selectedProject.id, quotationMessage, quotationFile);
+      
       toast({
         title: "Success",
-        description: "Quotation submitted successfully",
+        description: "Quotation submitted and project approved successfully",
       });
       setShowQuotationModal(false);
       setSelectedProject(null);
-      loadPendingProjects();
+      await loadPendingProjects();
     } catch (error) {
       console.error('Error submitting quotation:', error);
       toast({
@@ -161,6 +164,8 @@ export default function PendingRequestsPage() {
         description: "Failed to submit quotation",
         variant: "destructive",
       });
+    } finally {
+      setSubmittingQuotation(false);
     }
   };
 
@@ -453,7 +458,7 @@ export default function PendingRequestsPage() {
         isOpen={showQuotationModal}
         onClose={handleCloseQuotationModal}
         onSubmit={handleSubmitQuotation}
-        loading={loading}
+        loading={submittingQuotation}
       />
     </div>
   );
