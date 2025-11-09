@@ -974,6 +974,9 @@ export default function ProjectDetailsPage() {
   const canEdit = user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'admin';
   // Services can only be edited by admin, project_manager, and assistant_project_manager
   const canEditServices = user.role === 'admin' || user.role === 'project_manager' || user.role === 'assistant_project_manager';
+  // Design status can be viewed and edited by admin, project_manager, assistant_project_manager, team_head, and team_lead
+  const canViewDesignStatus = user.role === 'admin' || user.role === 'project_manager' || user.role === 'assistant_project_manager' || user.role === 'team_head' || user.role === 'team_lead';
+  const canEditDesignStatus = canViewDesignStatus;
   // Professional engineers can edit PE status fields
   const canEditPeStatus = canEditServices || user.role === 'professional_engineer';
   const isClientOrClientTeam = user.role === 'client' || user.role === 'client_team_member';
@@ -1972,7 +1975,7 @@ export default function ProjectDetailsPage() {
               </div>
 
               {/* Design Status Section */}
-              {!isClientOrClientTeam && (
+              {canViewDesignStatus && (
               <div className="py-3 border-b flex items-start justify-between gap-4">
                 <div className="flex-shrink-0 w-48">
                   <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide"><span className="text-destructive mr-1">*</span>Design Status</h3>
@@ -1981,7 +1984,7 @@ export default function ProjectDetailsPage() {
                 <RadioGroup
                   value={project?.designStatus ?? 'new'}
                   onValueChange={async (value) => {
-                    if (!canEditServices || !project) return;
+                    if (!canEditDesignStatus || !project) return;
                     const currentValue = project.designStatus;
                     try {
                       setProject({ ...project, designStatus: value as Project['designStatus'] });
@@ -2000,7 +2003,7 @@ export default function ProjectDetailsPage() {
                       alert('Failed to save design status. Please try again.');
                     }
                   }}
-                  disabled={!canEditServices}
+                  disabled={!canEditDesignStatus}
                   className="grid grid-cols-2 gap-2"
                 >
                   {[
@@ -2014,9 +2017,9 @@ export default function ProjectDetailsPage() {
                     { value: 'stop', label: 'Stop' },
                     { value: 'completed_layout', label: 'Completed Layout' },
                   ].map((option) => (
-                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.designStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditServices ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                      <RadioGroupItem value={option.value} id={`design-status-${option.value}`} disabled={!canEditServices} />
-                      <label htmlFor={`design-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditServices ? 'cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors ${project.designStatus === option.value ? 'bg-primary/10 border-primary' : 'border-border hover:bg-accent'} ${!canEditDesignStatus ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                      <RadioGroupItem value={option.value} id={`design-status-${option.value}`} disabled={!canEditDesignStatus} />
+                      <label htmlFor={`design-status-${option.value}`} className={`text-sm font-medium flex-1 cursor-pointer ${!canEditDesignStatus ? 'cursor-not-allowed' : ''}`}>
                         {option.label}
                       </label>
                     </label>

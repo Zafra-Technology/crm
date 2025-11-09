@@ -154,97 +154,116 @@ export default function ClientRequirementDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {/* Client Name */}
-        <div className="border rounded-lg p-4 bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Building2 size={18} className="text-primary" />
-            <Label className="text-sm font-semibold text-muted-foreground">Client Name</Label>
+      <Card>
+        <CardHeader className="pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-bold">Client Requirement Details</CardTitle>
           </div>
-          {edit ? (
-            <Input 
-              value={data.client_name || ''} 
-              onChange={e => onChange('client_name', e.target.value)} 
-              className="mt-1" 
-              placeholder="Enter client name"
-            />
-          ) : (
-            <div className="text-lg font-medium text-foreground mt-1">{data.client_name || '-'}</div>
-          )}
-        </div>
-
-        {/* Other */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-2 block">Other</Label>
-          {edit ? (
-            <Textarea 
-              value={data.other || ''} 
-              onChange={e => onChange('other', e.target.value)} 
-              rows={4} 
-              className="mt-1" 
-              placeholder="Enter other requirements"
-            />
-          ) : (
-            <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] mt-1 p-3 bg-muted/50 rounded-md">
-              {data.other || '-'}
+        </CardHeader>
+        <CardContent className="space-y-0">
+          {/* Client Name */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Client Name</h3>
             </div>
-          )}
-        </div>
-
-        {/* Layout */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-2 block">Layout</Label>
-          {edit ? (
-            <Textarea 
-              value={data.layout || ''} 
-              onChange={e => onChange('layout', e.target.value)} 
-              rows={4} 
-              className="mt-1" 
-              placeholder="Enter layout requirements"
-            />
-          ) : (
-            <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] mt-1 p-3 bg-muted/50 rounded-md">
-              {data.layout || '-'}
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Input 
+                  value={data.client_name || ''} 
+                  onChange={e => onChange('client_name', e.target.value)} 
+                  placeholder="Enter client name"
+                />
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.client_name || '-'}</p>
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Structural */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-2 block">Structural</Label>
-          {edit ? (
-            <Textarea 
-              value={data.structural || ''} 
-              onChange={e => onChange('structural', e.target.value)} 
-              rows={4} 
-              className="mt-1" 
-              placeholder="Enter structural requirements"
-            />
-          ) : (
-            <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] mt-1 p-3 bg-muted/50 rounded-md">
-              {data.structural || '-'}
+          {/* Other */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Other</h3>
             </div>
-          )}
-        </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea 
+                  value={data.other || ''} 
+                  onChange={e => onChange('other', e.target.value)} 
+                  rows={4} 
+                  placeholder="Enter other requirements"
+                />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">
+                  {data.other || '-'}
+                </div>
+              )}
+            </div>
+          </div>
 
-        {/* Electrical */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-2 block">Electrical</Label>
-          {edit ? (
-            <Textarea 
-              value={data.electrical || ''} 
-              onChange={e => onChange('electrical', e.target.value)} 
-              rows={4} 
-              className="mt-1" 
-              placeholder="Enter electrical requirements"
-            />
-          ) : (
-            <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] mt-1 p-3 bg-muted/50 rounded-md">
-              {data.electrical || '-'}
+          {/* Layout */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Layout</h3>
             </div>
-          )}
-        </div>
-      </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea 
+                  value={data.layout || ''} 
+                  onChange={e => onChange('layout', e.target.value)} 
+                  rows={4} 
+                  placeholder="Enter layout requirements"
+                />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">
+                  {data.layout || '-'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Structural */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Structural</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea 
+                  value={data.structural || ''} 
+                  onChange={e => onChange('structural', e.target.value)} 
+                  rows={4} 
+                  placeholder="Enter structural requirements"
+                />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">
+                  {data.structural || '-'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Electrical */}
+          <div className="py-3 flex items-start justify-between gap-4">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Electrical</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea 
+                  value={data.electrical || ''} 
+                  onChange={e => onChange('electrical', e.target.value)} 
+                  rows={4} 
+                  placeholder="Enter electrical requirements"
+                />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">
+                  {data.electrical || '-'}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Separator />
 

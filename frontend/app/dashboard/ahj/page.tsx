@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, Trash2, Download, Calendar, FileText } from 'lucide-react';
+import { Plus, Search, Trash2, Download, Calendar, FileText } from 'lucide-react';
 import ConfirmModal from '@/components/modals/ConfirmModal';
+import { COUNTRIES, COUNTRY_STATES, getStatesForCountry, type Country } from '@/lib/data/countriesAndStates';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ export default function AhjPage() {
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [stateFilter, setStateFilter] = useState<string>('all');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAhj, setSelectedAhj] = useState<ProjectAhj | null>(null);
@@ -55,20 +57,47 @@ export default function AhjPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((it) => {
-      const matchesQuery = !q || [it.ahj, it.us_state, it.created_by, it.updated_by].some((v) => String(v || '').toLowerCase().includes(q));
+      const matchesQuery = !q || [it.ahj, it.country, it.us_state, it.created_by, it.updated_by].some((v) => String(v || '').toLowerCase().includes(q));
+      const matchesCountry = countryFilter === 'all' || (it.country || '') === countryFilter;
       const matchesState = stateFilter === 'all' || (it.us_state || '') === stateFilter;
-      return matchesQuery && matchesState;
+      return matchesQuery && matchesCountry && matchesState;
     });
-  }, [items, search, stateFilter]);
+  }, [items, search, countryFilter, stateFilter]);
 
   const stateCounts = useMemo(() => {
     const counts: { [state: string]: number } = {};
+    const countryCounts: { [country: string]: number } = {};
     items.forEach((item) => {
+      const country = item.country || '';
       const state = item.us_state || 'Unknown';
-      counts[state] = (counts[state] || 0) + 1;
+      if (country) {
+        countryCounts[country] = (countryCounts[country] || 0) + 1;
+      }
+      // Only count states for the selected country
+      if (countryFilter === 'all' || country === countryFilter) {
+        counts[state] = (counts[state] || 0) + 1;
+      }
     });
-    return counts;
-  }, [items]);
+    return { states: counts, countries: countryCounts };
+  }, [items, countryFilter]);
+
+  // Get available states based on selected country
+  const availableStates = useMemo(() => {
+    if (countryFilter === 'all') {
+      // Show all states from all countries that exist in the data
+      const allStates = new Set<string>();
+      items.forEach((item) => {
+        if (item.us_state) {
+          allStates.add(item.us_state);
+        }
+      });
+      return Array.from(allStates).sort();
+    }
+    if (COUNTRIES.includes(countryFilter as Country)) {
+      return getStatesForCountry(countryFilter as Country);
+    }
+    return [];
+  }, [countryFilter, items]);
 
   const handleDeleteClick = (ahj: ProjectAhj) => {
     setSelectedAhj(ahj);
@@ -77,12 +106,13 @@ export default function AhjPage() {
 
   // Report generation functions
   const generateCSV = (data: ProjectAhj[]) => {
-    const headers = ['S.No.', 'Project AHJ Name', 'US State', 'Electric Code', 'Building Code', 'Residential Code', 'Fire Code', 'Created Date', 'Created By'];
+    const headers = ['S.No.', 'Project AHJ Name', 'Country', 'State/Province', 'Electric Code', 'Building Code', 'Residential Code', 'Fire Code', 'Created Date', 'Created By'];
     const csvContent = [
       headers.join(','),
       ...data.map((item, index) => [
         index + 1,
         `"${item.ahj || 'None'}"`,
+        `"${item.country || 'None'}"`,
         `"${item.us_state || 'None'}"`,
         `"${item.electric_code || 'None'}"`,
         `"${item.building_code || 'None'}"`,
@@ -106,12 +136,13 @@ export default function AhjPage() {
 
   const generateExcel = (data: ProjectAhj[]) => {
     // Simple Excel-like format using TSV
-    const headers = ['S.No.', 'Project AHJ Name', 'US State', 'Electric Code', 'Building Code', 'Residential Code', 'Fire Code', 'Created Date', 'Created By'];
+    const headers = ['S.No.', 'Project AHJ Name', 'Country', 'State/Province', 'Electric Code', 'Building Code', 'Residential Code', 'Fire Code', 'Created Date', 'Created By'];
     const tsvContent = [
       headers.join('\t'),
       ...data.map((item, index) => [
         index + 1,
         item.ahj || 'None',
+        item.country || 'None',
         item.us_state || 'None',
         item.electric_code || 'None',
         item.building_code || 'None',
@@ -251,13 +282,14 @@ export default function AhjPage() {
             <thead>
               <tr>
                 <th style="width: 5%;">S.No.</th>
-                <th style="width: 18%;">Project AHJ Name</th>
-                <th style="width: 8%;">US State</th>
-                <th style="width: 15%;">Electric Code</th>
-                <th style="width: 15%;">Building Code</th>
-                <th style="width: 15%;">Residential Code</th>
-                <th style="width: 12%;">Fire Code</th>
-                <th style="width: 12%;">Created Date</th>
+                <th style="width: 15%;">Project AHJ Name</th>
+                <th style="width: 8%;">Country</th>
+                <th style="width: 8%;">State/Province</th>
+                <th style="width: 12%;">Electric Code</th>
+                <th style="width: 12%;">Building Code</th>
+                <th style="width: 12%;">Residential Code</th>
+                <th style="width: 10%;">Fire Code</th>
+                <th style="width: 10%;">Created Date</th>
               </tr>
             </thead>
             <tbody>
@@ -265,6 +297,7 @@ export default function AhjPage() {
                 <tr>
                   <td>${index + 1}</td>
                   <td>${item.ahj || 'None'}</td>
+                  <td>${item.country || 'None'}</td>
                   <td>${item.us_state || 'None'}</td>
                   <td>${item.electric_code || 'None'}</td>
                   <td>${item.building_code || 'None'}</td>
@@ -388,24 +421,50 @@ export default function AhjPage() {
         <CardContent>
           {/* Toolbar */}
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-            <div className="flex gap-4 w-full sm:w-auto">
+            <div className="flex gap-4 w-full sm:w-auto flex-wrap">
               <div className="min-w-[240px]">
                 <Label htmlFor="ahj-search" className="text-xs">Search</Label>
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="ahj-search" placeholder="Search AHJ, state, user..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+                  <Input id="ahj-search" placeholder="Search AHJ, country, state, user..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
                 </div>
               </div>
-              <div className="w-48">
-                <Label className="text-xs">US State</Label>
-                <Select value={stateFilter} onValueChange={setStateFilter}>
+              <div className="w-40">
+                <Label className="text-xs">Country</Label>
+                <Select value={countryFilter} onValueChange={(value) => { setCountryFilter(value); setStateFilter('all'); }}>
                   <SelectTrigger>
-                    <SelectValue placeholder="All States" />
+                    <SelectValue placeholder="All Countries" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All States</SelectItem>
-                    {['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'].map((s) => {
-                      const count = stateCounts[s] || 0;
+                    <SelectItem value="all">All Countries</SelectItem>
+                    {COUNTRIES.map((country) => {
+                      const count = stateCounts.countries[country] || 0;
+                      return (
+                        <SelectItem key={country} value={country}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{country}</span>
+                            {count > 0 && (
+                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                                {count}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-48">
+                <Label className="text-xs">State/Province</Label>
+                <Select value={stateFilter} onValueChange={setStateFilter} disabled={countryFilter === 'all' && availableStates.length === 0}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={countryFilter === 'all' ? "Select country first" : "All States/Provinces"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All States/Provinces</SelectItem>
+                    {availableStates.map((s) => {
+                      const count = stateCounts.states[s] || 0;
                       return (
                         <SelectItem key={s} value={s}>
                           <div className="flex items-center justify-between w-full">
@@ -419,12 +478,12 @@ export default function AhjPage() {
                         </SelectItem>
                       );
                     })}
-                    {stateCounts['Unknown'] && (
+                    {stateCounts.states['Unknown'] && (
                       <SelectItem value="Unknown">
                         <div className="flex items-center justify-between w-full">
                           <span>Unknown State</span>
                           <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-                            {stateCounts['Unknown']}
+                            {stateCounts.states['Unknown']}
                           </span>
                         </div>
                       </SelectItem>
@@ -434,8 +493,7 @@ export default function AhjPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => { /* client-side filter applied automatically */ }} className="flex items-center gap-2"><Filter size={16} /> Apply</Button>
-              <Button variant="outline" onClick={() => { setSearch(''); setStateFilter('all'); }}>
+              <Button variant="outline" onClick={() => { setSearch(''); setCountryFilter('all'); setStateFilter('all'); }}>
                 Reset
               </Button>
             </div>
@@ -453,7 +511,8 @@ export default function AhjPage() {
                   <tr>
                     <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">S.No.</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Project AHJ Name</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">US State</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Country</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">State/Province</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Electric Code</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Building Code</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Residential Code</th>
@@ -470,6 +529,15 @@ export default function AhjPage() {
                     >
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{index + 1}</td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground font-medium">{row.ahj || '-'}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground">
+                        {row.country ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                            {row.country}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-foreground">
                         {row.us_state ? (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">

@@ -146,143 +146,155 @@ export default function UtilityDetailsPage() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {/* Utility Name */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Utility Name
-          </Label>
-          {edit ? (
-            <Input
-              value={data.utility_name || ''}
-              onChange={(e) => onChange('utility_name', e.target.value)}
-              placeholder="Enter utility name"
-            />
-          ) : (
-            <div className="text-lg font-medium text-foreground">
-              {data.utility_name || '-'}
+      <Card>
+        <CardHeader className="pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-bold">Utility Details</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-0">
+          {/* Utility Name */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Utility Name</h3>
             </div>
-          )}
-        </div>
-
-        {/* Utility Websites */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Utility Websites
-          </Label>
-          {edit ? (
-            <div className="space-y-2">
-              {utilityWebsites.map((url, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    type="url"
-                    value={url}
-                    onChange={(e) => handleWebsiteChange(index, e.target.value)}
-                    placeholder="https://example.com"
-                    className="flex-1"
-                  />
-                  {utilityWebsites.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeWebsiteField(index)}
-                    >
-                      <X size={16} />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addWebsiteField}
-                className="w-full"
-              >
-                <Plus size={16} className="mr-2" />
-                Add Website
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {data.utility_websites && data.utility_websites.length > 0 ? (
-                data.utility_websites.map((url, index) => (
-                  <UtilityWebsiteCard key={index} url={url} />
-                ))
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Input
+                  value={data.utility_name || ''}
+                  onChange={(e) => onChange('utility_name', e.target.value)}
+                  placeholder="Enter utility name"
+                />
               ) : (
-                <div className="text-muted-foreground">
-                  No utility websites added
+                <p className="text-base font-semibold text-foreground">{data.utility_name || '-'}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Utility Websites */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Utility Websites</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <div className="space-y-2">
+                  {utilityWebsites.map((url, index) => (
+                    <div key={index} className="flex gap-2">
+                      <Input
+                        type="url"
+                        value={url}
+                        onChange={(e) => handleWebsiteChange(index, e.target.value)}
+                        placeholder="https://example.com"
+                        className="flex-1"
+                      />
+                      {utilityWebsites.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => removeWebsiteField(index)}
+                        >
+                          <X size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addWebsiteField}
+                    className="w-full"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Add Website
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {data.utility_websites && data.utility_websites.length > 0 ? (
+                    data.utility_websites.map((url, index) => (
+                      <UtilityWebsiteCard key={index} url={url} />
+                    ))
+                  ) : (
+                    <p className="text-base font-semibold text-muted-foreground">No utility websites added</p>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Site Plan Requirements */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Site Plan Requirements
-          </Label>
-          {edit ? (
-            <Textarea
-              value={data.site_plan_requirements || ''}
-              onChange={(e) =>
-                onChange('site_plan_requirements', e.target.value)
-              }
-              rows={4}
-              placeholder="Enter site plan requirements"
-            />
-          ) : (
-            <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] p-3 bg-muted/50 rounded-md">
-              {data.site_plan_requirements || '-'}
+          {/* Site Plan Requirements */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Site Plan Requirements</h3>
             </div>
-          )}
-        </div>
-
-        {/* Electrical Plan Requirements */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Electrical Plan Requirements
-          </Label>
-          {edit ? (
-            <Textarea
-              value={data.electrical_plan_requirements || ''}
-              onChange={(e) =>
-                onChange('electrical_plan_requirements', e.target.value)
-              }
-              rows={4}
-              placeholder="Enter electrical plan requirements"
-            />
-          ) : (
-            <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] p-3 bg-muted/50 rounded-md">
-              {data.electrical_plan_requirements || '-'}
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea
+                  value={data.site_plan_requirements || ''}
+                  onChange={(e) =>
+                    onChange('site_plan_requirements', e.target.value)
+                  }
+                  rows={4}
+                  placeholder="Enter site plan requirements"
+                />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">
+                  {data.site_plan_requirements || '-'}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Other Plan Requirements */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Other Plan Requirements
-          </Label>
-          {edit ? (
-            <Textarea
-              value={data.other_plan_requirements || ''}
-              onChange={(e) =>
-                onChange('other_plan_requirements', e.target.value)
-              }
-              rows={4}
-              placeholder="Enter other plan requirements"
-            />
-          ) : (
-            <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] p-3 bg-muted/50 rounded-md">
-              {data.other_plan_requirements || '-'}
+          {/* Electrical Plan Requirements */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Electrical Plan Requirements</h3>
             </div>
-          )}
-        </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea
+                  value={data.electrical_plan_requirements || ''}
+                  onChange={(e) =>
+                    onChange('electrical_plan_requirements', e.target.value)
+                  }
+                  rows={4}
+                  placeholder="Enter electrical plan requirements"
+                />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">
+                  {data.electrical_plan_requirements || '-'}
+                </div>
+              )}
+            </div>
+          </div>
 
-      </div>
+          {/* Other Plan Requirements */}
+          <div className="py-3 flex items-start justify-between gap-4">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Other Plan Requirements</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea
+                  value={data.other_plan_requirements || ''}
+                  onChange={(e) =>
+                    onChange('other_plan_requirements', e.target.value)
+                  }
+                  rows={4}
+                  placeholder="Enter other plan requirements"
+                />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">
+                  {data.other_plan_requirements || '-'}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Separator />
 
@@ -359,27 +371,34 @@ export default function UtilityDetailsPage() {
       <Separator />
 
       {/* Created By and Updated By at the bottom */}
-      <div className="space-y-4">
-        {/* Created By */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Created By
-          </Label>
-          <div className="text-foreground">
-            {data.created_by || '-'}
+      <Card>
+        <CardHeader className="pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-bold">Additional Information</CardTitle>
           </div>
-        </div>
+        </CardHeader>
+        <CardContent className="space-y-0">
+          {/* Created By */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Created By</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-semibold text-foreground">{data.created_by || '-'}</p>
+            </div>
+          </div>
 
-        {/* Updated By */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Updated By
-          </Label>
-          <div className="text-foreground">
-            {data.updated_by || '-'}
+          {/* Updated By */}
+          <div className="py-3 flex items-start justify-between gap-4">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Updated By</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-semibold text-foreground">{data.updated_by || '-'}</p>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

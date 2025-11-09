@@ -5,7 +5,21 @@ import type { Project } from '@/types';
 export interface ProjectAhj {
   id: number;
   ahj: string | null;
+  country: string | null;
   us_state: string | null;
+  electric_code?: string | null;
+  building_code?: string | null;
+  residential_code?: string | null;
+  fire_code?: string | null;
+  wind_speed_mph?: string | null;
+  snow_load_psf?: string | null;
+  fire_setback_required?: boolean | null;
+  building_department_web?: string | null;
+  site_plan?: string | null;
+  structural_notes?: string | null;
+  electrical_notes?: string | null;
+  placards_notes?: string | null;
+  files?: any[] | null;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -30,6 +44,7 @@ export const ahjApi = {
 
   async create(payload: {
     ahj: string;
+    country?: string | null;
     us_state?: string | null;
     electric_code?: string | null;
     building_code?: string | null;
@@ -85,9 +100,12 @@ export const ahjApi = {
     return res.json();
   },
 
-  async getCodes(state?: string): Promise<{ electric: string[]; building: string[]; residential: string[]; fire: string[] }> {
+  async getCodes(state?: string, country?: string): Promise<{ electric: string[]; building: string[]; residential: string[]; fire: string[] }> {
     const token = await getAuthToken();
-    const q = state ? `?state=${encodeURIComponent(state)}` : '';
+    const params = new URLSearchParams();
+    if (state) params.append('state', state);
+    if (country) params.append('country', country);
+    const q = params.toString() ? `?${params.toString()}` : '';
     const res = await fetch(`${API_BASE}/projects/ahj-codes${q}`, {
       headers: {
         'Content-Type': 'application/json',

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, Trash2, Download, FileText } from 'lucide-react';
+import { Plus, Search, Trash2, Download, FileText } from 'lucide-react';
 import ConfirmModal from '@/components/modals/ConfirmModal';
 import {
   Dialog,
@@ -394,7 +394,6 @@ export default function UtilitiesPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => { /* client-side filter applied automatically */ }} className="flex items-center gap-2"><Filter size={16} /> Apply</Button>
               <Button variant="outline" onClick={() => { setSearch(''); }}>
                 Reset
               </Button>

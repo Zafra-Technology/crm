@@ -61,6 +61,58 @@ const statusLabels = {
   onhold: 'On Hold',
 };
 
+// Helper functions for formatting new columns
+const getProjectCategoryLabel = (projectType?: string) => {
+  if (!projectType) return '-';
+  return projectType === 'residential' ? 'Residential' : 'Commercial';
+};
+
+const getServicesLabel = (services?: string[]) => {
+  if (!services || services.length === 0) return '-';
+  const serviceLabels: Record<string, string> = {
+    'single_line_diagram': 'Single Line Diagram',
+    'permit_package': 'Permit Package',
+    'psa': 'PSA',
+    'pe_stamp_structural': 'PE Stamp Structural',
+    'pe_stamp_electrical': 'PE Stamp Electrical',
+    'generator_plan': 'Generator Plan',
+    'ev_plan': 'EV Plan',
+    'design_review_quality_check': 'Design Review-Quality Check',
+  };
+  return services.map(s => serviceLabels[s] || s).join(', ');
+};
+
+const getWetstampLabel = (wetstamp?: boolean) => {
+  if (wetstamp === undefined || wetstamp === null) return '-';
+  return wetstamp ? 'YES' : 'NO';
+};
+
+const getPriorityLabel = (priority?: string) => {
+  if (!priority) return '-';
+  const priorityLabels: Record<string, string> = {
+    'low': 'Low',
+    'medium': 'Medium',
+    'high': 'High',
+  };
+  return priorityLabels[priority] || priority;
+};
+
+const getBallInCourtLabel = (ballInCourt?: string) => {
+  if (!ballInCourt) return '-';
+  const ballInCourtLabels: Record<string, string> = {
+    'check_inputs': 'Check Inputs',
+    'pm_court': 'PM\'s Court',
+    'waiting_client_response': 'Waiting for Client Response',
+    'engg_court': 'Engg\'s Court',
+    'pe_stamp': 'PE Stamp',
+    'project_ready': 'Project Ready',
+    'completed': 'Completed',
+    'night_revision': 'Night Revision',
+    'pending_payment': 'Pending Payment',
+  };
+  return ballInCourtLabels[ballInCourt] || ballInCourt;
+};
+
 export default function ProjectTable({ 
   projects, 
   showActions = true, 
@@ -145,7 +197,7 @@ export default function ProjectTable({
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -153,6 +205,11 @@ export default function ProjectTable({
             <TableHead className="w-[120px]">Project Code</TableHead>
             <TableHead className="w-[250px]">Project Name</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead className="w-[120px]">Project Category</TableHead>
+            <TableHead className="w-[200px]">Services</TableHead>
+            <TableHead className="w-[100px]">Wetstamp</TableHead>
+            <TableHead className="w-[100px]">Priority</TableHead>
+            <TableHead className="w-[180px]">Ball in Court</TableHead>
             <TableHead className="w-[250px]">Description</TableHead>
             <TableHead>Team</TableHead>
             <TableHead>Updated</TableHead>
@@ -187,6 +244,31 @@ export default function ProjectTable({
                   <Badge variant="outline" className={`whitespace-nowrap ${statusStyles[project.status]}`}>
                     {statusLabels[project.status]}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm text-foreground font-medium">
+                    {getProjectCategoryLabel(project.projectType)}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <p className="text-sm text-muted-foreground line-clamp-2 max-w-[200px]" title={getServicesLabel(project.services)}>
+                    {getServicesLabel(project.services)}
+                  </p>
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm text-foreground font-medium">
+                    {getWetstampLabel(project.wetstamp)}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="whitespace-nowrap">
+                    {getPriorityLabel(project.priority)}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm text-foreground font-medium">
+                    {getBallInCourtLabel(project.ballInCourt)}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <p className="text-sm text-muted-foreground line-clamp-2 max-w-[250px]">
