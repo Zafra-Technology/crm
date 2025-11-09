@@ -413,27 +413,25 @@ export default function ProjectUpdates({ projectId, updates, currentUser, canEdi
                     </div>
                   </div>
 
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowAddForm(false)}
+                    disabled={loading}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1"
+                  >
+                    {loading ? 'Adding...' : 'Add Update'}
+                  </Button>
+                </DialogFooter>
               </form>
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddForm(false)}
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1"
-                  onClick={handleAddUpdate}
-                >
-                  {loading ? 'Adding...' : 'Add Update'}
-                </Button>
-              </DialogFooter>
             </DialogContent>
           </Dialog>
         )}

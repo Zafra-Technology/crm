@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon, Users, Building2, MessageSquare, ChevronRight, Wrench } from 'lucide-react';
+import { SendIcon, UserIcon, PaperclipIcon, ImageIcon, FileIcon, DownloadIcon, EyeIcon, Users, Building2, MessageSquare, ChevronRight, Wrench, Activity, Clock } from 'lucide-react';
 import { MoreVertical } from 'lucide-react';
 import { Forward } from 'lucide-react';
 import { CheckSquare } from 'lucide-react';
@@ -23,6 +23,7 @@ import { LinkifiedText } from '@/lib/utils/linkUtils';
 import MentionInput from '@/components/chat/MentionInput';
 import { projectsApi } from '@/lib/api/projects';
 import { projectChatApi } from '@/lib/api/project-chat';
+import { projectActivitiesApi, ProjectActivity } from '@/lib/api/project-activities';
 
 interface ProjectChatProps {
   projectId: string;
@@ -33,6 +34,8 @@ interface ProjectChatProps {
   onCountsChange?: (counts: { client: number; team: number; professional_engineer: number }) => void;
   unreadCounts?: { client: number; team: number; professional_engineer: number }; // Optional prop to receive unread counts
   initialChatType?: 'client' | 'team' | 'professional_engineer' | null; // Optional prop to set initial chat type
+  initialShowActivities?: boolean; // Optional prop to show activities view initially
+  onActivitiesClose?: () => void; // Optional callback when activities view is closed
 }
 
 type ChatType = 'client' | 'team' | 'professional_engineer' | null;
@@ -49,7 +52,7 @@ const truncateFileName = (filename: string) => {
   return name.length > 10 ? name.substring(0, 10) + '...' + extension : filename;
 };
 
-export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false, isModal = false, onCountsChange, unreadCounts, initialChatType }: ProjectChatProps) {
+export default function ProjectChat({ projectId, currentUser, messages, isAssignedMember = false, isModal = false, onCountsChange, unreadCounts, initialChatType, initialShowActivities = false, onActivitiesClose }: ProjectChatProps) {
   const [selectedChatType, setSelectedChatType] = useState<ChatType>(null);
   const [userHasSelected, setUserHasSelected] = useState(false); // Track if user explicitly selected
   const lastExplicitSelectionRef = useRef<ChatType>(null);
@@ -86,10 +89,16 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     professional_engineer: 0
   });
   const [hasProfessionalEngineerAssigned, setHasProfessionalEngineerAssigned] = useState(false);
+  const [showActivities, setShowActivities] = useState(initialShowActivities);
+  const [activities, setActivities] = useState<ProjectActivity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
   
   // Check if current user is a professional engineer assigned to this project
   const isProfessionalEngineer = currentUser?.role === 'professional_engineer';
   const isProfessionalEngineerAssigned = isProfessionalEngineer && isAssignedMember;
+  
+  // Check if user can view activities (admin, project_manager, assistant_project_manager)
+  const canViewActivities = ['admin', 'project_manager', 'assistant_project_manager'].includes(currentUser?.role || '');
   
   // Determine which chats to show based on user role
   // For professional engineers assigned to project: only show professional engineer chat
@@ -334,6 +343,95 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     loadProject();
   }, [projectId]);
 
+  // Ref for activities container to scroll to top when new activity arrives
+  const activitiesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Set up WebSocket connection for real-time activities updates
+  const activitiesWsRoom = showActivities && canViewActivities ? `project-${projectId}-activities` : undefined;
+  
+  const { isConnected: activitiesWsConnected } = useChatWebSocket(
+    activitiesWsRoom,
+    async (payload) => {
+      if (payload?.type === 'project_activity' && payload?.activity) {
+        // Add new activity to the list (append since we want newest at bottom)
+        setActivities(prev => {
+          // Check if activity already exists to avoid duplicates
+          const exists = prev.some(a => String(a.id) === String(payload.activity.id));
+          if (exists) return prev;
+          
+          // Add new activity at the end
+          return [...prev, payload.activity];
+        });
+        
+        // Scroll to bottom to show the new activity
+        setTimeout(() => {
+          if (activitiesContainerRef.current) {
+            activitiesContainerRef.current.scrollTop = activitiesContainerRef.current.scrollHeight;
+          }
+        }, 100);
+      }
+    }
+  );
+
+  // Track if initial load has been done
+  const initialLoadDoneRef = useRef(false);
+
+  // Load activities when activities view is shown
+  useEffect(() => {
+    if (showActivities && canViewActivities) {
+      const loadActivities = async (showLoading = false) => {
+        try {
+          if (showLoading) {
+            setLoadingActivities(true);
+          }
+          const activitiesData = await projectActivitiesApi.getByProject(projectId);
+          setActivities(activitiesData);
+          // Scroll to bottom after loading activities (oldest to newest, newest at bottom)
+          setTimeout(() => {
+            if (activitiesContainerRef.current) {
+              activitiesContainerRef.current.scrollTop = activitiesContainerRef.current.scrollHeight;
+            }
+          }, 100);
+        } catch (error) {
+          console.error('Error loading activities:', error);
+          setActivities([]);
+        } finally {
+          if (showLoading) {
+            setLoadingActivities(false);
+          }
+        }
+      };
+      
+      // Initial load with loading indicator
+      if (!initialLoadDoneRef.current) {
+        loadActivities(true);
+        initialLoadDoneRef.current = true;
+      } else {
+        // Subsequent loads without loading indicator
+        loadActivities(false);
+      }
+      
+      // Set up polling to refresh activities as fallback when WebSocket is not connected
+      // Only poll if WebSocket is not connected, and poll less frequently
+      const pollInterval = setInterval(() => {
+        if (!activitiesWsConnected) {
+          // Only poll if WebSocket is disconnected, and do it silently (no loading indicator)
+          loadActivities(false);
+        }
+      }, activitiesWsConnected ? 60000 : 15000); // 60s if connected (backup), 15s if disconnected
+      
+      return () => {
+        clearInterval(pollInterval);
+        if (!showActivities) {
+          initialLoadDoneRef.current = false;
+        }
+      };
+    } else {
+      // Reset when activities view is closed
+      initialLoadDoneRef.current = false;
+    }
+  }, [showActivities, projectId, canViewActivities, activitiesWsConnected]);
+
   // Load or update unread counts
   useEffect(() => {
     if (unreadCounts) {
@@ -477,8 +575,17 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
       setSelectedChatType(initialChatType);
       setUserHasSelected(true);
       lastExplicitSelectionRef.current = initialChatType;
+      setShowActivities(false); // Close activities when chat type is set
     }
   }, [initialChatType]);
+
+  // Handle initial show activities from parent component
+  useEffect(() => {
+    if (initialShowActivities) {
+      setShowActivities(true);
+      setSelectedChatType(null); // Close chat when activities is shown
+    }
+  }, [initialShowActivities]);
 
   // Restore last explicit selection from sessionStorage (sticky selection to prevent auto-switch)
   useEffect(() => {
@@ -1121,6 +1228,167 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     }
   };
 
+  // Format activity type for display (defined before use)
+  const getActivityTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      'field_update': 'Field Updated',
+      'status_change': 'Status Changed',
+      'designer_assigned': 'Designer Assigned',
+      'designer_removed': 'Designer Removed',
+      'attachment_added': 'Attachment Added',
+      'attachment_removed': 'Attachment Removed',
+      'file_uploaded': 'File Uploaded',
+    };
+    return labels[type] || type;
+  };
+
+  // Format field name for display (defined before use)
+  const getFieldNameLabel = (fieldName: string | null) => {
+    if (!fieldName) return '';
+    return fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Activities view (separate from chat)
+  if (showActivities && canViewActivities) {
+    return (
+      <div className={`${isModal ? 'h-full' : 'card'} h-full flex flex-col relative`}>
+        {!isModal && (
+          <div className="flex-shrink-0 px-4 md:px-6 pt-4 pb-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">Project Activities</h3>
+                <p className="text-sm text-muted-foreground">View all changes made to project details</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowActivities(false);
+                  if (onActivitiesClose) {
+                    onActivitiesClose();
+                  }
+                }}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+                title="Back to selection"
+              >
+                <ChevronRight className="w-5 h-5 rotate-180" />
+              </button>
+            </div>
+          </div>
+        )}
+        {isModal && (
+          <div className="flex-shrink-0 px-4 md:px-6 pt-2 pb-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Project Activities</p>
+              <button
+                onClick={() => {
+                  setShowActivities(false);
+                  if (onActivitiesClose) {
+                    onActivitiesClose();
+                  }
+                }}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+                title="Back to selection"
+              >
+                <ChevronRight className="w-5 h-5 rotate-180" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-6" ref={activitiesContainerRef}>
+          {loadingActivities ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p className="text-sm text-gray-600">Loading activities...</p>
+              </div>
+            </div>
+          ) : activities.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 font-medium mb-1">No activities yet</p>
+                <p className="text-sm text-gray-500">Activities will appear here when project details are updated</p>
+                {activitiesWsConnected && (
+                  <p className="text-xs text-green-600 mt-2">✓ Real-time updates enabled</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {activities.map((activity) => {
+                const roleTag = getRoleTag(activity.userRole || 'user');
+                return (
+                  <div
+                    key={activity.id}
+                    className="border border-border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 ${getRoleAvatar(activity.userRole || 'user')} rounded-full flex items-center justify-center flex-shrink-0`}>
+                          <span className="text-white font-medium text-xs">
+                            {activity.userName?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">
+                              {activity.userName || 'Unknown User'}
+                            </span>
+                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${roleTag.color}`}>
+                              {roleTag.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {(() => {
+                                const date = new Date(activity.createdAt);
+                                const day = String(date.getDate()).padStart(2, '0');
+                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                const year = date.getFullYear();
+                                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                return `${day}/${month}/${year} ${timeStr}`;
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded">
+                        {getActivityTypeLabel(activity.activityType)}
+                      </span>
+                    </div>
+                    
+                    {activity.description && (
+                      <p className="text-sm text-foreground mb-2 break-words">{activity.description}</p>
+                    )}
+                    
+                    {activity.fieldName && (
+                      <div className="mt-2 pt-2 border-t border-border">
+                        <p className="text-xs text-muted-foreground mb-1.5">
+                          <span className="font-medium">Field:</span> {getFieldNameLabel(activity.fieldName)}
+                        </p>
+                        {activity.oldValue !== null && activity.oldValue !== undefined && activity.oldValue !== '' && (
+                          <p className="text-xs text-muted-foreground mb-1.5 break-words break-all">
+                            <span className="font-medium">From:</span> <span className="line-through text-red-600">{activity.oldValue}</span>
+                          </p>
+                        )}
+                        {activity.newValue !== null && activity.newValue !== undefined && activity.newValue !== '' && (
+                          <p className="text-xs text-muted-foreground break-words break-all">
+                            <span className="font-medium">To:</span> <span className="text-green-600 font-medium">{activity.newValue}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Chat selection view
   if (!selectedChatType) {
     return (
@@ -1128,12 +1396,12 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
         {!isModal && (
           <div className="flex-shrink-0 px-4 md:px-6 pt-4 pb-4 border-b border-border">
             <h3 className="text-lg font-semibold text-foreground mb-1">Project Chat</h3>
-            <p className="text-sm text-muted-foreground">Select a chat to start conversation</p>
+            <p className="text-sm text-muted-foreground">Select an option to start</p>
           </div>
         )}
         {isModal && (
           <div className="flex-shrink-0 px-4 md:px-6 pt-2 pb-4 border-b border-border">
-            <p className="text-sm text-muted-foreground">Select a chat to start conversation</p>
+            <p className="text-sm text-muted-foreground">Select an option to start</p>
           </div>
         )}
         
@@ -1250,7 +1518,37 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
             </button>
           )}
           
-          {!canSeeClientChat && !canSeeTeamChat && !canSeeProfessionalEngineerChat && (
+          {canViewActivities && (
+            <button
+              onClick={() => {
+                console.log('👆 User clicked Activities - explicitly opening');
+                setShowActivities(true);
+                setSelectedChatType(null);
+                lastExplicitSelectionRef.current = null;
+                try { sessionStorage.removeItem(`projectChat:lastSelection:${projectId}`); } catch(_) {}
+              }}
+              className="w-full group relative text-left rounded-xl border border-border bg-card text-card-foreground shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-200 overflow-hidden"
+            >
+              <div className="p-5 flex items-start gap-4">
+                <div className="flex-shrink-0 w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors duration-200">
+                  <Activity className="w-7 h-7 text-primary group-hover:text-primary-foreground transition-colors duration-200" />
+                </div>
+                <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors mb-1.5">
+                      Activities
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-snug">
+                      View all changes and updates made to project details
+                    </p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-all duration-200 group-hover:translate-x-0.5 flex-shrink-0" />
+                </div>
+              </div>
+            </button>
+          )}
+          
+          {!canSeeClientChat && !canSeeTeamChat && !canSeeProfessionalEngineerChat && !canViewActivities && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center p-6">
                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1266,6 +1564,7 @@ export default function ProjectChat({ projectId, currentUser, messages, isAssign
     );
   }
 
+  // Chat view (when a chat type is selected)
   return (
     <div 
       className={`${isModal ? 'h-full' : 'card'} h-full flex flex-col relative ${dragOver ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}

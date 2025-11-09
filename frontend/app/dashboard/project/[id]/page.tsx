@@ -25,7 +25,7 @@ import ProjectChat from '@/components/chat/ProjectChat';
 import ProjectUpdates from '@/components/ProjectUpdates';
 import ProjectAttachments from '@/components/ProjectAttachments';
 import FileViewerModal from '@/components/modals/FileViewerModal';
-import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon, ArrowLeft, Check, UploadIcon, FileIcon, XIcon, EyeIcon, DownloadIcon, PlusIcon, PackageIcon, ZapIcon, AnchorIcon, BatteryIcon, TrashIcon, MessageSquare, Cpu, Sun, Power, Layers } from 'lucide-react';
+import { CalendarIcon, UsersIcon, EditIcon, BuildingIcon, UserIcon, ArrowLeft, Check, UploadIcon, FileIcon, XIcon, EyeIcon, DownloadIcon, PlusIcon, PackageIcon, ZapIcon, AnchorIcon, BatteryIcon, TrashIcon, MessageSquare, Cpu, Sun, Power, Layers, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -108,6 +108,7 @@ export default function ProjectDetailsPage() {
   const [showAddClientRequirementModal, setShowAddClientRequirementModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [activeChatType, setActiveChatType] = useState<'client' | 'team' | 'professional_engineer' | null>(null);
+  const [showActivities, setShowActivities] = useState(false);
   const [chatCounts, setChatCounts] = useState<{ client: number; team: number; professional_engineer: number }>({
     client: 0,
     team: 0,
@@ -294,6 +295,9 @@ export default function ProjectDetailsPage() {
       'assistant_project_manager'
     ].includes(user?.role || '') && hasProfessionalEngineerAssigned
   );
+
+  // Check if user can view activities (admin, project_manager, assistant_project_manager)
+  const canViewActivities = ['admin', 'project_manager', 'assistant_project_manager'].includes(user?.role || '');
 
   // Load unread chat counts
   useEffect(() => {
@@ -1018,21 +1022,32 @@ export default function ProjectDetailsPage() {
   // Handle chat switching
   const handleChatOpen = (chatType: 'client' | 'team' | 'professional_engineer') => {
     setActiveChatType(chatType);
+    setShowActivities(false); // Close activities when opening chat
   };
 
   const handleChatClose = () => {
     setActiveChatType(null);
   };
 
+  // Handle activities opening
+  const handleActivitiesOpen = () => {
+    setShowActivities(true);
+    setActiveChatType(null); // Close chat when opening activities
+  };
+
+  const handleActivitiesClose = () => {
+    setShowActivities(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-300 ${activeChatType ? 'mr-[448px]' : 'mr-16'}`}>
+      <div className={`flex-1 transition-all duration-300 ${(activeChatType || showActivities) ? 'mr-[448px]' : 'mr-16'}`}>
         <div className="space-y-6 p-6">
       {/* Header Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {!activeChatType && (
+          {!activeChatType && !showActivities && (
             <Button
               onClick={() => router.back()}
               variant="ghost"
@@ -2424,13 +2439,30 @@ export default function ProjectDetailsPage() {
             </button>
           )}
           
-          {/* Close Chat Button - Only show when a chat is active */}
-          {activeChatType && (
+          {/* Activities Icon */}
+          {canViewActivities && (
+            <button
+              onClick={handleActivitiesOpen}
+              className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center transition-all duration-200 relative ${
+                showActivities ? 'bg-primary text-primary-foreground shadow-md scale-105' : 'bg-accent hover:bg-accent/80 hover:scale-105'
+              }`}
+              title="Activities"
+            >
+              <Activity size={12} />
+              <span className="text-[8px] font-bold mt-0.5">AC</span>
+            </button>
+          )}
+          
+          {/* Close Chat/Activities Button - Only show when a chat or activities is active */}
+          {(activeChatType || showActivities) && (
             <div className="mt-4 pt-3 border-t border-border">
               <button
-                onClick={handleChatClose}
+                onClick={() => {
+                  if (activeChatType) handleChatClose();
+                  if (showActivities) handleActivitiesClose();
+                }}
                 className="w-11 h-11 rounded-lg flex items-center justify-center transition-all duration-200 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                title="Close Chat"
+                title="Close"
               >
                 <XIcon size={18} />
               </button>
@@ -2491,6 +2523,47 @@ export default function ProjectDetailsPage() {
               {activeChatType === 'team' && 'Internal team discussion'}
               {activeChatType === 'professional_engineer' && 'Engineering consultation'}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activities Area - Fixed right side */}
+      {showActivities && canViewActivities && (
+        <div className="w-96 bg-card border-l flex flex-col fixed right-16 top-0 h-full z-10 shadow-lg">
+          {/* Activities Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/30">
+            <div className="flex items-center gap-3">
+              <Activity size={18} className="text-primary" />
+              <h3 className="text-base font-medium">Activities</h3>
+            </div>
+            <button
+              onClick={handleActivitiesClose}
+              className="p-2 hover:bg-muted rounded-lg transition-colors"
+              title="Close Activities"
+            >
+              <XIcon size={16} />
+            </button>
+          </div>
+          
+          {/* Activities Content */}
+          <div className="flex-1 overflow-hidden">
+            {user && (
+              <ProjectChat 
+                projectId={projectId}
+                currentUser={user}
+                messages={[]}
+                isAssignedMember={
+                  (project?.designerIds?.some(id => String(id) === String(user?.id)) ?? false) ||
+                  designers.some(d => d.id === user?.id)
+                }
+                isModal={true}
+                onCountsChange={setChatCounts}
+                unreadCounts={chatCounts}
+                initialChatType={null}
+                initialShowActivities={true}
+                onActivitiesClose={handleActivitiesClose}
+              />
+            )}
           </div>
         </div>
       )}
