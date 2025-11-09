@@ -409,7 +409,6 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={fetchUsers}>Apply</Button>
               <Button variant="outline" onClick={() => { setSelectedRole(''); setSearchTerm(''); fetchUsers(); }}>Reset</Button>
             </div>
           </div>

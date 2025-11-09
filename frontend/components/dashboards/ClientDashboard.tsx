@@ -242,7 +242,6 @@ export default function ClientDashboard({ projects: initialProjects, userId }: C
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={loadProjects}>Apply</Button>
               <Button
                 variant="outline"
                 onClick={() => {

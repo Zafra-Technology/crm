@@ -183,7 +183,6 @@ export default function DesignerSharedDashboard({ projects: initialProjects, use
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={loadProjects}>Apply</Button>
             <Button
               variant="outline"
               onClick={() => {

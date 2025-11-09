@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MapPin, Wind, Snowflake, ShieldCheck, Globe, Building2, Plug, Home, Flame, Paperclip, X } from 'lucide-react';
+import { COUNTRIES, getStatesForCountry, type Country } from '@/lib/data/countriesAndStates';
 
 interface CreateAhjModalProps {
   isOpen: boolean;
@@ -25,18 +26,10 @@ interface CreateAhjModalProps {
   onCreated: () => void;
 }
 
-const US_STATES = [
-  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia',
-  'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland',
-  'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
-  'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania',
-  'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
-  'West Virginia', 'Wisconsin', 'Wyoming'
-];
-
 export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhjModalProps) {
   const [formData, setFormData] = useState({
     ahj: '',
+    country: '' as Country | '',
     us_state: '',
     electric_code: '',
     building_code: '',
@@ -62,10 +55,10 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load codes when state changes
+  // Load codes when state or country changes
   useEffect(() => {
-    if (formData.us_state) {
-      ahjApi.getCodes(formData.us_state).then(c => {
+    if (formData.us_state && formData.country) {
+      ahjApi.getCodes(formData.us_state, formData.country).then(c => {
         setCodes({ electric: c.electric || [], building: c.building || [], residential: c.residential || [], fire: c.fire || [] });
         // Clear code fields if they are not in new codes
         ['electric_code', 'building_code', 'residential_code', 'fire_code'].forEach(k => {
@@ -81,7 +74,7 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
     } else {
       setCodes({ electric: [], building: [], residential: [], fire: [] });
     }
-  }, [formData.us_state]);
+  }, [formData.us_state, formData.country]);
 
   const handleChange = (key: keyof typeof formData, value: any) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -133,7 +126,8 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
 
       const payload: any = {
         ahj: formData.ahj.trim(),
-        us_state: formData.us_state || null,
+        country: formData.country && formData.country.trim() ? formData.country.trim() : null,
+        us_state: formData.us_state && formData.us_state.trim() ? formData.us_state.trim() : null,
         electric_code: formData.electric_code || null,
         building_code: formData.building_code || null,
         residential_code: formData.residential_code || null,
@@ -155,6 +149,7 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
       // Reset form
       setFormData({
         ahj: '',
+        country: '',
         us_state: '',
         electric_code: '',
         building_code: '',
@@ -182,6 +177,7 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
     setError('');
     setFormData({
       ahj: '',
+      country: '',
       us_state: '',
       electric_code: '',
       building_code: '',
@@ -230,20 +226,48 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
               />
             </div>
 
-            {/* US state */}
+            {/* Country */}
+            <div className="space-y-2">
+              <Label htmlFor="country" className="flex items-center gap-2">
+                <Globe size={16} className="text-primary" />
+                Country
+              </Label>
+              <Select value={formData.country || undefined} onValueChange={(v) => {
+                const newCountry = v as Country;
+                handleChange('country', newCountry);
+                // Reset state when country changes
+                if (formData.country !== newCountry) {
+                  handleChange('us_state', '');
+                  setCodes({ electric: [], building: [], residential: [], fire: [] });
+                }
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select country (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRIES.map((country) => (
+                    <SelectItem key={country} value={country}>{country}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* State/Province */}
             <div className="space-y-2">
               <Label htmlFor="us_state" className="flex items-center gap-2">
                 <MapPin size={16} className="text-primary" />
-                US State
+                State/Province
               </Label>
-              <Select value={formData.us_state} onValueChange={(v) => handleChange('us_state', v)}>
+              <Select value={formData.us_state} onValueChange={(v) => handleChange('us_state', v)} disabled={!formData.country}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
+                  <SelectValue placeholder={formData.country ? "Select state/province" : "Select country first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {US_STATES.map((s) => (
+                  {formData.country ? getStatesForCountry(formData.country).map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
+                  )) : (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">Select country first</div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -259,10 +283,10 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
                 <Select
                   value={formData.electric_code}
                   onValueChange={(v) => handleChange('electric_code', v)}
-                  disabled={!formData.us_state}
+                  disabled={!formData.us_state || !formData.country}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={!formData.us_state ? "Select state first" : codes.electric.length === 0 ? "No code for this state" : "Select"} />
+                    <SelectValue placeholder={!formData.us_state || !formData.country ? "Select country and state first" : codes.electric.length === 0 ? "No code for this state" : "Select"} />
                   </SelectTrigger>
                   <SelectContent>
                     {codes.electric.length === 0 ? (
@@ -285,10 +309,10 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
                 <Select
                   value={formData.building_code}
                   onValueChange={(v) => handleChange('building_code', v)}
-                  disabled={!formData.us_state}
+                  disabled={!formData.us_state || !formData.country}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={!formData.us_state ? "Select state first" : codes.building.length === 0 ? "No code for this state" : "Select"} />
+                    <SelectValue placeholder={!formData.us_state || !formData.country ? "Select country and state first" : codes.building.length === 0 ? "No code for this state" : "Select"} />
                   </SelectTrigger>
                   <SelectContent>
                     {codes.building.length === 0 ? (
@@ -311,10 +335,10 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
                 <Select
                   value={formData.residential_code}
                   onValueChange={(v) => handleChange('residential_code', v)}
-                  disabled={!formData.us_state}
+                  disabled={!formData.us_state || !formData.country}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={!formData.us_state ? "Select state first" : codes.residential.length === 0 ? "No code for this state" : "Select"} />
+                    <SelectValue placeholder={!formData.us_state || !formData.country ? "Select country and state first" : codes.residential.length === 0 ? "No code for this state" : "Select"} />
                   </SelectTrigger>
                   <SelectContent>
                     {codes.residential.length === 0 ? (
@@ -337,10 +361,10 @@ export default function CreateAhjModal({ isOpen, onClose, onCreated }: CreateAhj
                 <Select
                   value={formData.fire_code}
                   onValueChange={(v) => handleChange('fire_code', v)}
-                  disabled={!formData.us_state}
+                  disabled={!formData.us_state || !formData.country}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={!formData.us_state ? "Select state first" : codes.fire.length === 0 ? "No code for this state" : "Select"} />
+                    <SelectValue placeholder={!formData.us_state || !formData.country ? "Select country and state first" : codes.fire.length === 0 ? "No code for this state" : "Select"} />
                   </SelectTrigger>
                   <SelectContent>
                     {codes.fire.length === 0 ? (

@@ -18,6 +18,7 @@ import ProjectAttachments from '@/components/ProjectAttachments';
 import type { ProjectAttachment } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Wind, Snowflake, ShieldCheck, Globe, ClipboardList, Building2, Plug, Home, Flame, ArrowLeft, FolderKanban } from 'lucide-react';
+import { COUNTRIES, getStatesForCountry, type Country } from '@/lib/data/countriesAndStates';
 
 export default function AhjDetailsPage() {
   const params = useParams();
@@ -41,9 +42,13 @@ export default function AhjDetailsPage() {
     } catch (e) {
       setRelatedProjects([]);
     }
-    if (res?.us_state) {
-      const c = await ahjApi.getCodes(res.us_state);
-      setCodes({ electric: c.electric || [], building: c.building || [], residential: c.residential || [], fire: c.fire || [] });
+    if (res?.us_state && res?.country) {
+      try {
+        const c = await ahjApi.getCodes(res.us_state, res.country);
+        setCodes({ electric: c.electric || [], building: c.building || [], residential: c.residential || [], fire: c.fire || [] });
+      } catch (e) {
+        setCodes({ electric: [], building: [], residential: [], fire: [] });
+      }
     }
   };
 
@@ -54,21 +59,34 @@ export default function AhjDetailsPage() {
 
   const onChange = (key: string, value: any) => setData((prev: any) => ({ ...(prev || {}), [key]: value }));
 
+  const onCountryChange = async (value: string) => {
+    onChange('country', value || null);
+    onChange('us_state', ''); // Reset state when country changes
+    setCodes({ electric: [], building: [], residential: [], fire: [] });
+  };
+
   const onStateChange = async (value: string) => {
     onChange('us_state', value);
-    try {
-      const c = await ahjApi.getCodes(value);
-      setCodes({ electric: c.electric || [], building: c.building || [], residential: c.residential || [], fire: c.fire || [] });
-      // Clear code fields if they are not in new codes
-      ['electric_code','building_code','residential_code','fire_code'].forEach(k => {
-        if (data && data[k]) {
-          const codeType = k === 'electric_code' ? 'electric' : k === 'building_code' ? 'building' : k === 'residential_code' ? 'residential' : 'fire';
-          if (!c[codeType]?.includes(data[k])) {
-            onChange(k, null);
+    const country = data?.country;
+    if (country && value) {
+      try {
+        const c = await ahjApi.getCodes(value, country);
+        setCodes({ electric: c.electric || [], building: c.building || [], residential: c.residential || [], fire: c.fire || [] });
+        // Clear code fields if they are not in new codes
+        ['electric_code','building_code','residential_code','fire_code'].forEach(k => {
+          if (data && data[k]) {
+            const codeType = k === 'electric_code' ? 'electric' : k === 'building_code' ? 'building' : k === 'residential_code' ? 'residential' : 'fire';
+            if (!c[codeType]?.includes(data[k])) {
+              onChange(k, null);
+            }
           }
-        }
-      });
-    } catch {}
+        });
+      } catch {
+        setCodes({ electric: [], building: [], residential: [], fire: [] });
+      }
+    } else {
+      setCodes({ electric: [], building: [], residential: [], fire: [] });
+    }
   };
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,244 +143,287 @@ export default function AhjDetailsPage() {
           </div>
         </div>
 
-      <div className="space-y-4">
-        {/* Project AHJ name */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Project AHJ Name
-          </Label>
-          {edit ? (
-            <Input 
-              value={data.ahj || ''} 
-              onChange={e => onChange('ahj', e.target.value)} 
-              placeholder="Enter AHJ name"
-            />
-          ) : (
-            <div className="text-lg font-medium text-foreground">
-              {data.ahj || '-'}
+      <Card>
+        <CardHeader className="pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-bold">AHJ Details</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-0">
+          {/* Project AHJ name */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Project AHJ Name</h3>
             </div>
-          )}
-        </div>
-
-        {/* US state */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            US State
-          </Label>
-          {edit ? (
-            <Select value={data.us_state || ''} onValueChange={onStateChange}>
-              <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
-              <SelectContent>
-                {['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'].map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-lg font-medium text-foreground">
-              {data.us_state || '-'}
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Input 
+                  value={data.ahj || ''} 
+                  onChange={e => onChange('ahj', e.target.value)} 
+                  placeholder="Enter AHJ name"
+                />
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.ahj || '-'}</p>
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Electric code */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Electric Code
-          </Label>
-          {edit ? (
-            <Select value={data.electric_code || ''} onValueChange={(v) => onChange('electric_code', v)}>
-              <SelectTrigger><SelectValue placeholder="Select electric code" /></SelectTrigger>
-              <SelectContent>
-                {codes.electric.map((c) => (
-                  <SelectItem key={`electric-${c}`} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-lg font-medium text-foreground">
-              {data.electric_code || '-'}
+           {/* Country */}
+           <div className="py-3 flex items-start justify-between gap-4 border-b">
+             <div className="flex-shrink-0 w-48">
+               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Country</h3>
+             </div>
+             <div className="flex-1 min-w-0">
+               {edit ? (
+                 <Select value={data.country || undefined} onValueChange={(v) => onCountryChange(v)}>
+                   <SelectTrigger><SelectValue placeholder="Select country (optional)" /></SelectTrigger>
+                   <SelectContent>
+                     {COUNTRIES.map(country => (
+                       <SelectItem key={country} value={country}>{country}</SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               ) : (
+                 <p className="text-base font-semibold text-foreground">{data.country || '-'}</p>
+               )}
+             </div>
+           </div>
+
+          {/* State/Province */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">State/Province</h3>
             </div>
-          )}
-        </div>
-
-        {/* Building code */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Building Code
-          </Label>
-          {edit ? (
-            <Select value={data.building_code || ''} onValueChange={(v) => onChange('building_code', v)}>
-              <SelectTrigger><SelectValue placeholder="Select building code" /></SelectTrigger>
-              <SelectContent>
-                {codes.building.map((c) => (
-                  <SelectItem key={`building-${c}`} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-lg font-medium text-foreground">
-              {data.building_code || '-'}
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Select value={data.us_state || ''} onValueChange={onStateChange} disabled={!data.country}>
+                  <SelectTrigger><SelectValue placeholder={data.country ? "Select state/province" : "Select country first"} /></SelectTrigger>
+                  <SelectContent>
+                    {data.country ? getStatesForCountry(data.country).map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    )) : (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">Select country first</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.us_state || '-'}</p>
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Residential code */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Residential Code
-          </Label>
-          {edit ? (
-            <Select value={data.residential_code || ''} onValueChange={(v) => onChange('residential_code', v)}>
-              <SelectTrigger><SelectValue placeholder="Select residential code" /></SelectTrigger>
-              <SelectContent>
-                {codes.residential.map((c) => (
-                  <SelectItem key={`residential-${c}`} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-lg font-medium text-foreground">
-              {data.residential_code || '-'}
+          {/* Electric code */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Electric Code</h3>
             </div>
-          )}
-        </div>
-
-        {/* Fire code */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Fire Code
-          </Label>
-          {edit ? (
-            <Select value={data.fire_code || ''} onValueChange={(v) => onChange('fire_code', v)}>
-              <SelectTrigger><SelectValue placeholder="Select fire code" /></SelectTrigger>
-              <SelectContent>
-                {codes.fire.map((c) => (
-                  <SelectItem key={`fire-${c}`} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-lg font-medium text-foreground">
-              {data.fire_code || '-'}
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Select value={data.electric_code || ''} onValueChange={(v) => onChange('electric_code', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select electric code" /></SelectTrigger>
+                  <SelectContent>
+                    {codes.electric.map((c) => (
+                      <SelectItem key={`electric-${c}`} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.electric_code || '-'}</p>
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
+          {/* Building code */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Building Code</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Select value={data.building_code || ''} onValueChange={(v) => onChange('building_code', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select building code" /></SelectTrigger>
+                  <SelectContent>
+                    {codes.building.map((c) => (
+                      <SelectItem key={`building-${c}`} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.building_code || '-'}</p>
+              )}
+            </div>
+          </div>
 
-        {/* Environmental Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Residential code */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Residential Code</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Select value={data.residential_code || ''} onValueChange={(v) => onChange('residential_code', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select residential code" /></SelectTrigger>
+                  <SelectContent>
+                    {codes.residential.map((c) => (
+                      <SelectItem key={`residential-${c}`} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.residential_code || '-'}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Fire code */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Fire Code</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Select value={data.fire_code || ''} onValueChange={(v) => onChange('fire_code', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select fire code" /></SelectTrigger>
+                  <SelectContent>
+                    {codes.fire.map((c) => (
+                      <SelectItem key={`fire-${c}`} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.fire_code || '-'}</p>
+              )}
+            </div>
+          </div>
+
           {/* Wind speed (mph) */}
-          <div className="border rounded-lg p-4 bg-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Wind size={18} className="text-primary" />
-              <Label className="text-sm font-semibold text-muted-foreground">Wind speed (mph)</Label>
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Wind Speed (mph)</h3>
             </div>
-            {edit ? (
-              <Input value={data.wind_speed_mph || ''} onChange={e => onChange('wind_speed_mph', e.target.value)} className="mt-1" />
-            ) : (
-              <div className="text-lg font-medium text-foreground mt-1">{data.wind_speed_mph || '-'}</div>
-            )}
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Input value={data.wind_speed_mph || ''} onChange={e => onChange('wind_speed_mph', e.target.value)} />
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.wind_speed_mph || '-'}</p>
+              )}
+            </div>
           </div>
 
           {/* Snow load (psf) */}
-          <div className="border rounded-lg p-4 bg-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Snowflake size={18} className="text-primary" />
-              <Label className="text-sm font-semibold text-muted-foreground">Snow load (psf)</Label>
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Snow Load (psf)</h3>
             </div>
-            {edit ? (
-              <Input value={data.snow_load_psf || ''} onChange={e => onChange('snow_load_psf', e.target.value)} className="mt-1" />
-            ) : (
-              <div className="text-lg font-medium text-foreground mt-1">{data.snow_load_psf || '-'}</div>
-            )}
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Input value={data.snow_load_psf || ''} onChange={e => onChange('snow_load_psf', e.target.value)} />
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.snow_load_psf || '-'}</p>
+              )}
+            </div>
           </div>
 
           {/* Fire setback required */}
-          <div className="border rounded-lg p-4 bg-card">
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldCheck size={18} className="text-primary" />
-              <Label className="text-sm font-semibold text-muted-foreground">Fire setback required</Label>
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Fire Setback Required</h3>
             </div>
-            {edit ? (
-              <RadioGroup value={String(!!data.fire_setback_required)} onValueChange={(v) => onChange('fire_setback_required', v === 'true')} className="flex gap-6 mt-1">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="true" id="fs-yes" />
-                  <Label htmlFor="fs-yes">Yes</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="false" id="fs-no" />
-                  <Label htmlFor="fs-no">No</Label>
-                </div>
-              </RadioGroup>
-            ) : (
-              <div className="text-lg font-medium text-foreground mt-1">{data.fire_setback_required ? 'Yes' : 'No'}</div>
-            )}
-          </div>
-        </div>
-
-        {/* Building department website */}
-        <div className="border rounded-lg p-4 bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Globe size={18} className="text-primary" />
-            <Label className="text-sm font-semibold text-muted-foreground">Building department website</Label>
-          </div>
-          {edit ? (
-            <Input value={data.building_department_web || ''} onChange={e => onChange('building_department_web', e.target.value)} className="mt-1" />
-          ) : (
-            <div className="text-lg font-medium text-foreground mt-1 break-all">
-              {data.building_department_web ? (
-                <a href={data.building_department_web} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  {data.building_department_web}
-                </a>
-              ) : '-'}
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <RadioGroup value={String(!!data.fire_setback_required)} onValueChange={(v) => onChange('fire_setback_required', v === 'true')} className="flex gap-6">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="true" id="fs-yes" />
+                    <Label htmlFor="fs-yes">Yes</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="false" id="fs-no" />
+                    <Label htmlFor="fs-no">No</Label>
+                  </div>
+                </RadioGroup>
+              ) : (
+                <p className="text-base font-semibold text-foreground">{data.fire_setback_required ? 'Yes' : 'No'}</p>
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Notes Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Building department website */}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Building Department Website</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Input value={data.building_department_web || ''} onChange={e => onChange('building_department_web', e.target.value)} />
+              ) : (
+                <p className="text-base font-semibold text-foreground break-all">
+                  {data.building_department_web ? (
+                    <a href={data.building_department_web} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      {data.building_department_web}
+                    </a>
+                  ) : '-'}
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Site plan */}
-          <div className="border rounded-lg p-4 bg-card">
-            <Label className="text-sm font-semibold text-muted-foreground mb-2 block">Site plan</Label>
-            {edit ? (
-              <Textarea value={data.site_plan || ''} onChange={e => onChange('site_plan', e.target.value)} rows={4} className="mt-1" />
-            ) : (
-              <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] mt-1 p-3 bg-muted/50 rounded-md">{data.site_plan || '-'}</div>
-            )}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Site Plan</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea value={data.site_plan || ''} onChange={e => onChange('site_plan', e.target.value)} rows={4} />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">{data.site_plan || '-'}</div>
+              )}
+            </div>
           </div>
 
           {/* Structural notes */}
-          <div className="border rounded-lg p-4 bg-card">
-            <Label className="text-sm font-semibold text-muted-foreground mb-2 block">Structural notes</Label>
-            {edit ? (
-              <Textarea value={data.structural_notes || ''} onChange={e => onChange('structural_notes', e.target.value)} rows={4} className="mt-1" />
-            ) : (
-              <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] mt-1 p-3 bg-muted/50 rounded-md">{data.structural_notes || '-'}</div>
-            )}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Structural Notes</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea value={data.structural_notes || ''} onChange={e => onChange('structural_notes', e.target.value)} rows={4} />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">{data.structural_notes || '-'}</div>
+              )}
+            </div>
           </div>
 
           {/* Electrical notes */}
-          <div className="border rounded-lg p-4 bg-card">
-            <Label className="text-sm font-semibold text-muted-foreground mb-2 block">Electrical notes</Label>
-            {edit ? (
-              <Textarea value={data.electrical_notes || ''} onChange={e => onChange('electrical_notes', e.target.value)} rows={4} className="mt-1" />
-            ) : (
-              <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] mt-1 p-3 bg-muted/50 rounded-md">{data.electrical_notes || '-'}</div>
-            )}
+          <div className="py-3 flex items-start justify-between gap-4 border-b">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Electrical Notes</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea value={data.electrical_notes || ''} onChange={e => onChange('electrical_notes', e.target.value)} rows={4} />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">{data.electrical_notes || '-'}</div>
+              )}
+            </div>
           </div>
 
           {/* Placards notes */}
-          <div className="border rounded-lg p-4 bg-card">
-            <Label className="text-sm font-semibold text-muted-foreground mb-2 block">Placards notes</Label>
-            {edit ? (
-              <Textarea value={data.placards_notes || ''} onChange={e => onChange('placards_notes', e.target.value)} rows={4} className="mt-1" />
-            ) : (
-              <div className="text-foreground whitespace-pre-wrap break-words min-h-[60px] mt-1 p-3 bg-muted/50 rounded-md">{data.placards_notes || '-'}</div>
-            )}
+          <div className="py-3 flex items-start justify-between gap-4">
+            <div className="flex-shrink-0 w-48">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Placards Notes</h3>
+            </div>
+            <div className="flex-1 min-w-0">
+              {edit ? (
+                <Textarea value={data.placards_notes || ''} onChange={e => onChange('placards_notes', e.target.value)} rows={4} />
+              ) : (
+                <div className="text-foreground whitespace-pre-wrap break-words p-3 bg-muted/50 rounded-md">{data.placards_notes || '-'}</div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <Separator />
 
@@ -426,24 +487,33 @@ export default function AhjDetailsPage() {
         </Card>
 
         {/* Created By */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Created By
-          </Label>
-          <div className="text-foreground">
-            {data.created_by || '-'}
-          </div>
-        </div>
+        <Card>
+          <CardHeader className="pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold">Additional Information</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-0">
+            <div className="py-3 flex items-start justify-between gap-4 border-b">
+              <div className="flex-shrink-0 w-48">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Created By</h3>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-semibold text-foreground">{data.created_by || '-'}</p>
+              </div>
+            </div>
 
-        {/* Updated By */}
-        <div className="border rounded-lg p-4 bg-card">
-          <Label className="text-sm font-semibold text-muted-foreground mb-3 block">
-            Updated By
-          </Label>
-          <div className="text-foreground">
-            {data.updated_by || '-'}
-          </div>
-        </div>
+            {/* Updated By */}
+            <div className="py-3 flex items-start justify-between gap-4">
+              <div className="flex-shrink-0 w-48">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Updated By</h3>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-semibold text-foreground">{data.updated_by || '-'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -71,6 +71,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [clientFilter, setClientFilter] = useState<string>('all');
+  const [ballInCourtFilter, setBallInCourtFilter] = useState<string>('all');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportStartDate, setReportStartDate] = useState('');
@@ -173,7 +174,7 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
     ? projects.filter(p => visibleStatusesForTeam.includes(p.status as any))
     : projects;
 
-  // Filter projects based on search term, status, and client
+  // Filter projects based on search term, status, client, and ball in court
   const filteredProjects = managedProjects.filter((project) => {
     const matchesSearch = project.name
       .toLowerCase()
@@ -182,7 +183,8 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
       (project as any).projectCode?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     const matchesClient = clientFilter === 'all' || project.clientId === clientFilter;
-    return matchesSearch && matchesStatus && matchesClient;
+    const matchesBallInCourt = ballInCourtFilter === 'all' || project.ballInCourt === ballInCourtFilter;
+    return matchesSearch && matchesStatus && matchesClient && matchesBallInCourt;
   });
 
   const validateForm = (): boolean => {
@@ -903,6 +905,26 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
                   </SelectContent>
                 </Select>
               </div>
+              <div className="w-48">
+                <Label className="text-xs">Ball in Court</Label>
+                <Select value={ballInCourtFilter} onValueChange={setBallInCourtFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="check_inputs">Check Inputs</SelectItem>
+                    <SelectItem value="pm_court">PM's Court</SelectItem>
+                    <SelectItem value="waiting_client_response">Waiting for Client Response</SelectItem>
+                    <SelectItem value="engg_court">Engg's Court</SelectItem>
+                    <SelectItem value="pe_stamp">PE Stamp</SelectItem>
+                    <SelectItem value="project_ready">Project Ready</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="night_revision">Night Revision</SelectItem>
+                    <SelectItem value="pending_payment">Pending Payment</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="min-w-[240px]">
                 <Label htmlFor="project-search" className="text-xs">Search</Label>
                 <Input
@@ -915,12 +937,12 @@ export default function ProjectManagerDashboard({ projects: initialProjects, use
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={loadProjects}>Apply</Button>
               <Button
                 variant="outline"
                 onClick={() => {
                   setStatusFilter('all');
                   setClientFilter('all');
+                  setBallInCourtFilter('all');
                   setSearchTerm('');
                   loadProjects();
                 }}
